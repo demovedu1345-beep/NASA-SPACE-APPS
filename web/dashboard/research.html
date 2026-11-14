@@ -864,13 +864,15 @@
       <div class="glass-card" style="padding:14px 18px;">
         <div class="card-header-row">
           <span style="font-size:13px; font-weight:600; color:#fff;">Select Earth System Variable:</span>
-          <p class="card-subtitle" style="margin:8px 0 10px;">NASA mission data: Terra MODIS NDVI/LST, GPM IMERG, and TOMS/OMI merged ozone. NASA model data: POWER, MERRA-2, and GLDAS. Earth Engine credentials are required for MODIS/GPM/MERRA-2/GLDAS/OMI. Sentinel-2 NDVI is ESA Copernicus complementary evidence; AIRS remains catalogue-only until its own extraction path is verified.</p>
+          <p class="card-subtitle" style="margin:8px 0 10px;">NASA mission data: Terra MODIS NDVI/EVI and day/night LST, GPM IMERG, and TOMS/OMI merged ozone. NASA model data: POWER, MERRA-2, and GLDAS. Earth Engine credentials are required for MODIS/GPM/MERRA-2/GLDAS/OMI. Sentinel-2 NDVI is ESA Copernicus complementary evidence; AIRS remains catalogue-only until its own extraction path is verified.</p>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="btn" onclick="switchVariable('ndvi', this)">🌿 Sentinel-2 NDVI (ESA)</button>
             <button class="btn active" onclick="switchVariable('t2m', this)">🌡️ NASA POWER T2M</button>
             <button class="btn" onclick="switchVariable('precipitation', this)">🌧️ NASA POWER Precipitation</button>
             <button class="btn" onclick="switchVariable('modis_ndvi', this)">🛰️ NASA Terra MODIS NDVI</button>
-            <button class="btn" onclick="switchVariable('modis_lst_day', this)">🌡️ NASA Terra MODIS LST</button>
+            <button class="btn" onclick="switchVariable('modis_evi', this)">🌿 NASA Terra MODIS EVI</button>
+            <button class="btn" onclick="switchVariable('modis_lst_day', this)">🌡️ NASA Terra MODIS Day LST</button>
+            <button class="btn" onclick="switchVariable('modis_lst_night', this)">🌙 NASA Terra MODIS Night LST</button>
             <button class="btn" onclick="switchVariable('gpm_precipitation', this)">🌧️ NASA GPM IMERG</button>
             <button class="btn" onclick="switchVariable('merra2_t2m', this)">🌡️ NASA MERRA-2 T2M</button>
             <button class="btn" onclick="switchVariable('gldas_soil_moisture', this)">🌱 NASA GLDAS Soil Moisture</button>
@@ -1697,7 +1699,7 @@
       link.click(); URL.revokeObjectURL(url);
     }
     function exportJSON() {
-      const params = new URLSearchParams({lat:S.lat,lon:S.lon,region_name:S.place,variables:'ndvi,t2m,precipitation,modis_ndvi,modis_lst_day,gpm_precipitation,merra2_t2m,gldas_soil_moisture,omi_ozone',start_year:'2015',end_year:String(new Date().getFullYear())});
+      const params = new URLSearchParams({lat:S.lat,lon:S.lon,region_name:S.place,variables:'ndvi,t2m,precipitation,modis_ndvi,modis_evi,modis_lst_day,modis_lst_night,gpm_precipitation,merra2_t2m,gldas_soil_moisture,omi_ozone',start_year:'2015',end_year:String(new Date().getFullYear())});
       window.open('/api/earth/trends/analyze?' + params.toString(), '_blank', 'noopener');
     }
     function exportDossier() { exportJSON(); }
