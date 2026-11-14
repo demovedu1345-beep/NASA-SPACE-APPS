@@ -454,7 +454,7 @@
           },
           autocorrelation: {
             lag_1_autocorrelation: trend.lag1_autocorrelation,
-            effective_sample_size: trend.n,
+            effective_sample_size: null,
             prewhitened_applied: false,
           },
           seasonal_mann_kendall: {
@@ -503,7 +503,7 @@
       const pVal = mk.p_value ?? 1.0;
       const nObs = mk.n ?? 0;
       const r1 = ac.lag_1_autocorrelation ?? ac.lag1_r1 ?? 0;
-      const effN = ac.effective_sample_size ?? nObs;
+      const effN = ac.effective_sample_size ?? 'not estimated';
 
       // Dynamic Classification according to section 9
       let statusLabel = 'No Statistically Significant Monotonic Trend Detected';
@@ -575,13 +575,13 @@
             <div class="fp-cell" title="The number of usable observations included in the analysis.">
               <span>Valid Observations</span>
               <strong>${nObs}</strong>
-              <small style="font-size:9px; color:var(--es-text-subtle);">Monthly Epochs</small>
+              <small style="font-size:9px; color:var(--es-text-subtle);">Usable observations</small>
             </div>
 
             <div class="fp-cell" title="A measure of temporal dependence within the analysed time series.">
               <span>Temporal Autocorrelation</span>
               <strong>r₁ = ${fmt(r1, 3)}</strong>
-              <small style="font-size:9px; color:var(--es-text-subtle);">N* = ${effN}</small>
+              <small style="font-size:9px; color:var(--es-text-subtle);">Effective N* = ${effN}</small>
             </div>
           </div>
         </article>
@@ -673,7 +673,7 @@
 
           <div style="background:rgba(120,214,169,0.06); border:1px solid rgba(120,214,169,0.2); border-radius:6px; padding:10px; font-family:var(--es-font-mono); font-size:11px; line-height:1.6;">
             <b>Seasonal Mann-Kendall:</b> Seasonal Z = <b>${fmt(smk.seasonal_z, 3)}</b>, Seasonal p = <b>${fmt(smk.seasonal_p_value, 5)}</b>.<br>
-            <b>Effective Sample Size:</b> N* = <b>${ac.effective_sample_size || mk.n || 0}</b> (adjusted for serial persistence).<br>
+            <b>Sample size:</b> n = <b>${mk.n || 0}</b>. Effective sample size N* is not estimated by this endpoint.<br>
             <b>Autocorrelation treatment:</b> <span style="color:#f59e0b;">Lag-1 is reported as a diagnostic; pre-whitening is not applied in this runtime. Interpret nominal p-values cautiously when serial dependence is present.</span><br>
             <b>Hypothesis Decision:</b> ${(mk.p_value ?? 1) < 0.05 ? '<span style="color:#22c55e;">Reject H₀ in favor of H₁ (statistically significant monotonic trend detected at α = 0.05).</span>' : '<span style="color:#8E8E93;">Fail to reject H₀ (observed variability does not exceed random noise threshold at α = 0.05).</span>'}
           </div>
