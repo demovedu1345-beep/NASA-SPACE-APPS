@@ -2347,6 +2347,24 @@ _EARTH_TREND_VARIABLES = {
         "data_class": "NASA_DIRECT_OBSERVATION",
         "method": "8-day composite; QC_Day mandatory QA bits == 0; scale factor 0.02 and Kelvin-to-Celsius conversion.",
     },
+    "modis_evi": {
+        "name": "MODIS Enhanced Vegetation Index (NASA Terra)",
+        "unit": "EVI",
+        "dataset": "MODIS/061/MOD13Q1",
+        "source": "Google Earth Engine / NASA Terra MODIS MOD13Q1.061",
+        "resolution": "250 m",
+        "data_class": "NASA_DIRECT_OBSERVATION",
+        "method": "16-day composite; SummaryQA <= 1; scale factor 0.0001; EVI provides complementary sensitivity in high-biomass vegetation.",
+    },
+    "modis_lst_night": {
+        "name": "MODIS Nighttime Land Surface Temperature (NASA Terra)",
+        "unit": "°C",
+        "dataset": "MODIS/061/MOD11A2",
+        "source": "Google Earth Engine / NASA Terra MODIS MOD11A2.061",
+        "resolution": "1 km",
+        "data_class": "NASA_DIRECT_OBSERVATION",
+        "method": "8-day composite; QC_Night mandatory QA bits == 0; scale factor 0.02 and Kelvin-to-Celsius conversion.",
+    },
     "gpm_precipitation": {
         "name": "GPM IMERG Monthly Precipitation Rate",
         "unit": "mm/hr",
@@ -2562,7 +2580,9 @@ async def _earth_trend_analysis(
 
     earth_engine_layers = {
         "modis_ndvi": "modis_ndvi",
+        "modis_evi": "modis_evi",
         "modis_lst_day": "modis_lst",
+        "modis_lst_night": "modis_lst_night",
         "gpm_precipitation": "gpm_precipitation",
         "merra2_t2m": "merra2_t2m",
         "gldas_soil_moisture": "gldas_soil_moisture",
