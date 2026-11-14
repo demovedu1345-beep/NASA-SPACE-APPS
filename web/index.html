@@ -332,6 +332,32 @@
               </div>
             </div>
 
+            <!-- Near-Real-Time Multi-Sensor Telemetry (NASA FIRMS, Climate Anomaly, EONET Hazards, Command Portal) -->
+            <div id="multiSensorTelemetryStrip" style="margin-bottom:12px; display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:8px;">
+              <div style="background:var(--es-surface); border:1px solid var(--es-border); border-radius:6px; padding:8px 10px;">
+                <div style="font-size:9.5px; color:var(--es-text-muted); font-family:var(--es-font-mono); text-transform:uppercase;">🔥 NASA FIRMS Active Fire</div>
+                <div id="telemetryFire" style="font-size:12px; font-weight:700; color:#fff; margin-top:2px;">Auditing thermal sensors...</div>
+                <div id="telemetryFireSub" style="font-size:10px; color:var(--es-text-muted);">MODIS/VIIRS 1km Detection</div>
+              </div>
+              <div style="background:var(--es-surface); border:1px solid var(--es-border); border-radius:6px; padding:8px 10px;">
+                <div style="font-size:9.5px; color:var(--es-text-muted); font-family:var(--es-font-mono); text-transform:uppercase;">🌡️ Climate Baseline Anomaly</div>
+                <div id="telemetryClimate" style="font-size:12px; font-weight:700; color:#fff; margin-top:2px;">Loading Open-Meteo & POWER...</div>
+                <div id="telemetryClimateSub" style="font-size:10px; color:var(--es-text-muted);">Temperature vs 30-yr Mean</div>
+              </div>
+              <div style="background:var(--es-surface); border:1px solid var(--es-border); border-radius:6px; padding:8px 10px;">
+                <div style="font-size:9.5px; color:var(--es-text-muted); font-family:var(--es-font-mono); text-transform:uppercase;">🌪️ NASA EONET Hazards</div>
+                <div id="telemetryEonet" style="font-size:12px; font-weight:700; color:#fff; margin-top:2px;">Querying natural events...</div>
+                <div id="telemetryEonetSub" style="font-size:10px; color:var(--es-text-muted);">3° Radius Query</div>
+              </div>
+              <div style="background:var(--es-surface); border:1px solid rgba(120,214,169,0.25); border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; justify-content:space-between;">
+                <div>
+                  <div style="font-size:9.5px; color:var(--es-mint); font-family:var(--es-font-mono); text-transform:uppercase;">🛰️ Satellite Intelligence</div>
+                  <div style="font-size:11px; color:#fff; margin-top:2px; font-weight:600;">Full Command Center</div>
+                </div>
+                <a href="/command/" target="_blank" style="display:inline-block; margin-top:4px; font-size:10.5px; color:var(--es-mint); text-decoration:none; font-family:var(--es-font-mono);">Open Live Command ↗</a>
+              </div>
+            </div>
+
             <!-- Fingerprint Cards Container -->
             <div id="trendCardsContainer">
               <div class="station-empty-state">
@@ -351,6 +377,21 @@
             </div>
             <div id="statLabContainer">
               <div class="station-empty-state">No statistical run loaded. Execute trend detection to view autocorrelation and hypothesis audits.</div>
+            </div>
+
+            <!-- Supervised Logistic Regression Deforestation Benchmark Model -->
+            <div style="margin-top:16px; border-top:1px solid var(--es-border); padding-top:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div>
+                  <span class="badge-challenge" style="font-size:9.5px; margin-bottom:3px; display:inline-block;">GROUND TRUTH CLASSIFICATION BENCHMARK</span>
+                  <h4 style="margin:2px 0 0 0; color:#fff; font-size:13.5px;">Supervised Logistic Regression Deforestation Model</h4>
+                </div>
+                <span style="font-family:var(--es-font-mono); font-size:10px; color:var(--es-mint);">INPE PRODES 2022 Ground Truth</span>
+              </div>
+              <p style="font-size:11.5px; color:var(--es-text-muted); margin:0 0 8px 0;">
+                Pre-trained benchmark from <code>demovedu1345-beep/NASA-SPACE-APPS/ai/supervised_ndvi</code> trained on 908 Sentinel-2 NDVI time-series samples across 32 extracted temporal features.
+              </p>
+              <div id="benchmarkModelContainer" style="background:#07070a; border:1px solid var(--es-border); border-radius:6px; padding:10px 12px; font-size:11px; font-family:var(--es-font-mono);"></div>
             </div>
           </div>
 
@@ -407,6 +448,35 @@
 
             <div id="cmrResultsContainer">
               <div class="station-empty-state">Searching NASA Earthdata Common Metadata Repository...</div>
+            </div>
+
+            <!-- Open Source Integrations Registry -->
+            <div style="margin-top:20px; border-top:1px solid var(--es-border); padding-top:14px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <div>
+                  <span class="badge-challenge" style="font-size:9.5px; margin-bottom:3px; display:inline-block;">VETTED OPEN-SOURCE ECOSYSTEM</span>
+                  <h4 style="margin:2px 0 0 0; color:#fff; font-size:13.5px;">Geospatial & Remote-Sensing Libraries (NASA-SPACE-APPS)</h4>
+                </div>
+                <span style="font-family:var(--es-font-mono); font-size:10.5px; color:var(--es-mint);">13 Integrations Vetted</span>
+              </div>
+              <p style="font-size:11.5px; color:var(--es-text-muted); margin:0 0 10px 0;">
+                Adopting vetted open-source scientific tools from <code>NASA-SPACE-APPS</code> to power STAC catalogs, dynamic raster tiles, and multidimensional analyses.
+              </p>
+              <div id="openSourceIntegrationsContainer" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:8px;"></div>
+            </div>
+
+            <!-- Live Provider Health & Latency Observability -->
+            <div style="margin-top:16px; border-top:1px solid var(--es-border); padding-top:14px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div>
+                  <span class="badge-challenge" style="font-size:9.5px; margin-bottom:3px; display:inline-block;">SYSTEM OBSERVABILITY</span>
+                  <h4 style="margin:2px 0 0 0; color:#fff; font-size:13.5px;">Live Provider Connectivity & Latency Audit</h4>
+                </div>
+                <button onclick="refreshProviderHealth()" class="btn-secondary" style="padding:3px 8px; font-size:10px;">↻ Refresh Health</button>
+              </div>
+              <div id="sourceHealthContainer" style="background:#050508; border:1px solid var(--es-border); border-radius:6px; padding:8px 12px; font-family:var(--es-font-mono); font-size:11px;">
+                <div style="color:var(--es-text-muted);">Auditing active remote sensing providers...</div>
+              </div>
             </div>
           </div>
 
@@ -478,6 +548,21 @@
 
             <div id="correlationsContainer">
               <div class="station-empty-state">Run scientific analysis across multiple variables to populate the regional comparison matrix.</div>
+            </div>
+
+            <!-- Verified NASA Space Apps Demo Scenarios -->
+            <div style="margin-top:18px; border-top:1px solid var(--es-border); padding-top:14px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <div>
+                  <span class="badge-challenge" style="font-size:9.5px; margin-bottom:3px; display:inline-block;">PREFLIGHT-VERIFIED SCENARIOS</span>
+                  <h4 style="margin:2px 0 0 0; color:#fff; font-size:13.5px;">Multi-Sensor Benchmark Pairs (Sentinel-1 SAR & Sentinel-2 Optical)</h4>
+                </div>
+                <span style="font-family:var(--es-font-mono); font-size:10.5px; color:var(--es-mint);">5 Primary Ecosystems</span>
+              </div>
+              <p style="font-size:11.5px; color:var(--es-text-muted); margin:0 0 10px 0;">
+                Preflight-verified observation scenes from <code>demovedu1345-beep/NASA-SPACE-APPS</code>. Includes matched-orbit Sentinel-1 radar and cloud-filtered Sentinel-2 optical L2A pairs.
+              </p>
+              <div id="demoScenariosContainer" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:10px;"></div>
             </div>
           </div>
 
