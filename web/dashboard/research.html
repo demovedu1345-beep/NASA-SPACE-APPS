@@ -1689,7 +1689,7 @@
       link.click(); URL.revokeObjectURL(url);
     }
     function exportJSON() {
-      const params = new URLSearchParams({lat:S.lat,lon:S.lon,region_name:S.place,variables:'ndvi,t2m,precipitation',start_year:'2015',end_year:String(new Date().getFullYear())});
+      const params = new URLSearchParams({lat:S.lat,lon:S.lon,region_name:S.place,variables:'ndvi,t2m,precipitation,modis_ndvi,modis_lst_day',start_year:'2015',end_year:String(new Date().getFullYear())});
       window.open('/api/earth/trends/analyze?' + params.toString(), '_blank', 'noopener');
     }
     function exportDossier() { exportJSON(); }
