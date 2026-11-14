@@ -477,6 +477,12 @@
     return { ...raw, results };
   }
 
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[char]);
+  }
+
   // Render Trend Fingerprint Cards
   function renderTrendCards(data) {
     const container = document.getElementById('trendCardsContainer');
@@ -488,6 +494,8 @@
       const st = res.statistics || {};
       const mk = st.mann_kendall || {};
       const ss = st.sens_slope || {};
+      const fdr = st.multiple_testing_correction || {};
+      const trendSignificant = fdr.fdr_significant ?? mk.significant;
       const ac = st.autocorrelation || st.autocorrelation_diagnostics || {};
       const ciRaw = ss.confidence_interval_95 || ss.ci_95_per_year || [0, 0];
       const slopePerYear = ss.slope_per_year ?? 0;
@@ -506,13 +514,13 @@
         statusLabel = 'Insufficient Data for Reliable Trend Assessment';
         statusColor = '#f59e0b';
         statusBg = 'rgba(245,158,11,0.15)';
-      } else if (mk.significant) {
+      } else if (trendSignificant) {
         if (slopePerYear > 0) {
-          statusLabel = 'Significant Increasing Trend';
+          statusLabel = fdr.fdr_significant === true ? 'FDR-Adjusted Significant Increasing Trend' : 'Significant Increasing Trend';
           statusColor = '#22c55e';
           statusBg = 'rgba(34,197,94,0.15)';
         } else {
-          statusLabel = 'Significant Decreasing Trend';
+          statusLabel = fdr.fdr_significant === true ? 'FDR-Adjusted Significant Decreasing Trend' : 'Significant Decreasing Trend';
           statusColor = '#f43f5e';
           statusBg = 'rgba(244,63,94,0.15)';
         }
@@ -578,6 +586,15 @@
           </div>
         </article>
       `;
+    }
+    for (const [vid, reason] of Object.entries(data.unavailable_variables || {})) {
+      html += '<article class="fingerprint-card" style="margin-bottom:10px;border-color:rgba(245,158,11,.3);">' +
+        '<strong style="color:#f59e0b;">' + escapeHtml(vid.toUpperCase()) + ' — DATA UNAVAILABLE</strong>' +
+        '<p style="font-size:12px;color:var(--es-text-muted);margin:6px 0 0;">' + escapeHtml(reason) + '</p>' +
+        '</article>';
+    }
+    if (!Object.keys(data.results || {}).length && !Object.keys(data.unavailable_variables || {}).length) {
+      html = '<div class="station-empty-state">No validated observations were returned for this study area and period. No trend conclusion is available.</div>';
     }
     container.innerHTML = html;
   }
