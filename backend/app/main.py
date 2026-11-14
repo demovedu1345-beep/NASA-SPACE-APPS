@@ -2347,6 +2347,42 @@ _EARTH_TREND_VARIABLES = {
         "data_class": "NASA_DIRECT_OBSERVATION",
         "method": "8-day composite; QC_Day mandatory QA bits == 0; scale factor 0.02 and Kelvin-to-Celsius conversion.",
     },
+    "gpm_precipitation": {
+        "name": "GPM IMERG Monthly Precipitation Rate",
+        "unit": "mm/hr",
+        "dataset": "NASA/GPM_L3/IMERG_MONTHLY_V07",
+        "source": "Google Earth Engine / NASA GPM IMERG Monthly V07",
+        "resolution": "0.1° (~11.1 km)",
+        "data_class": "NASA_DIRECT_OBSERVATION",
+        "method": "Monthly GPM IMERG merged satellite-gauge precipitation rate; AOI mean; monthly product ends in 2025.",
+    },
+    "merra2_t2m": {
+        "name": "MERRA-2 2 m Air Temperature",
+        "unit": "°C",
+        "dataset": "NASA/GSFC/MERRA/slv/2",
+        "source": "Google Earth Engine / NASA MERRA-2 M2T1NXSLV",
+        "resolution": "Approximately 69 × 55 km",
+        "data_class": "NASA_MODEL_OUTPUT",
+        "method": "Hourly T2M reanalysis aggregated to monthly means; Kelvin converted to Celsius.",
+    },
+    "gldas_soil_moisture": {
+        "name": "GLDAS Surface Soil Moisture (0–10 cm)",
+        "unit": "kg/m²",
+        "dataset": "NASA/GLDAS/V021/NOAH/G025/T3H",
+        "source": "Google Earth Engine / NASA GLDAS-2.1 Noah",
+        "resolution": "27.8 km",
+        "data_class": "NASA_MODEL_OUTPUT",
+        "method": "3-hourly 0–10 cm soil-moisture estimates aggregated to monthly means.",
+    },
+    "omi_ozone": {
+        "name": "TOMS / OMI Merged Total Column Ozone",
+        "unit": "Dobson units",
+        "dataset": "TOMS/MERGED_V4",
+        "source": "Google Earth Engine / NASA GES DISC TOMS-OMI merged product",
+        "resolution": "111 km",
+        "data_class": "NASA_MERGED_SATELLITE_PRODUCT",
+        "method": "Daily merged total-column ozone observations aggregated to monthly means; includes TOMS history and OMI/Aura-era observations.",
+    },
 }
 
 def _earth_date_decimal(date_text: str) -> float:
@@ -2524,11 +2560,15 @@ async def _earth_trend_analysis(
             unavailable["ndvi"] = "Sentinel-2 vegetation observations unavailable: " + str(exc)[:220]
             provider_errors.append({"variable": "ndvi", "error": str(exc)[:300]})
 
-    modis_layers = {
+    earth_engine_layers = {
         "modis_ndvi": "modis_ndvi",
         "modis_lst_day": "modis_lst",
+        "gpm_precipitation": "gpm_precipitation",
+        "merra2_t2m": "merra2_t2m",
+        "gldas_soil_moisture": "gldas_soil_moisture",
+        "omi_ozone": "omi_ozone",
     }
-    for variable, layer_id in modis_layers.items():
+    for variable, layer_id in earth_engine_layers.items():
         if variable not in requested:
             continue
         try:
@@ -2554,11 +2594,11 @@ async def _earth_trend_analysis(
                 }
             else:
                 unavailable[variable] = (
-                    f"NASA MODIS extraction returned {len(rows)} quality-filtered observations; "
+                    f"NASA Earth Engine extraction returned {len(rows)} observations after configured filtering; "
                     "at least 12 are required for a trend result."
                 )
         except Exception as exc:
-            unavailable[variable] = "NASA MODIS observations unavailable: " + str(exc)[:220]
+            unavailable[variable] = "NASA Earth Engine observations unavailable: " + str(exc)[:220]
             provider_errors.append({"variable": variable, "error": str(exc)[:300]})
 
     climate_variables = {"t2m", "precipitation"}.intersection(requested)
@@ -2686,7 +2726,9 @@ async def _earth_trend_analysis(
                 "Trend statistics are computed only from returned provider observations; no synthetic NDVI, LST or climate series are inserted.",
                 "Sentinel-2 optical observations are irregular and cloud-masked; revisit gaps and seasonal sampling can affect trend interpretation.",
                 "NASA POWER climate grids are regional model/reanalysis estimates, not field microclimate measurements.",
-                "NASA MODIS values are quality-masked satellite composites summarized over a buffered point area; they are not field sensor measurements.",
+                "NASA MODIS and GPM values are satellite products summarized over buffered point areas; they are not field sensor measurements.",
+                "MERRA-2 and GLDAS values are NASA model/reanalysis outputs, not direct satellite measurements.",
+                "TOMS/OMI ozone is a merged satellite record with historical source transitions; it is not an OMI-only series across the full record.",
                 "Earth Engine MODIS extraction requires a configured Google Cloud project and authenticated Earth Engine credentials.",
                 "Correlation is descriptive and does not establish environmental causation.",
                 "A detected vegetation decline is a screening result, not legal proof of deforestation.",
