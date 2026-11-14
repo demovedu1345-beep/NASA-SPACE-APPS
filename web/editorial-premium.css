@@ -389,3 +389,5 @@ body{overflow:hidden}
  .earth-detail-metrics b{font-size:16px}
  .globe-stage .globe-hints span:first-child{display:none}
 }
+
+.globe-stage .focus-tag,.globe-stage .coord{pointer-events:none}
