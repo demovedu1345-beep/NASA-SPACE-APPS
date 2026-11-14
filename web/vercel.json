@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "git": {
+    "deploymentEnabled": {
+      "main": false,
+      "vercel-deploy": true,
+      "earthscope-trends": true,
+      "earthscope-mission-control-v2": true
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/dashboard",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/dashboard/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://vanrakshak-api-production-3e28.up.railway.app/api/:path*"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://vanrakshak-api-production-3e28.up.railway.app/api/:path*"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/web/index.html"
+    },
+    {
+      "source": "/dashboard/",
+      "destination": "/web/index.html"
+    }
+  ]
+}
