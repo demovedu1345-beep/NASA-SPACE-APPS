@@ -86,8 +86,8 @@ def test_earth_trend_variable_catalog_only_lists_connected_trend_variables():
     response = client.get("/api/earth/variables")
     assert response.status_code == 200
     body = response.json()
-    assert body["count"] == 5
-    assert set(body["variables"]) == {"ndvi", "t2m", "precipitation", "modis_ndvi", "modis_lst_day"}
+    assert body["count"] == 9
+    assert set(body["variables"]) == {"ndvi", "t2m", "precipitation", "modis_ndvi", "modis_lst_day", "gpm_precipitation", "merra2_t2m", "gldas_soil_moisture", "omi_ozone"}
 
 
 def test_climate_state_catalog_is_coordinate_reference_not_live_weather():
@@ -261,3 +261,51 @@ def test_modis_lst_reports_credential_or_provider_failure_without_fabricating_da
     assert body["ok"] is False
     assert body["trends"] == {}
     assert "Earth Engine is not authenticated" in body["unavailable_variables"]["modis_lst_day"]
+
+
+@pytest.mark.parametrize(
+    "variable,layer_id,data_class",
+    [
+        ("gpm_precipitation", "gpm_precipitation", "NASA_DIRECT_OBSERVATION"),
+        ("merra2_t2m", "merra2_t2m", "NASA_MODEL_OUTPUT"),
+        ("gldas_soil_moisture", "gldas_soil_moisture", "NASA_MODEL_OUTPUT"),
+        ("omi_ozone", "omi_ozone", "NASA_MERGED_SATELLITE_PRODUCT"),
+    ],
+)
+def test_nasa_earth_engine_monthly_products_are_extracted_as_real_series(monkeypatch, variable, layer_id, data_class):
+    observations = [
+        {"date": f"{year}-{month:02d}-01", "value": 1.0 + (year - 2015) * 0.01 + month * 0.001}
+        for year in range(2015, 2025)
+        for month in range(1, 13)
+    ]
+
+    def fake_timeseries(requested_layer, lat, lon, start_date, end_date):
+        assert requested_layer == layer_id
+        assert start_date == "2015-01-01"
+        assert end_date == "2025-01-01"
+        return {
+            "source": "Test NASA Earth Engine product fixture",
+            "dataset": main._EARTH_TREND_VARIABLES[variable]["dataset"],
+            "observations": observations,
+            "quality_mask": None,
+        }
+
+    monkeypatch.setattr(main.ee, "timeseries", fake_timeseries)
+    response = client.get(
+        "/api/earth/investigate",
+        params={
+            "lat": 12.3375,
+            "lon": 75.8069,
+            "variable": variable,
+            "start_year": 2015,
+            "end_year": 2024,
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert body["variables_evaluated"] == [variable]
+    assert body["trends"][variable]["n"] == 120
+    assert body["trends"][variable]["data_class"] == data_class
+    assert body["metadata"][variable]["provider"] == "Test NASA Earth Engine product fixture"
+    assert body["time_series"][variable]["dates"][0] == "2015-01-01"
