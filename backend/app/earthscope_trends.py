@@ -16,6 +16,7 @@ Implements:
 """
 
 from __future__ import annotations
+import os
 import math
 import json
 import urllib.request
@@ -23,11 +24,25 @@ import urllib.parse
 from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 
-EARTHDATA_BEARER_TOKEN = (
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+EARTHDATA_BEARER_TOKEN = os.getenv(
+    "EARTHDATA_TOKEN",
     "eyJ0eXAiOiJKV1QiLCJvcmlnaW4iOiJFYXJ0aGRhdGEgTG9naW4iLCJzaWciOiJlZGxqd3RwdWJrZXlfb3BzIiwiYWxnIjoiUlMyNTYifQ."
     "eyJ0eXBlIjoiVXNlciIsInVpZCI6InZlZHV4ZWFydGhzY29wZSIsInN1YiI6InZlZHV4ZWFydGhzY29wZSIsImV4cCI6MTc5OTgzMjE4NCwiaWF0IjoxNzk0NjQ4MTg0LCJpc3MiOiJodHRwczovL3Vycy5lYXJ0aGRhdGEubmFzYS5nb3YiLCJpZGVudGl0eV9wcm92aWRlciI6ImVkbF9vcHMiLCJhY3IiOiJlZGwiLCJhc3N1cmFuY2VfbGV2ZWwiOjN9."
     "pJz883f8lD-8700eu-Nqnx1Eyady6uOSJp6TOiusgcOTw8WfCxHRhMYNQbi6aibDb_ix-w_vktWyv9s-RFwFZPCVNVTvfVndj3c6oYvPTOb9epEItO2G9fpRai6HxxQV9uBorTlx-D0BIM5faN9fNcOKB2kZBSjddf90hmGzLc6100gLrTyFNdJe5eDSA8kytNkOgJwYoRjyxzoY-_b4x6B5qpkdBKBryNsy1-WZ0J8cMYS2Sfg8X2HOPd4Z7bB2EpBypFfRq0Q7HpKh7xaNo7vASDZqv5zgMcqQi_rKdUa4Oog7GKuA50WX5DuW-NBMood-PtkuMp4aOqJqPBFo3g"
 )
+
+FIRMS_MAP_KEY = os.getenv("FIRMS_MAP_KEY", "5838d5821e01327a8b8c24fe055a0955")
+PROTECTED_PLANET_TOKEN = os.getenv("PROTECTED_PLANET_TOKEN", "0f806c0fbb01e0615f7aa21bc619ad3c")
+NASA_POWER_API_KEY = os.getenv("NASA_POWER_API_KEY", "bc5c6b8541b7083ced482790aab5a5bb")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT", "protean-sensor-495611-q7")
+GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", r"C:\Users\itzra\.config\vanrakshak\gcp-service-account.json")
 
 USER_AGENT = "EARTHSCOPE-NASA-SpaceApps/2026.1 (User: veduxearthscope; Contact: spaceapps@earthscope.ai)"
 
