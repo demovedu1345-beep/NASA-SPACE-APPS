@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/controls/OrbitControls.js";
-import gsap from "https://cdn.jsdelivr.net/npm/gsap@3.13.0/index.js";
+const gsap = window.gsap;
 
 const API_BASE=(window.VANRAKSHAK_API_BASE||"").replace(/\/$/,"");
 const $=id=>document.getElementById(id), $$=s=>Array.from(document.querySelectorAll(s));
@@ -295,8 +295,54 @@ async function toggleLayer(layer,enabled,input){
   }
   if(layer.render==="point_data"){
    const soilIds=["soil_type","soil_ph","soc","nitrogen","texture","bulk_density","cec"];
-   const result=soilIds.includes(layer.id)?await api("/api/soil?lat="+state.lat+"&lon="+state.lon):await api("/api/weather?lat="+state.lat+"&lon="+state.lon);
-   renderLayerInspector(layer.label,result);toast(layer.label+" values retrieved for the selected point.");return;
+   if(soilIds.includes(layer.id)){
+    const result=await api("/api/soil?lat="+state.lat+"&lon="+state.lon);
+    renderLayerInspector(layer.label,result);
+    toast(layer.label+" provider response received for the selected point.");
+    return;
+   }
+   const result=await api("/api/weather?lat="+state.lat+"&lon="+state.lon);
+   const d=result.data||{},current=d.current||{},hourly=d.hourly||{},cu=d.current_units||{},hu=d.hourly_units||{};
+   const hourlyFields={
+    soil_moisture:["soil_moisture_0_to_1cm","soil_moisture_1_to_3cm"],
+    evapotranspiration:["et0_fao_evapotranspiration"]
+   };
+   const currentFields={
+    temperature:["temperature_2m"],
+    rainfall:["precipitation","rain"],
+    precipitation:["precipitation"],
+    humidity:["relative_humidity_2m"],
+    wind:["wind_speed_10m","wind_direction_10m"],
+    cloud_cover:["cloud_cover"]
+   };
+   const fields=hourlyFields[layer.id]||currentFields[layer.id]||[];
+   const source=hourlyFields[layer.id]?hourly:current;
+   const units=hourlyFields[layer.id]?hu:cu;
+   const timeList=hourlyFields[layer.id]?(hourly.time||[]):[];
+   const latestIndex=timeList.length?timeList.length-1:-1;
+   const values={};
+   for(const field of fields){
+    const arr=source[field];
+    const value=Array.isArray(arr)?arr[latestIndex]:arr;
+    values[field]=value==null?null:{value,unit:units[field]||"provider unit not supplied"};
+   }
+   const available=Object.values(values).some(x=>x&&x.value!=null);
+   const payload={
+    label:"DIRECT_PROVIDER_RESPONSE",
+    requested_variable:layer.id,
+    location:{name:state.place,lat:state.lat,lon:state.lon},
+    source:result.provenance?.source||result.source||"Open-Meteo",
+    source_url:result.provenance?.source_url||"https://open-meteo.com/",
+    temporal_reference:hourlyFields[layer.id]?(timeList[latestIndex]||null):(current.time||null),
+    cadence:hourlyFields[layer.id]?"Hourly forecast/model output":"Current provider snapshot",
+    values,
+    availability:available?"AVAILABLE":"UNAVAILABLE",
+    note:available?"Only the requested provider-returned fields are shown.":"The provider did not return the requested variable; no substitute value was inserted."
+   };
+   renderLayerInspector(layer.label,payload);
+   if(available)toast(layer.label+" data retrieved from the provider.");
+   else toast(layer.label+" is not present in the current provider response.","error");
+   return;
   }
   if(layer.render==="analysis"){
    const start=iso(new Date(Date.now()-3*365*86400000)),end=iso(new Date());
@@ -464,14 +510,14 @@ async function runRegionalCompare(){
  if(!name||!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180){$("compareResult").innerHTML=renderEmpty("Enter a second region name and valid coordinates before running the comparison.");return}
  const start=$("trendStart").value||iso(new Date(Date.now()-3*365*86400000)),end=$("trendEnd").value||iso(new Date());
  if(start>=end){toast("Choose a valid analysis period first.","error");return}
- $("compareResult").innerHTML='<div class="loading">Comparing both regions using source-backed evidence…</div>';
+ $("compareResult").innerHTML='<div class="loading">The backend is retrieving satellite, fire, climate and protected-area evidence for both regions, then calculating the comparison…</div>';
  try{
   const payload={regions:[
    {name:state.place,lat:state.lat,lon:state.lon,before_date:start,after_date:end,radius_km:1.5},
    {name:name,lat:lat,lon:lon,before_date:start,after_date:end,radius_km:1.5}
   ]};
   const result=await api("/api/intelligence/compare-live",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-  $("compareResult").innerHTML=renderJson(result);toast("Regional comparison response received.");
+  $("compareResult").innerHTML=renderJson({...result,method_note:"The backend generated the evidence-chain measurements for each supplied region before comparing them. Missing source evidence is reflected in the underlying records; this is a prioritisation comparison, not proof of causation or a Mann–Kendall trend test."});toast("Regional comparison response received.");
  }catch(e){$("compareResult").innerHTML=renderEmpty(e.message);toast("Regional comparison unavailable: "+e.message,"error")}
 }
 
