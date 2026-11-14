@@ -17,7 +17,6 @@
 
   <!-- Libraries: Three.js, ECharts, MapLibre GL -->
   <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-  <script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
   <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
 
@@ -837,15 +836,10 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-      // OrbitControls for interactive background dragging
-      const controls = new THREE.OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.05;
-      controls.enableZoom = false;
-      controls.rotateSpeed = 0.6;
-      controls.autoRotate = true;
-      controls.autoRotateSpeed = 0.4;
-      S.controls = controls;
+      // Earth Group containing sphere, atmosphere, clouds and orbit rings
+      const earthGroup = new THREE.Group();
+      scene.add(earthGroup);
+      S.earth = earthGroup;
 
       // Lighting
       const ambientLight = new THREE.AmbientLight(0x223344, 1.2);
@@ -855,7 +849,7 @@
       sunLight.position.set(5, 3, 5);
       scene.add(sunLight);
 
-      // Earth Sphere with High-Craft Procedural/Shader Surface
+      // Earth Sphere with High-Craft Procedural Surface
       const earthRadius = 1.0;
       const sphereGeo = new THREE.SphereGeometry(earthRadius, 64, 64);
 
@@ -901,8 +895,7 @@
         metalness: 0.1
       });
       const earthMesh = new THREE.Mesh(sphereGeo, earthMat);
-      scene.add(earthMesh);
-      S.earth = earthMesh;
+      earthGroup.add(earthMesh);
 
       // Clouds Sphere
       const cloudsGeo = new THREE.SphereGeometry(earthRadius * 1.015, 48, 48);
@@ -913,7 +906,7 @@
         blending: THREE.AdditiveBlending
       });
       const cloudsMesh = new THREE.Mesh(cloudsGeo, cloudsMat);
-      scene.add(cloudsMesh);
+      earthGroup.add(cloudsMesh);
 
       // Atmospheric Rim Halo (Fresnel Atmosphere)
       const atmosGeo = new THREE.SphereGeometry(earthRadius * 1.08, 48, 48);
@@ -937,7 +930,7 @@
         transparent: true
       });
       const atmosMesh = new THREE.Mesh(atmosGeo, atmosMat);
-      scene.add(atmosMesh);
+      earthGroup.add(atmosMesh);
 
       // Starfield Particle System
       const starsGeo = new THREE.BufferGeometry();
@@ -959,13 +952,43 @@
       const ringMesh = new THREE.Mesh(ringGeo, ringMat);
       ringMesh.rotation.x = Math.PI / 2.5;
       ringMesh.rotation.y = Math.PI / 8;
-      scene.add(ringMesh);
+      earthGroup.add(ringMesh);
+
+      // High-tactile pointer drag rotation (100% universal, zero-dependency)
+      let isDragging = false;
+      let prevX = 0, prevY = 0;
+
+      window.addEventListener('pointerdown', (e) => {
+        if (e.target === canvas || e.target.classList.contains('main-grid') || e.target.tagName === 'BODY' || e.target.tagName === 'HTML') {
+          isDragging = true;
+          prevX = e.clientX;
+          prevY = e.clientY;
+          canvas.style.cursor = 'grabbing';
+        }
+      });
+
+      window.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - prevX;
+        const dy = e.clientY - prevY;
+        earthGroup.rotation.y += dx * 0.005;
+        earthGroup.rotation.x = Math.max(-0.6, Math.min(0.6, earthGroup.rotation.x + dy * 0.005));
+        prevX = e.clientX;
+        prevY = e.clientY;
+      });
+
+      window.addEventListener('pointerup', () => {
+        isDragging = false;
+        canvas.style.cursor = 'grab';
+      });
 
       // Animation Loop
       function animate() {
         requestAnimationFrame(animate);
-        cloudsMesh.rotation.y += 0.0006;
-        controls.update();
+        if (!isDragging) {
+          earthGroup.rotation.y += 0.001;
+        }
+        cloudsMesh.rotation.y += 0.0016;
         renderer.render(scene, camera);
       }
       animate();
@@ -980,46 +1003,58 @@
     // 2. Initialize MapLibre GL Map
     function initMap() {
       const container = document.getElementById('dashboardMap');
-      if (!container) return;
+      if (!container || typeof maplibregl === 'undefined') return;
 
-      S.map = new maplibregl.Map({
-        container: 'dashboardMap',
-        style: {
-          version: 8,
-          sources: {
-            'osm-tiles': {
+      try {
+        S.map = new maplibregl.Map({
+          container: 'dashboardMap',
+          style: {
+            version: 8,
+            sources: {
+              'osm-tiles': {
+                type: 'raster',
+                tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                tileSize: 256,
+                attribution: '© OpenStreetMap contributors'
+              }
+            },
+            layers: [{
+              id: 'osm-layer',
               type: 'raster',
-              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-              tileSize: 256,
-              attribution: '© OpenStreetMap contributors'
-            }
+              source: 'osm-tiles',
+              minzoom: 0,
+              maxzoom: 19
+            }]
           },
-          layers: [{
-            id: 'osm-layer',
-            type: 'raster',
-            source: 'osm-tiles',
-            minzoom: 0,
-            maxzoom: 19
-          }]
-        },
-        center: [S.lon, S.lat],
-        zoom: 9
-      });
+          center: [S.lon, S.lat],
+          zoom: 9
+        });
 
-      S.marker = new maplibregl.Marker({ color: '#78D6A9' })
-        .setLngLat([S.lon, S.lat])
-        .addTo(S.map);
+        S.marker = new maplibregl.Marker({ color: '#78D6A9' })
+          .setLngLat([S.lon, S.lat])
+          .addTo(S.map);
 
-      S.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+        S.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+
+        S.map.on('load', () => {
+          S.map.resize();
+        });
+      } catch (e) {
+        console.warn('MapLibre init notice:', e);
+      }
     }
 
     // 3. Initialize Apache ECharts Time Series Trend Studio
     function initChart() {
       const el = document.getElementById('trendChartBox');
-      if (!el) return;
-      S.chart = echarts.init(el, null, { renderer: 'canvas' });
-      renderEmptyChart();
-      window.addEventListener('resize', () => S.chart && S.chart.resize());
+      if (!el || typeof echarts === 'undefined') return;
+      try {
+        S.chart = echarts.init(el, null, { renderer: 'canvas' });
+        renderEmptyChart();
+        window.addEventListener('resize', () => S.chart && S.chart.resize());
+      } catch (e) {
+        console.warn('ECharts init notice:', e);
+      }
     }
 
     function renderEmptyChart() {
@@ -1281,11 +1316,11 @@
 
     // Document Init
     window.addEventListener('DOMContentLoaded', () => {
-      initEarthBackground();
-      initMap();
-      initChart();
+      try { initEarthBackground(); } catch (err) { console.error('Earth init error:', err); }
+      try { initMap(); } catch (err) { console.error('Map init error:', err); }
+      try { initChart(); } catch (err) { console.error('Chart init error:', err); }
       setTimeout(() => {
-        runInvestigation();
+        try { runInvestigation(); } catch (err) { console.error('Investigation error:', err); }
       }, 300);
     });
   </script>
