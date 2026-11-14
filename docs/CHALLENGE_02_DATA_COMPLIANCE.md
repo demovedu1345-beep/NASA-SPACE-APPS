@@ -11,8 +11,8 @@ The tool must let a user select Earth-science variables measured by NASA mission
 | NASA POWER T2M | NASA POWER / GMAO gridded near-surface air-temperature model/reanalysis | **Connected** — daily values retrieved from NASA POWER and aggregated to monthly means |
 | NASA POWER PRECTOTCORR | NASA POWER gridded precipitation estimate | **Connected** — daily values retrieved from NASA POWER and summed to monthly totals |
 | Sentinel-2 MSI L2A NDVI | ESA Copernicus satellite-derived vegetation index | **Connected as complementary non-NASA evidence** — must not be described as a NASA mission variable |
-| NASA Terra MODIS MOD13Q1 NDVI/EVI | NASA satellite vegetation-index product | **Catalogue / credential-gated** — not counted as a live trend variable until a real AppEEARS or Earth Engine extraction succeeds |
-| NASA Terra MODIS MOD11A2 LST | NASA satellite land-surface temperature | **Catalogue / credential-gated** — no trend result until real quality-filtered values are extracted |
+| NASA Terra MODIS MOD13Q1 NDVI/EVI | NASA satellite vegetation-index product | **Earth Engine adapter wired; credential-gated** — count as live only after authenticated regional extraction returns quality-filtered observations |
+| NASA Terra MODIS MOD11A2 LST | NASA satellite land-surface temperature | **Earth Engine adapter wired; credential-gated** — QC_Day filtering and scale conversion are implemented; production extraction remains unverified |
 | NASA/JAXA GPM IMERG | Satellite precipitation retrieval | **Catalogue / extraction pending** — CMR discovery is not a retrieved time series |
 | NASA MERRA-2 / GLDAS | NASA model/reanalysis land and atmospheric variables | **Catalogue / extraction pending** — must be fetched as real regional values before trend calculation |
 | NASA AIRS / Aura OMI | NASA atmospheric composition/sounding observations | **Catalogue / extraction pending** — no synthetic substitute is allowed |
@@ -47,7 +47,7 @@ For each variable that has a real time series:
 
 - NASA POWER: public API; no key required for the current product path.
 - NASA Earthdata / AppEEARS: requires an Earthdata Login account/token for authenticated task submission and retrieval.
-- Google Earth Engine: requires an enabled Google Cloud project and valid Earth Engine credentials.
+- Google Earth Engine: requires an enabled Google Cloud project and valid Earth Engine credentials. MOD13Q1 and MOD11A2 adapters are implemented, but must pass a real authenticated extraction before being presented as live.
 - NASA FIRMS: requires a valid MAP key for the full fire-detection API.
 - Missing credentials must produce a precise unavailable/credential-required state, never sample data or fabricated measurements.
 
