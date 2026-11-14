@@ -817,7 +817,7 @@
             <h2 class="card-title">
               <span>📊 Historical Climatology Explorer (12-Month Profile)</span>
             </h2>
-            <p class="card-subtitle">10-year monthly climate reference from Open-Meteo Archive / NASA POWER fallback</p>
+            <p class="card-subtitle">10-year monthly climate reference from Open-Meteo Archive (separate from NASA POWER trend analysis)</p>
           </div>
           <div style="display:flex; gap:8px;">
             <button class="btn active" style="font-size:11px; padding:4px 10px;" id="btnToggleTemp" onclick="toggleClimatologyParam('T2M')">Temp (°C)</button>
@@ -867,7 +867,7 @@
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="btn active" onclick="switchVariable('ndvi', this)">🌿 NDVI (Canopy Greenness)</button>
             <button class="btn" onclick="switchVariable('t2m', this)">🌡️ T2M (2m Air Temp)</button>
-            <button class="btn" onclick="switchVariable('precipitation', this)">🌧️ Precipitation (Open-Meteo / NASA POWER)</button>
+            <button class="btn" onclick="switchVariable('precipitation', this)">🌧️ Precipitation (NASA POWER)</button>
           </div>
         </div>
       </div>
@@ -1126,8 +1126,8 @@
       { name: "Sentinel-1A & 1B", agency: "ESA Copernicus", sensor: "C-SAR (Synthetic Aperture Radar)", resolution: "C-band All-weather", bands: "VV, VH Polarizations for Cloud-penetrating Radar", status: "Mission catalogue entry · ASF scene search separate" },
       { name: "Landsat 8 & 9", agency: "NASA / USGS", sensor: "OLI-2 & TIRS-2", resolution: "30m Multispectral + Thermal", bands: "Coastal, Visible, NIR, SWIR, Thermal Infrared", status: "Mission catalogue entry · scene availability checked separately" },
       { name: "Terra & Aqua", agency: "NASA", sensor: "MODIS (Moderate Resolution Imaging)", resolution: "250m / 500m / 1km", bands: "MOD13Q1 (NDVI/EVI), MOD11A2 (LST Day/Night)", status: "Mission catalogue entry · product availability checked separately" },
-      { name: "Suomi NPP / NOAA-20 / 21", agency: "NASA / NOAA", sensor: "VIIRS (Visible Infrared Suite)", resolution: "375m Active Fire", bands: "NASA FIRMS Pixel-level Thermal Wildfire Anomaly", status: "Active (Sub-daily)" },
-      { name: "ISS / NASA GEDI", agency: "NASA / Univ. of Maryland", sensor: "Geodetic Lidar", resolution: "25m Footprint Lidar", bands: "L4A Aboveground Biomass Density & Canopy Height", status: "Active (Mission Store)" },
+      { name: "Suomi NPP / NOAA-20 / 21", agency: "NASA / NOAA", sensor: "VIIRS (Visible Infrared Suite)", resolution: "375m Active Fire", bands: "NASA FIRMS pixel-level thermal fire detections", status: "FIRMS MAP key required · runtime status checked separately" },
+      { name: "ISS / NASA GEDI", agency: "NASA / Univ. of Maryland", sensor: "Geodetic Lidar", resolution: "25m Footprint Lidar", bands: "L4A Aboveground Biomass Density & Canopy Height", status: "Earth Engine credentials required · product extraction checked separately" },
       { name: "GPM Core Observatory", agency: "NASA / JAXA", sensor: "DPR & GMI Radar/Radiometer", resolution: "0.1° Gridded", bands: "IMERG Final Run Monthly Precipitation Accumulation", status: "Mission catalogue entry · product availability checked separately" },
       { name: "ISRO Resourcesat & INSAT", agency: "ISRO", sensor: "LISS-III, AWiFS, VHRR", resolution: "23.5m / 56m Multi-spectral", bands: "Bhuvan WMS Layers, MOSDAC Meteorological", status: "Mission catalogue entry · service response checked separately" }
     ];
@@ -1402,7 +1402,10 @@
       try {
         const res = await fetch('/api/earth/investigate?' + params.toString());
         const data = await res.json();
-        if (!res.ok || !data.ok) throw new Error(data.error || data.detail || 'No valid observations were returned for this variable.');
+        if (!res.ok || !data.ok) {
+          const reason = data.unavailable_variables && data.unavailable_variables[S.variable];
+          throw new Error(reason || data.error || data.detail || 'No valid observations were returned for this variable.');
+        }
         S.decadalData = data;
         renderDecadalUI(data);
       } catch (err) {
@@ -1444,7 +1447,11 @@
       const metadata = data && data.metadata ? data.metadata[S.variable] : null;
       put('activeVariableBadge', metadata ? ('VARIABLE: ' + (metadata.name || S.variable) + ' · ' + (metadata.resolution || metadata.dataset || 'provider data')) : ('VARIABLE: ' + S.variable.toUpperCase()));
       const status = document.getElementById('telemetryStatusText');
-      if (status && unavailable) status.textContent = unavailable;
+      if (status) status.textContent = unavailable
+        ? 'UNAVAILABLE · ' + unavailable
+        : metadata
+          ? 'SOURCE · ' + (metadata.provider || metadata.source || 'Provider not named') + ' · ' + (metadata.data_class || 'DATA CLASS NOT REPORTED') + ' · ' + (metadata.resolution || 'resolution not reported')
+          : 'No provider provenance was returned for this variable.';
     }
 
     function renderDecadalChart(series) {
