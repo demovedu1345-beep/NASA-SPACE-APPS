@@ -206,6 +206,14 @@
     }
   }
 
+  const navSearch = $(".portfolio-tools .search-wrap");
+  if (navSearch) {
+    navSearch.addEventListener("click", (event) => {
+      const field = $("#globalSearch", navSearch);
+      if (field && event.target.closest("i")) field.focus();
+    });
+  }
+
   function setWorkspaceDrawer(open) {
     if (!sidebar) return;
     sidebar.classList.toggle("open", open);
@@ -427,7 +435,6 @@
     initParallax();
     initNavigationMotion();
     observePages();
-    initCoverMotion($('[data-view="overview"]'));
     initHoverTilt();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
