@@ -75,6 +75,7 @@ from fastapi import Query, Request
 from starlette.middleware.cors import CORSMiddleware
 from starlette.routing import Route
 import urllib.request, urllib.parse, json
+from datetime import datetime, timezone
 import uvicorn
 
 # Import EARTHSCOPE backend engine
@@ -84,6 +85,7 @@ from earthscope_backend import (
     APPEEARS_LPDAAC_PRODUCTS,
     build_appeears_task_payload,
     query_nasa_cmr,
+    fetch_nasa_power_monthly,
     run_earthscope_investigation,
     generate_earthscope_report_html,
     USER_AGENT
