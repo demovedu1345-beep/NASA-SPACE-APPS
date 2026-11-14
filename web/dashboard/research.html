@@ -1227,7 +1227,7 @@
         if (night) { nightMaterial.map = night; nightMaterial.needsUpdate = true; } else nightLayer.visible = false;
         if (clouds) { cloudMaterial.map = clouds; cloudMaterial.needsUpdate = true; } else cloudLayer.visible = false;
         const status = document.getElementById('telemetryStatusText');
-        if (status) status.textContent = surface ? (day ? 'NASA BLUE MARBLE · 5.4K TEXTURE' : 'EARTH SURFACE TEXTURE READY') : 'EARTH TEXTURE UNAVAILABLE';
+        if (status) status.textContent = surface ? (day ? 'NASA BLUE MARBLE · TEXTURE LOADED' : 'EARTH SURFACE TEXTURE READY') : 'EARTH TEXTURE UNAVAILABLE';
       });
       let running = true;
       const animate = () => {
@@ -1702,9 +1702,26 @@
       const lat = S.tempLat != null ? S.tempLat : S.lat;
       const lon = S.tempLon != null ? S.tempLon : S.lon;
       const place = S.tempPlace || S.place;
-      const forecast = S.forecastData && S.forecastData.daily_forecast ? S.forecastData.daily_forecast : [];
+      const payload = S.forecastData || {};
+      const forecast = payload.daily_forecast || [];
+      const put = (id, value) => {
+        const node = document.getElementById(id);
+        if (node) node.innerText = value == null || value === '' ? 'Unavailable' : String(value);
+      };
       document.getElementById('modalLocTitle').innerText = place;
-      document.getElementById('modalLocCoords').innerText = 'Coordinates: ' + lat.toFixed(4) + '°N, ' + lon.toFixed(4) + '°E | Provider forecast window';
+      document.getElementById('modalLocCoords').innerText =
+        'Coordinates: ' + lat.toFixed(4) + '°N, ' + lon.toFixed(4) + '°E | Provider forecast window';
+      const temps = forecast.map(row => row.temp_high).filter(value => value != null && Number.isFinite(Number(value))).map(Number);
+      const lows = forecast.map(row => row.temp_low).filter(value => value != null && Number.isFinite(Number(value))).map(Number);
+      const rain = forecast.map(row => row.rain_mm).filter(value => value != null && Number.isFinite(Number(value))).map(Number);
+      const wind = forecast.map(row => row.wind_kmh).filter(value => value != null && Number.isFinite(Number(value))).map(Number);
+      put('modalTemp', temps.length ? (temps.reduce((sum, value) => sum + value, 0) / temps.length).toFixed(1) + '°C mean daily high' : null);
+      put('modalTempRange', temps.length && lows.length ? Math.min(...lows).toFixed(1) + '°C – ' + Math.max(...temps).toFixed(1) + '°C provider range' : null);
+      put('modalRain', rain.length ? rain.reduce((sum, value) => sum + value, 0).toFixed(1) + ' mm' : null);
+      put('modalRainMeta', rain.length ? rain.length + ' forecast days returned' : null);
+      put('modalWind', wind.length ? (wind.reduce((sum, value) => sum + value, 0) / wind.length).toFixed(1) + ' km/h mean daily maximum' : null);
+      put('modalWindMeta', wind.length ? 'Maximum: ' + Math.max(...wind).toFixed(1) + ' km/h' : null);
+      put('modalSource', payload.source || null);
       const tbody = document.getElementById('modalPredictionsTableBody');
       if (!forecast.length) {
         tbody.innerHTML = '<tr><td colspan="6">No provider forecast is available for this location. Run the climate query again.</td></tr>';
@@ -1713,10 +1730,10 @@
           '<td style="font-family:var(--font-mono);color:#fff;">' + (day.date || '—') + '</td>' +
           '<td style="font-family:var(--font-mono);">' + (day.temp_high == null ? '—' : Number(day.temp_high).toFixed(1) + '°C') +
           ' / ' + (day.temp_low == null ? '—' : Number(day.temp_low).toFixed(1) + '°C') + '</td>' +
-          '<td style="font-family:var(--font-mono);">' + (day.rain_mm == null ? '—' : day.rain_mm + ' mm') + '</td>' +
+          '<td style="font-family:var(--font-mono);">' + (day.rain_mm == null ? '—' : Number(day.rain_mm).toFixed(1) + ' mm') + '</td>' +
           '<td>' + (day.rain_prob == null ? '—' : day.rain_prob + '%') + '</td>' +
           '<td style="font-family:var(--font-mono);">' + (day.wind_kmh == null ? '—' : day.wind_kmh + ' km/h') + '</td>' +
-          '<td style="font-family:var(--font-mono);color:var(--cyan);">Open-Meteo provider forecast</td></tr>').join('');
+          '<td style="font-family:var(--font-mono);color:var(--cyan);">' + (day.source || payload.source || 'Provider source not named') + '</td></tr>').join('');
       }
       modal.style.display = 'flex';
     }
