@@ -589,6 +589,9 @@ async function boot(){
  try{initEarth()}catch(e){$("textureStatus").textContent="3D RENDERER UNAVAILABLE";console.error(e)}
  if(!reduced&&window.gsap){gsap.from(".sidebar",{x:-12,opacity:0,duration:.6,ease:"power3.out"});gsap.from(".topbar",{y:-10,opacity:0,duration:.5,delay:.06});gsap.from(".globe-panel",{y:15,opacity:0,duration:.75,delay:.12,ease:"power3.out"});gsap.from(".hero-side .panel",{y:12,opacity:0,duration:.6,stagger:.1,delay:.22})}
  $("trendEnd").value=iso(new Date());$("trendStart").value=iso(new Date(Date.now()-3*365*86400000));
- await loadOverview();navigate("overview");
+ await loadOverview();
+  const requestedPage=new URLSearchParams(window.location.search).get("page");
+  const allowedPages=new Set(["overview","observatory","satellites","layers","forest","fire","climate","intelligence","analytics","operations","reports","systems"]);
+  navigate(allowedPages.has(requestedPage)?requestedPage:"overview");
 }
 document.addEventListener("DOMContentLoaded",boot);
