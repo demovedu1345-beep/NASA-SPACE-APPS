@@ -302,3 +302,90 @@ body{overflow:hidden}
   .cover-scroll i::after{animation:none}
   .cover-copy,.cover-aura,.cover-orbit{will-change:auto}
 }
+
+
+/* Precision Earth explorer — high-resolution surface, selection and evidence inspector */
+#earthCanvas{cursor:crosshair;outline:0}
+.globe-stage{background:radial-gradient(ellipse at 50% 48%,rgba(34,105,140,.26),transparent 56%),radial-gradient(ellipse at 50% 100%,rgba(0,0,0,.55),transparent 55%),#030810}
+.globe-stage.is-picking:after{
+ content:"";position:absolute;z-index:4;inset:-45%;pointer-events:none;opacity:0;
+ background:conic-gradient(from 0deg,transparent 0deg,rgba(105,207,255,.03) 245deg,rgba(144,226,255,.22) 278deg,transparent 310deg);
+ -webkit-mask-image:radial-gradient(closest-side,transparent 45%,#000 78%,transparent 100%);
+ mask-image:radial-gradient(closest-side,transparent 45%,#000 78%,transparent 100%);
+ animation:earth-selection-sweep 1s cubic-bezier(.18,.72,.24,1) both;
+}
+@keyframes earth-selection-sweep{0%{opacity:0;transform:rotate(-38deg) scale(.72)}22%{opacity:1}100%{opacity:0;transform:rotate(322deg) scale(1.08)}}
+.globe-stage .globe-hints{z-index:5}
+.globe-stage .coord,.globe-stage .focus-tag{z-index:5}
+.earth-detail-panel{
+ margin:0 0 20px;padding:21px 22px 16px;border:1px solid rgba(137,190,220,.20);
+ background:linear-gradient(145deg,rgba(10,22,33,.94),rgba(5,10,17,.92));
+ border-radius:22px;box-shadow:0 24px 64px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.045);
+ overflow:hidden;position:relative;isolation:isolate;
+}
+.earth-detail-panel:before{
+ content:"";position:absolute;z-index:-1;right:-130px;top:-230px;width:430px;height:430px;border-radius:50%;
+ background:radial-gradient(circle,rgba(76,160,205,.10),transparent 68%);pointer-events:none;
+}
+.earth-detail-panel[hidden]{display:none!important}
+.earth-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:0 0 17px;border-bottom:1px solid rgba(255,255,255,.085)}
+.earth-detail-head>div:first-child{min-width:0}
+.earth-detail-head small,.earth-detail-label,.earth-detail-feature small,.earth-detail-pair small,.earth-detail-metrics small,.earth-event-context>div>small{
+ display:block;color:#7793a3;font:600 8px var(--font-body);letter-spacing:.18em;text-transform:uppercase
+}
+.earth-detail-head h2{margin:8px 0 5px;color:#f2f7fa;font:400 clamp(23px,3vw,34px)/1.06 var(--font-display);font-style:italic;overflow-wrap:anywhere}
+.earth-detail-head p{margin:0;color:#91a3ad;font:10px var(--font-body);letter-spacing:.045em}
+.earth-detail-actions{display:flex;align-items:center;gap:12px;flex:none}
+.earth-detail-actions>span{padding:7px 10px;border:1px solid rgba(111,193,225,.20);border-radius:999px;color:#9bd5ed;background:rgba(73,153,194,.08);font:600 7px var(--font-body);letter-spacing:.15em;white-space:nowrap}
+.earth-detail-actions .icon-btn{width:31px;height:31px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.12);border-radius:50%;background:rgba(255,255,255,.04);color:#afc0c9}
+.earth-detail-actions .icon-btn:hover{color:white;border-color:rgba(137,190,220,.4)}
+.earth-detail-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:15px 0 12px}
+.earth-detail-block{min-width:0;padding:14px;border:1px solid rgba(255,255,255,.075);border-radius:15px;background:rgba(255,255,255,.025)}
+.earth-detail-label{display:flex;align-items:center;gap:8px;margin:0 0 14px;color:#a3c5d7;font-size:7px;letter-spacing:.16em}
+.earth-detail-label svg{width:13px;height:13px;color:#8fc9e3}
+.earth-detail-feature{display:grid;gap:5px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.055)}
+.earth-detail-feature:last-child{border-bottom:0}
+.earth-detail-feature b,.earth-detail-pair b{display:block;color:#e5edf1;font:500 11px var(--font-body);line-height:1.45;overflow-wrap:anywhere}
+.earth-detail-feature em{color:#728a97;font:italic 9px var(--font-body);line-height:1.5}
+.earth-detail-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.055)}
+.earth-detail-pair:last-child{border-bottom:0}
+.earth-detail-pair>div{min-width:0}
+.earth-detail-pair b{margin-top:5px;font-size:12px}
+.earth-detail-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.earth-detail-metrics>div{min-width:0;padding:9px;border:1px solid rgba(255,255,255,.06);border-radius:10px;background:rgba(255,255,255,.025)}
+.earth-detail-metrics b{display:block;margin-bottom:5px;color:#f1f7fa;font:500 17px var(--font-display);letter-spacing:-.02em}
+.earth-detail-metrics small{font-size:6px;letter-spacing:.12em}
+.earth-event-context{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:16px;padding-top:13px;border-top:1px solid rgba(255,255,255,.075)}
+.earth-event-context>div:first-child{min-width:0}
+#earthEventList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:8px}
+.earth-event-row{display:flex;align-items:flex-start;gap:8px;min-width:0;padding:8px 9px;border:1px solid rgba(255,255,255,.06);border-radius:9px;background:rgba(255,255,255,.025)}
+.earth-event-row>span{width:6px;height:6px;margin-top:4px;flex:none;border-radius:50%;background:#e5a46b;box-shadow:0 0 9px rgba(229,164,107,.38)}
+.earth-event-row>div{min-width:0;display:grid;gap:3px}
+.earth-event-row b{color:#dce8ed;font:500 9px var(--font-body);line-height:1.4;overflow-wrap:anywhere}
+.earth-event-row small,.earth-event-empty{color:#718895;font:8px var(--font-body);line-height:1.55}
+.earth-event-empty{display:block;padding:8px 0}
+.earth-detail-footer{display:grid;justify-items:end;gap:9px;max-width:280px;text-align:right}
+.earth-detail-footer>span{color:#6f8794;font:8px/1.6 var(--font-body)}
+.earth-detail-footer .link-btn{white-space:nowrap;font-size:7px}
+.earth-detail-panel.is-loading .earth-detail-block{border-color:rgba(113,187,220,.12)}
+.earth-detail-panel.is-loading .earth-detail-label:after{content:"";width:4px;height:4px;border-radius:50%;background:#83c8e7;box-shadow:0 0 8px #83c8e7;animation:earth-data-pulse 1s ease-in-out infinite}
+@keyframes earth-data-pulse{50%{opacity:.25;transform:scale(.65)}}
+@media(max-width:1250px){
+ .earth-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:700px){
+ .earth-detail-panel{padding:15px 12px 13px;border-radius:17px}
+ .earth-detail-head{gap:10px}
+ .earth-detail-head h2{font-size:26px}
+ .earth-detail-head p{font-size:9px;line-height:1.6}
+ .earth-detail-actions{gap:6px}
+ .earth-detail-actions>span{font-size:6px;padding:6px 7px}
+ .earth-detail-grid{grid-template-columns:1fr;gap:8px;padding-top:10px}
+ .earth-detail-block{padding:12px}
+ .earth-event-context{grid-template-columns:1fr;align-items:start}
+ #earthEventList{grid-template-columns:1fr}
+ .earth-detail-footer{justify-items:start;text-align:left;max-width:none}
+ .earth-detail-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .earth-detail-metrics b{font-size:16px}
+ .globe-stage .globe-hints span:first-child{display:none}
+}
