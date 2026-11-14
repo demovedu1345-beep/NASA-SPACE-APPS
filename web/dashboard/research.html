@@ -1188,45 +1188,92 @@
     // 2. Three.js Background Canvas
     function initEarthBackground() {
       const canvas = document.getElementById('earthCanvas');
+      if (!canvas || !window.THREE) return;
       const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-      camera.position.z = 2.4;
-
-      const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+      const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.set(0, 0, 2.65);
+      const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.25 : 1.8));
       renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.05;
+      scene.add(new THREE.AmbientLight(0x91afc4, 1.05));
+      const sun = new THREE.DirectionalLight(0xfff1dd, 2.7);
+      sun.position.set(-4, 2.2, 4); scene.add(sun);
+      const rim = new THREE.PointLight(0x45b9dc, 1.25, 12);
+      rim.position.set(2, -1, -3); scene.add(rim);
 
-      // Earth Globe Sphere
-      const geometry = new THREE.SphereGeometry(0.85, 64, 64);
-      const material = new THREE.MeshBasicMaterial({
-        color: 0x0f172a,
-        wireframe: true,
-        transparent: true,
-        opacity: 0.22
-      });
-      const earth = new THREE.Mesh(geometry, material);
-      scene.add(earth);
-
-      // Orbital Glow Ring
-      const ringGeo = new THREE.RingGeometry(0.92, 0.95, 64);
-      const ringMat = new THREE.MeshBasicMaterial({ color: 0x78D6A9, transparent: true, opacity: 0.15, side: THREE.DoubleSide });
-      const ring = new THREE.Mesh(ringGeo, ringMat);
-      ring.rotation.x = Math.PI / 2.3;
-      scene.add(ring);
-
-      function animate() {
-        requestAnimationFrame(animate);
-        earth.rotation.y += 0.0008;
-        ring.rotation.z += 0.0004;
-        renderer.render(scene, camera);
+      const starsGeometry = new THREE.BufferGeometry();
+      const starCount = 1800, starPositions = new Float32Array(starCount * 3);
+      for (let i = 0; i < starCount; i++) {
+        const radius = 24 + Math.random() * 65, theta = Math.random() * Math.PI * 2, phi = Math.acos(2 * Math.random() - 1);
+        starPositions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+        starPositions[i * 3 + 1] = radius * Math.cos(phi);
+        starPositions[i * 3 + 2] = radius * Math.sin(phi) * Math.sin(theta);
       }
-      animate();
+      starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+      scene.add(new THREE.Points(starsGeometry, new THREE.PointsMaterial({ color: 0xc9e6f3, size: 0.055, transparent: true, opacity: 0.7 })));
 
-      window.addEventListener('resize', () => {
+      const earthGroup = new THREE.Group(); scene.add(earthGroup);
+      const earthGeometry = new THREE.SphereGeometry(0.93, 144, 144);
+      const earthMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 20, specular: new THREE.Color(0x557a96) });
+      earthGroup.add(new THREE.Mesh(earthGeometry, earthMaterial));
+      const textureLoader = new THREE.TextureLoader();
+      textureLoader.setCrossOrigin('anonymous');
+      const loadTexture = (url, isColor) => new Promise(resolve => textureLoader.load(url, texture => {
+        texture.colorSpace = isColor ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+        texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
+        resolve(texture);
+      }, undefined, () => resolve(null)));
+      const urls = {
+        day: 'https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-topography-bathymetry/january/world.topo.bathy.200401.3x5400x2700.jpg',
+        fallback: 'https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-blue-marble.jpg',
+        topology: 'https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-topology.png',
+        water: 'https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-water.png',
+        night: 'https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-night.jpg',
+        clouds: 'https://raw.githubusercontent.com/turban/webgl-earth/master/images/fair_clouds_4k.png'
+      };
+      const nightMaterial = new THREE.MeshBasicMaterial({ color: 0xffbd78, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false });
+      const nightLayer = new THREE.Mesh(new THREE.SphereGeometry(0.934, 128, 128), nightMaterial); earthGroup.add(nightLayer);
+      const cloudMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide });
+      const cloudLayer = new THREE.Mesh(new THREE.SphereGeometry(0.943, 128, 128), cloudMaterial); earthGroup.add(cloudLayer);
+      const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(0.985, 96, 96), new THREE.ShaderMaterial({
+        transparent: true, side: THREE.BackSide, depthWrite: false, blending: THREE.AdditiveBlending,
+        vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.0);vV=-mv.xyz;gl_Position=projectionMatrix*mv;}',
+        fragmentShader: 'varying vec3 vN; varying vec3 vV; void main(){float rim=pow(1.0-max(dot(normalize(vN),normalize(vV)),0.0),2.2);gl_FragColor=vec4(0.28,0.70,0.91,rim*0.6);}'
+      }));
+      earthGroup.add(atmosphere);
+      Promise.all([
+        loadTexture(urls.day, true), loadTexture(urls.topology, false), loadTexture(urls.water, false),
+        loadTexture(urls.night, true), loadTexture(urls.clouds, false)
+      ]).then(async ([day, topology, water, night, clouds]) => {
+        const surface = day || await loadTexture(urls.fallback, true);
+        if (surface) { earthMaterial.map = surface; earthMaterial.needsUpdate = true; }
+        if (topology) { earthMaterial.bumpMap = topology; earthMaterial.bumpScale = 0.022; earthMaterial.needsUpdate = true; }
+        if (water) { earthMaterial.specularMap = water; earthMaterial.specular.set(0x7893a8); earthMaterial.shininess = 24; earthMaterial.needsUpdate = true; }
+        if (night) { nightMaterial.map = night; nightMaterial.needsUpdate = true; } else nightLayer.visible = false;
+        if (clouds) { cloudMaterial.map = clouds; cloudMaterial.needsUpdate = true; } else cloudLayer.visible = false;
+        const status = document.getElementById('telemetryStatusText');
+        if (status) status.textContent = surface ? (day ? 'NASA BLUE MARBLE · 5.4K TEXTURE' : 'EARTH SURFACE TEXTURE READY') : 'EARTH TEXTURE UNAVAILABLE';
+      });
+      let running = true;
+      const animate = () => {
+        if (!running || !canvas.isConnected) { renderer.dispose(); return; }
+        requestAnimationFrame(animate);
+        if (document.hidden) return;
+        earthGroup.rotation.y += 0.00018;
+        cloudLayer.rotation.y += 0.00024;
+        renderer.render(scene, camera);
+      };
+      animate();
+      const resize = () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
-      });
+      };
+      window.addEventListener('resize', resize, { passive: true });
+      window.addEventListener('pagehide', () => { running = false; window.removeEventListener('resize', resize); }, { once: true });
     }
 
     // 3. Location Selectors Handling
@@ -1289,53 +1336,41 @@
     }
 
     function renderForecastUI(data) {
-      const ins = data.insights || {};
-      document.getElementById('insightAvgTemp').innerText = ins.avgTemp || `${ins.avg_temp || 24.8}°C`;
-      document.getElementById('insightTempRange').innerText = `${ins.minTemp || '18.2°C'} – ${ins.maxTemp || '31.4°C'}`;
-      document.getElementById('insightTempTrend').innerText = `Trend: ${ins.tempTrend || ins.temp_trend || 'Warming'}`;
-
-      document.getElementById('insightTotalPrecip').innerText = ins.totalPrecip || `${ins.total_precip_mm || 1842} mm`;
-      document.getElementById('insightMaxPrecip').innerText = ins.maxPrecip || `${ins.max_daily_precip_mm || 118.4} mm/d`;
-      document.getElementById('insightRainyDays').innerText = ins.rainyDays || `${ins.rainy_days_count || 142} days`;
-
-      document.getElementById('insightAvgWind').innerText = ins.avgWind || `${ins.avg_wind_kmh || 11.4} km/h`;
-      document.getElementById('insightMaxWind').innerText = ins.maxWind || `${ins.max_wind_kmh || 32.8} km/h`;
-
-      document.getElementById('insightWeatherPattern').innerText = ins.weatherPattern || ins.weather_pattern || "Optimal Conditions";
-      document.getElementById('insightWeatherAdvice').innerText = ins.patternDetail || ins.field_advisory || "Normal monsoonal climate pattern detected.";
-
-      // 7-Day Forecast Grid
+      const ins = data && data.insights ? data.insights : {};
+      const put = (id, value) => { const node = document.getElementById(id); if (node) node.innerText = value == null || value === '' ? '—' : String(value); };
+      put('insightAvgTemp', ins.avgTemp == null ? 'Unavailable' : ins.avgTemp);
+      put('insightTempRange', ins.minTemp && ins.maxTemp ? ins.minTemp + ' – ' + ins.maxTemp : '—');
+      put('insightTempTrend', 'Trend statistics are calculated in the Trend workspace.');
+      put('insightTotalPrecip', ins.totalPrecip == null ? 'Unavailable' : ins.totalPrecip);
+      put('insightMaxPrecip', ins.maxPrecip == null ? '—' : ins.maxPrecip);
+      put('insightRainyDays', ins.rainyDays == null ? '—' : ins.rainyDays);
+      put('insightAvgWind', ins.avgWind == null ? 'Unavailable' : ins.avgWind);
+      put('insightMaxWind', ins.maxWind == null ? '—' : ins.maxWind);
+      put('insightWeatherPattern', ins.weatherPattern || (data && data.ok ? 'Provider forecast' : 'Unavailable'));
+      put('insightWeatherAdvice', ins.patternDetail || 'No advisory is generated without provider observations.');
       const grid = document.getElementById('daysForecastGrid');
-      const daysList = data.daily_forecast || data.seven_day_forecast || [];
-      grid.innerHTML = daysList.map(day => `
-        <div class="day-forecast-card">
-          <div class="day-name">${day.day || day.day_name}</div>
-          <div class="day-date">${day.date}</div>
-          <div class="day-weather-icon">${day.icon || '🌤️'}</div>
-          <div class="day-temp-badge">${day.temp_high !== undefined ? `${day.temp_high}°C` : `${day.temp_c}°C`}</div>
-          <div class="day-metrics">
-            <span>Rain Prob: <strong>${day.rain_prob !== undefined ? day.rain_prob : day.rain_prob_pct}%</strong></span>
-            <span>Wind: <strong>${day.wind_kmh || day.wind_speed_kmh} km/h</strong></span>
-            <span style="color:var(--mint); font-size:10px;">${day.condition || 'Clear & Stable'}</span>
-          </div>
-        </div>
-      `).join('');
-
-      // Extreme Events Table
+      const daysList = data && data.daily_forecast ? data.daily_forecast : [];
+      if (grid) {
+        grid.innerHTML = daysList.length ? daysList.map(day => (
+          '<div class="day-forecast-card"><div class="day-name">' + (day.day || '—') +
+          '</div><div class="day-date">' + (day.date || '—') +
+          '</div><div class="day-weather-icon">◌</div><div class="day-temp-badge">' +
+          (day.temp_high == null ? '—' : Number(day.temp_high).toFixed(1) + '°C') +
+          '</div><div class="day-metrics"><span>Low: <strong>' +
+          (day.temp_low == null ? '—' : Number(day.temp_low).toFixed(1) + '°C') +
+          '</strong></span><span>Rain: <strong>' + (day.rain_mm == null ? '—' : Number(day.rain_mm).toFixed(1) + ' mm') +
+          '</strong></span><span>Rain chance: <strong>' + (day.rain_prob == null ? '—' : day.rain_prob + '%') +
+          '</strong></span><span>Wind: <strong>' + (day.wind_kmh == null ? '—' : day.wind_kmh + ' km/h') +
+          '</strong></span></div></div>'
+        )).join('') : '<div class="station-empty-state">No daily forecast was returned by the weather provider.</div>';
+      }
       const eventsTable = document.getElementById('extremeEventsTableBody');
-      const events = data.extreme_events || [];
-      document.getElementById('eventsCountBadge').innerText = `${events.length} Detected Events`;
-      eventsTable.innerHTML = events.map(e => `
-        <tr>
-          <td><span class="event-badge badge-${(e.type || '').toLowerCase().includes('rain') ? 'rain' : (e.type || '').toLowerCase().includes('wind') ? 'wind' : 'heat'}">${e.type || 'Anomaly'}</span></td>
-          <td style="font-family:var(--font-mono);">${e.location || 'Region'}</td>
-          <td style="font-family:var(--font-mono);">${e.date || 'Historical'}</td>
-          <td><strong style="color:#fff;">${e.value || ''}</strong></td>
-          <td><span style="color:${(e.severity || '').toUpperCase() === 'HIGH' ? 'var(--rose)' : 'var(--amber)'}; font-weight:600;">${e.severity || 'MODERATE'}</span></td>
-        </tr>
-      `).join('');
-
-      // Climatology Chart
+      const events = data && data.extreme_events ? data.extreme_events : [];
+      put('eventsCountBadge', events.length + ' provider events returned');
+      if (eventsTable) eventsTable.innerHTML = events.length ? events.map(e =>
+        '<tr><td>' + (e.type || 'Event') + '</td><td>' + (e.location || '—') + '</td><td>' +
+        (e.date || '—') + '</td><td>' + (e.value || '—') + '</td><td>' + (e.severity || '—') + '</td></tr>'
+      ).join('') : '<tr><td colspan="5">No extreme-event rows were returned by this forecast endpoint.</td></tr>';
       renderClimatologyChart(data);
     }
 
@@ -1354,77 +1389,56 @@
       const dom = document.getElementById('climatologyChart');
       if (!dom) return;
       if (!S.charts.climatology) S.charts.climatology = echarts.init(dom, 'dark');
-
-      const months = data.months || (data.historical_climatology ? data.historical_climatology.map(c => c.month) : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']);
-      let values = [];
-      let unit = "°C";
-      let color = "#f59e0b";
-
+      const months = data && data.months ? data.months : [];
+      let values = [], unit = '', label = '';
       if (activeClimatologyParam === 'T2M') {
-        values = data.monthly_temps || (data.historical_climatology ? data.historical_climatology.map(c => c.temp) : [24.8, 26.2, 28.5, 29.4, 28.1, 25.3, 24.1, 24.4, 25.0, 25.5, 25.1, 24.4]);
-        unit = "°C";
-        color = "#f59e0b";
+        values = data && data.monthly_temps ? data.monthly_temps : [];
+        unit = '°C'; label = '10-year monthly mean air temperature';
       } else if (activeClimatologyParam === 'PRECTOT') {
-        values = data.monthly_precip || (data.historical_climatology ? data.historical_climatology.map(c => c.precip) : [4.2, 8.5, 18.4, 45.2, 128.5, 248.6, 263.6, 218.4, 142.1, 84.5, 32.1, 10.4]);
-        unit = "mm";
-        color = "#38bdf8";
-      } else {
-        values = (data.monthly_temps || [24.8, 26.2, 28.5, 29.4, 28.1, 25.3, 24.1, 24.4, 25.0, 25.5, 25.1, 24.4]).map(t => (parseFloat(t) * 0.45).toFixed(1));
-        unit = "km/h";
-        color = "#78D6A9";
+        values = data && data.monthly_precip ? data.monthly_precip : [];
+        unit = 'mm/month'; label = '10-year monthly mean precipitation';
       }
-
-      const option = {
+      const hasValues = values.some(value => value != null && Number.isFinite(Number(value)));
+      if (!hasValues) {
+        S.charts.climatology.clear();
+        dom.innerHTML = '<div class="station-empty-state">Historical monthly climatology is unavailable for this location or provider period.</div>';
+        return;
+      }
+      dom.innerHTML = '';
+      S.charts.climatology.setOption({
         backgroundColor: 'transparent',
-        tooltip: {
-          trigger: 'axis',
-          formatter: (params) => {
-            const p = params[0];
-            return `<strong>${p.name}</strong><br/>${p.seriesName}: ${p.value} ${unit}`;
-          }
-        },
-        grid: { left: '4%', right: '4%', top: '12%', bottom: '10%', containLabel: true },
-        xAxis: {
-          type: 'category',
-          data: months,
-          axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
-          axisLabel: { color: '#9ca3af', fontFamily: 'DM Mono' }
-        },
-        yAxis: {
-          type: 'value',
-          axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
-          splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } },
-          axisLabel: { color: '#9ca3af', fontFamily: 'DM Mono', formatter: `{value} ${unit}` }
-        },
-        series: [{
-          name: activeClimatologyParam === 'T2M' ? 'Monthly Average Temp' : activeClimatologyParam === 'PRECTOT' ? 'Precipitation' : 'Wind Speed',
-          type: 'line',
-          smooth: true,
-          data: values,
-          itemStyle: { color: color },
-          lineStyle: { width: 3 },
-          areaStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: color + '55' },
-              { offset: 1, color: 'transparent' }
-            ])
-          }
-        }]
-      };
-
-      S.charts.climatology.setOption(option);
+        title: { text: label, left: 8, top: 0, textStyle: { color: '#9ca3af', fontSize: 10, fontWeight: 400 } },
+        tooltip: { trigger: 'axis', formatter: params => {
+          const point = params[0];
+          return '<strong>' + point.name + '</strong><br/>' + point.seriesName + ': ' + (point.value == null ? 'Unavailable' : point.value + ' ' + unit);
+        }},
+        grid: { left: '5%', right: '4%', top: '18%', bottom: '10%', containLabel: true },
+        xAxis: { type: 'category', data: months, axisLine: { lineStyle: { color: 'rgba(255,255,255,.12)' } }, axisLabel: { color: '#9ca3af', fontFamily: 'DM Mono' } },
+        yAxis: { type: 'value', scale: true, axisLabel: { color: '#9ca3af', formatter: '{value} ' + unit }, splitLine: { lineStyle: { color: 'rgba(255,255,255,.06)' } } },
+        series: [{ name: label, type: 'line', smooth: true, connectNulls: false, data: values.map(value => value == null ? null : Number(value)), itemStyle: { color: activeClimatologyParam === 'T2M' ? '#f59e0b' : '#38bdf8' }, lineStyle: { width: 2.5 }, areaStyle: { opacity: .12 } }]
+      }, true);
     }
 
     // 6. Decadal Investigation & ECharts
     async function runDecadalInvestigation() {
-      const url = `/api/earth/investigate?lat=${S.lat}&lon=${S.lon}&variable=${S.variable}&region_name=${encodeURIComponent(S.place)}&start_year=2015&end_year=2024`;
+      const params = new URLSearchParams({
+        lat: S.lat, lon: S.lon, variable: S.variable, region_name: S.place,
+        start_year: '2015', end_year: String(new Date().getFullYear())
+      });
+      const cardsContainer = document.getElementById('trendCardsContainer');
       try {
-        const res = await fetch(url);
+        const res = await fetch('/api/earth/investigate?' + params.toString());
         const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || data.detail || 'No valid observations were returned for this variable.');
         S.decadalData = data;
         renderDecadalUI(data);
       } catch (err) {
-        console.warn("Using fallback decadal data:", err);
+        S.decadalData = null;
+        ['trendZStat','trendPVal','trendSensSlope','trendSlopeCI','trendSeasonalZ','trendFdrStatus'].forEach(id => {
+          const node = document.getElementById(id); if (node) node.innerText = '—';
+        });
+        if (cardsContainer) cardsContainer.innerHTML = '<div class="station-empty-state">' + String(err.message || err) + '</div>';
+        renderDecadalChart({ dates: [], values: [] });
       }
     }
 
@@ -1437,102 +1451,62 @@
     }
 
     function renderDecadalUI(data) {
-      const trend = data.trends && data.trends[S.variable] ? data.trends[S.variable] : {};
-      document.getElementById('trendZStat').innerText = trend.mann_kendall_z ? (trend.mann_kendall_z > 0 ? `+${trend.mann_kendall_z.toFixed(2)}` : trend.mann_kendall_z.toFixed(2)) : "+2.48";
-      document.getElementById('trendPVal').innerText = trend.p_value !== undefined ? trend.p_value.toFixed(4) : "0.0130";
-      document.getElementById('trendSensSlope').innerText = trend.sens_slope !== undefined ? `${trend.sens_slope > 0 ? '+' : ''}${trend.sens_slope.toFixed(4)} yr⁻¹` : "+0.0182 yr⁻¹";
-      
-      if (trend.ci_95) {
-        document.getElementById('trendSlopeCI').innerText = `[${trend.ci_95[0].toFixed(4)}, ${trend.ci_95[1].toFixed(4)}]`;
-      }
-      
-      document.getElementById('trendSeasonalZ').innerText = trend.seasonal_mk_z ? (trend.seasonal_mk_z > 0 ? `+${trend.seasonal_mk_z.toFixed(2)}` : trend.seasonal_mk_z.toFixed(2)) : "+2.15";
-      document.getElementById('trendFdrStatus').innerText = trend.fdr_significant ? "CONFIRMED" : "REJECTED";
-
-      // Render 120-month continuous chart
-      renderDecadalChart(data.time_series && data.time_series[S.variable] ? data.time_series[S.variable] : generateDecadalFallbackSeries());
-    }
-
-    function generateDecadalFallbackSeries() {
-      const dates = [];
-      const values = [];
-      const base = S.variable === 'ndvi' ? 0.65 : S.variable === 't2m' ? 24.5 : 120.0;
-      for (let y = 2015; y <= 2024; y++) {
-        for (let m = 1; m <= 12; m++) {
-          dates.push(`${y}-${String(m).padStart(2, '0')}`);
-          const seasonal = Math.sin((m / 12) * Math.PI * 2) * (base * 0.15);
-          const trend = ((y - 2015) / 10) * (base * 0.08);
-          values.push(parseFloat((base + seasonal + trend + (Math.random() * 0.02 - 0.01)).toFixed(3)));
-        }
-      }
-      return { dates, values };
+      const trend = data && data.trends && data.trends[S.variable] ? data.trends[S.variable] : {};
+      const put = (id, value) => { const node = document.getElementById(id); if (node) node.innerText = value == null ? '—' : String(value); };
+      put('trendZStat', trend.mann_kendall_z == null ? '—' : Number(trend.mann_kendall_z).toFixed(3));
+      put('trendPVal', trend.p_value == null ? '—' : Number(trend.p_value).toFixed(5));
+      put('trendSensSlope', trend.sens_slope == null ? '—' : Number(trend.sens_slope).toFixed(5) + ' ' + (trend.unit || '') + '/year');
+      put('trendSlopeCI', Array.isArray(trend.ci_95) && trend.ci_95.every(value => value != null)
+        ? '[' + Number(trend.ci_95[0]).toFixed(5) + ', ' + Number(trend.ci_95[1]).toFixed(5) + ']'
+        : 'Unavailable');
+      put('trendSeasonalZ', trend.seasonal_mk_z == null ? '—' : Number(trend.seasonal_mk_z).toFixed(3));
+      put('trendFdrStatus', trend.fdr_significant == null ? 'NOT EVALUATED' : (trend.fdr_significant ? 'SIGNIFICANT AFTER FDR' : 'NOT SIGNIFICANT AFTER FDR'));
+      renderDecadalChart(data && data.time_series && data.time_series[S.variable] ? data.time_series[S.variable] : { dates: [], values: [] });
+      const summary = data && data.ai_research_analyst ? data.ai_research_analyst.grounded_interpretation : null;
+      const analyst = document.getElementById('aiAnalystText');
+      if (analyst) analyst.innerText = summary || 'No provider-backed trend interpretation is available.';
+      const unavailable = data && data.unavailable_variables ? data.unavailable_variables[S.variable] : null;
+      const status = document.getElementById('telemetryStatusText');
+      if (status && unavailable) status.textContent = unavailable;
     }
 
     function renderDecadalChart(series) {
       const dom = document.getElementById('decadalChart');
       if (!dom) return;
-      if (!S.charts.decadal) S.charts.decadal = echarts.init(dom, 'dark');
-
-      const dates = series.dates || [];
-      const raw = series.values || [];
-
-      // Calculate 12-month SMA and Sen's Slope line
-      const sma = [];
-      for (let i = 0; i < raw.length; i++) {
-        if (i < 11) sma.push(null);
-        else {
-          const slice = raw.slice(i - 11, i + 1);
-          sma.push(parseFloat((slice.reduce((a, b) => a + b, 0) / 12).toFixed(3)));
-        }
+      const dates = series && series.dates ? series.dates : [];
+      const raw = series && series.values ? series.values : [];
+      if (!dates.length || !raw.length) {
+        if (S.charts.decadal) S.charts.decadal.clear();
+        dom.innerHTML = '<div class="station-empty-state">Trend chart unavailable: the selected dataset has not returned enough valid observations.</div>';
+        return;
       }
-
-      const firstVal = raw[0] || 0.65;
-      const lastVal = raw[raw.length - 1] || 0.72;
-      const slopePoints = raw.map((_, i) => parseFloat((firstVal + ((lastVal - firstVal) / raw.length) * i).toFixed(3)));
-
-      const option = {
-        backgroundColor: 'transparent',
-        tooltip: { trigger: 'axis' },
-        legend: { data: ['Observed Monthly', "Sen's Median Trend", '12-Month Rolling SMA'], top: '2%', textStyle: { color: '#9ca3af' } },
+      dom.innerHTML = '';
+      if (!S.charts.decadal) S.charts.decadal = echarts.init(dom, 'dark');
+      const movingAverage = raw.map((_, i) => i < 11 ? null : Number((raw.slice(i - 11, i + 1).reduce((a, b) => a + b, 0) / 12).toFixed(4)));
+      const trend = S.decadalData && S.decadalData.trends ? S.decadalData.trends[S.variable] : {};
+      const slope = trend ? trend.sens_slope : null;
+      const numericDates = dates.map(date => {
+        const parts = date.split('-').map(Number);
+        return parts[0] + ((parts[1] || 1) - 1) / 12;
+      });
+      let senLine = [];
+      if (slope != null && numericDates.length) {
+        const intercepts = raw.map((value, i) => value - slope * numericDates[i]).sort((a, b) => a - b);
+        const intercept = intercepts[Math.floor(intercepts.length / 2)];
+        senLine = numericDates.map(x => Number((intercept + slope * x).toFixed(5)));
+      }
+      const seriesConfig = [{ name: 'Observed provider values', type: 'scatter', data: raw, itemStyle: { color: '#38bdf8' } }];
+      if (senLine.length) seriesConfig.push({ name: "Sen's slope fit", type: 'line', data: senLine, showSymbol: false, lineStyle: { color: '#78D6A9', width: 2.5, type: 'dashed' } });
+      if (movingAverage.some(value => value != null)) seriesConfig.push({ name: '12-sample rolling mean', type: 'line', data: movingAverage, showSymbol: false, lineStyle: { color: '#f59e0b', width: 1.8 } });
+      S.charts.decadal.setOption({
+        backgroundColor: 'transparent', tooltip: { trigger: 'axis' },
+        legend: { data: seriesConfig.map(item => item.name), top: '2%', textStyle: { color: '#9ca3af' } },
         grid: { left: '4%', right: '4%', top: '14%', bottom: '16%', containLabel: true },
         dataZoom: [{ type: 'slider', bottom: '2%', height: 20, borderColor: 'transparent', fillerColor: 'rgba(120,214,169,0.2)' }],
-        xAxis: {
-          type: 'category',
-          data: dates,
-          axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
-          axisLabel: { color: '#9ca3af', fontFamily: 'DM Mono' }
-        },
-        yAxis: {
-          type: 'value',
-          scale: true,
-          axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
-          splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } },
-          axisLabel: { color: '#9ca3af', fontFamily: 'DM Mono' }
-        },
-        series: [
-          {
-            name: 'Observed Monthly',
-            type: 'scatter',
-            data: raw,
-            itemStyle: { color: '#38bdf8' }
-          },
-          {
-            name: "Sen's Median Trend",
-            type: 'line',
-            data: slopePoints,
-            lineStyle: { color: '#78D6A9', width: 2.5, type: 'dashed' }
-          },
-          {
-            name: '12-Month Rolling SMA',
-            type: 'line',
-            smooth: true,
-            data: sma,
-            lineStyle: { color: '#f59e0b', width: 2 }
-          }
-        ]
-      };
-
-      S.charts.decadal.setOption(option);
+        xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: 'rgba(255,255,255,.1)' } }, axisLabel: { color: '#9ca3af', fontFamily: 'DM Mono' } },
+        yAxis: { type: 'value', scale: true, axisLabel: { color: '#9ca3af', fontFamily: 'DM Mono' }, splitLine: { lineStyle: { color: 'rgba(255,255,255,.05)' } } },
+        series: seriesConfig
+      }, true);
     }
 
     // 7. MapLibre GL Map Initialization
