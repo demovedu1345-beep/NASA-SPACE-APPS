@@ -250,7 +250,19 @@ body{overflow:hidden}
   .portfolio-link[data-secondary="true"]{display:none}
   .portfolio-link[data-open-workspaces]{padding:0 8px}
   .portfolio-tools{gap:4px}
-  .portfolio-tools .search-wrap,.portfolio-tools .icon-btn{display:none}
+  .portfolio-tools .search-wrap{
+    display:flex;width:31px;height:31px;padding:0;justify-content:center;
+    border:0;background:transparent;overflow:visible;
+  }
+  .portfolio-tools .search-wrap>svg{width:15px;height:15px}
+  .portfolio-tools .search-wrap input,.portfolio-tools .search-wrap kbd{display:none}
+  .portfolio-tools .search-wrap.expanded{
+    position:absolute;left:8px;right:8px;top:7px;z-index:140;width:auto;height:36px;
+    padding:0 10px;border:1px solid rgba(137,170,204,.5);border-radius:999px;
+    background:rgba(10,10,10,.98);box-shadow:0 12px 34px rgba(0,0,0,.45);
+  }
+  .portfolio-tools .search-wrap.expanded input{display:block}
+  .portfolio-tools .icon-btn{display:none}
   .portfolio-tools .portfolio-cta{min-height:32px;padding:0 10px;font-size:8px}
   .page{padding:18px 11px 30px}
   .overview-cover{width:calc(100% + 22px);min-height:calc(100svh - 78px);margin:-18px -11px 54px;padding:70px 18px 106px}
