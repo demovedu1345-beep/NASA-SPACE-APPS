@@ -149,3 +149,49 @@ def test_climate_forecast_returns_only_provider_forecast_values(monkeypatch):
     assert body["insights"]["rainyDays"] == "4 days"
     assert body["climatology_source"] == "Test Historical Climate Provider"
     assert len(body["monthly_temps"]) == 12
+
+
+def test_trend_climate_variables_use_nasa_power_as_primary_source(monkeypatch):
+    async def fake_power_history(lat, lon, start, end):
+        dates = []
+        temps = []
+        rain = []
+        for year in range(2017, 2025):
+            for month in range(1, 13):
+                dates.append(f"{year}-{month:02d}-15")
+                temps.append(24.0 + (year - 2017) * 0.04 + month * 0.01)
+                rain.append(80.0 + month * 2.0 - (year - 2017) * 0.5)
+        return {
+            "daily": {
+                "time": dates,
+                "temperature_2m_mean": temps,
+                "precipitation_sum": rain,
+            }
+        }
+
+    async def forbidden_non_nasa_fallback(*args, **kwargs):
+        raise AssertionError("Trend analysis must not silently use a non-NASA archive")
+
+    monkeypatch.setattr(main.power, "historical_daily", fake_power_history)
+    monkeypatch.setattr(main, "historical_climate_daily_real", forbidden_non_nasa_fallback)
+
+    response = client.get(
+        "/api/earth/trends/analyze",
+        params={
+            "lat": 12.3375,
+            "lon": 75.8069,
+            "variables": "t2m,precipitation",
+            "start_year": 2017,
+            "end_year": 2024,
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert set(body["variables_evaluated"]) == {"t2m", "precipitation"}
+    assert body["metadata"]["t2m"]["provider"] == "NASA POWER Daily Point API"
+    assert body["metadata"]["precipitation"]["provider"] == "NASA POWER Daily Point API"
+    assert body["trends"]["t2m"]["n"] == 96
+    assert body["trends"]["precipitation"]["n"] == 96
+    assert body["trends"]["t2m"]["data_class"] == "NASA_MODEL_OUTPUT"
+    assert body["trends"]["precipitation"]["data_class"] == "NASA_MODEL_OUTPUT"
