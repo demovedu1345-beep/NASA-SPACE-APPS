@@ -47,11 +47,23 @@
     <div style="display:flex; flex-direction:column; text-align:left;">
       <span style="font-family:var(--es-font-mono); font-size:9px; color:var(--es-mint); letter-spacing:0.5px; text-transform:uppercase;">NASA EARTH SCIENCE • GEOSPATIAL INTELLIGENCE</span>
       <span style="font-family:var(--es-font-serif); font-size:12.5px; font-weight:700; color:#fff;">See the patterns shaping our planet.</span>
-      <div style="display:flex; gap:6px; margin-top:4px;">
-        <button onclick="scrollToStation()" class="btn-primary" style="padding:3px 10px; font-size:10px; border-radius:3px;">Start Exploring</button>
-        <button onclick="switchTab('methodology'); scrollToStation();" class="btn-secondary" style="padding:3px 10px; font-size:10px; border-radius:3px;">Discover the Science</button>
+      <div style="display:flex; gap:6px; margin-top:5px; align-items:center; flex-wrap:wrap;">
+        <a href="/dashboard" class="btn-primary" style="padding:4px 14px; font-size:11px; border-radius:4px; font-weight:700; background:var(--es-mint); color:#000; text-decoration:none; display:inline-flex; align-items:center; gap:6px; box-shadow:0 0 16px rgba(120,214,169,0.45);">
+          <span>🌍</span> Open the Dashboard
+        </a>
+        <button onclick="scrollToStation()" class="btn-secondary" style="padding:4px 10px; font-size:10px; border-radius:3px;">Explore Research Station</button>
+        <button onclick="switchTab('methodology'); scrollToStation();" class="btn-secondary" style="padding:4px 10px; font-size:10px; border-radius:3px;">Discover the Science</button>
       </div>
     </div>
+  </div>
+
+  <!-- Persistent Top-Right "Open the Dashboard" Floating Button -->
+  <div style="position:fixed; top:20px; right:24px; z-index:999999; pointer-events:auto;">
+    <a href="/dashboard" style="display:inline-flex; align-items:center; gap:8px; padding:10px 20px; background:rgba(8,10,16,0.88); backdrop-filter:blur(20px); border:1px solid rgba(120,214,169,0.45); border-radius:30px; color:#fff; text-decoration:none; font-family:'Space Grotesk', -apple-system, sans-serif; font-size:13px; font-weight:700; box-shadow:0 10px 30px rgba(0,0,0,0.65), 0 0 24px rgba(120,214,169,0.28); transition:all 0.25s cubic-bezier(0.16,1,0.3,1);">
+      <span style="width:8px; height:8px; border-radius:50%; background:#78D6A9; box-shadow:0 0 10px #78D6A9; animation:pulseAnim 2s infinite ease-in-out;"></span>
+      <span>Open the Dashboard</span>
+      <span style="color:#78D6A9; font-size:15px; font-weight:800; transform:translateY(-1px);">→</span>
+    </a>
   </div>
 
   <!-- "The Race to Save Space" Nuxt WebGL App Root -->
@@ -92,6 +104,9 @@
         </div>
 
         <div class="station-action-bar">
+          <a href="/dashboard" class="btn-primary" style="background:var(--es-mint); color:#000; text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-weight:700; box-shadow:0 0 16px var(--es-mint-glow);">
+            <span>🌍</span> Open the Dashboard ↗
+          </a>
           <button id="btnRunTrends" class="btn-primary" onclick="runEarthscopeTrends()">
             🔬 Run Scientific Analysis
           </button>
