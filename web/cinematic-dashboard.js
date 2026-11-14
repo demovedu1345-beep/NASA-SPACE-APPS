@@ -91,7 +91,7 @@
 
     const words = ["Observe", "Understand", "Protect"];
     let start = 0, frame = 0, finished = false;
-    const duration = 2700;
+    const duration = 1150;
     let wordIndex = 0;
     const wordTimer = window.setInterval(() => {
       wordIndex = (wordIndex + 1) % words.length;
@@ -123,7 +123,7 @@
             } else {
               overlay.remove(); resolve();
             }
-          }, 400);
+          }, 180);
         }
       };
       frame = requestAnimationFrame(tick);
@@ -158,7 +158,14 @@
 
     try {
       video.load();
-      await video.play();
+      const playAttempt = video.play();
+      if (playAttempt && typeof playAttempt.catch === "function") {
+        playAttempt.catch((error) => {
+          video.classList.add("video-paused");
+          initFogFallback();
+          console.info("Earth background autoplay unavailable; fallback atmosphere active.", error);
+        });
+      }
     } catch (error) {
       // Keep the premium dark background and optional fog when autoplay is restricted.
       video.classList.add("video-paused");
@@ -384,8 +391,9 @@
   }
 
   async function boot() {
-    await runLoader();
-    await initAmbientVideo();
+    const intro = runLoader();
+    initAmbientVideo();
+    await intro;
     initLenis();
     initParallax();
     initNavigationMotion();
