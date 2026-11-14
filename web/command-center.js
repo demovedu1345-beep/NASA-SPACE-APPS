@@ -174,8 +174,9 @@ function initEarth(){
  const earthMat=new THREE.MeshPhongMaterial({color:0xffffff,shininess:22,specular:new THREE.Color(0x557c9a),bumpScale:.035});
  const earth=new THREE.Mesh(geometry,earthMat);group.add(earth);
  const loader=new THREE.TextureLoader();loader.setCrossOrigin("anonymous");
- const loadTexture=url=>new Promise(resolve=>loader.load(url,texture=>{
-  texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);resolve(texture);
+ const loadTexture=(url,colorTexture=true)=>new Promise(resolve=>loader.load(url,texture=>{
+  texture.colorSpace=colorTexture?THREE.SRGBColorSpace:THREE.NoColorSpace;
+  texture.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);resolve(texture);
  },undefined,()=>resolve(null)));
  const assets={
   day:"https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/january/world.200401.3x5400x2700.jpg",
@@ -226,7 +227,7 @@ function initEarth(){
   requestAnimationFrame(draw);
  };
  requestAnimationFrame(draw);
- Promise.all([loadTexture(assets.day),loadTexture(assets.topology),loadTexture(assets.water),loadTexture(assets.night),loadTexture(assets.clouds)]).then(async([day,topology,water,night,cloud])=>{
+ Promise.all([loadTexture(assets.day,true),loadTexture(assets.topology,false),loadTexture(assets.water,false),loadTexture(assets.night,true),loadTexture(assets.clouds,false)]).then(async([day,topology,water,night,cloud])=>{
   let surface=day;if(!surface)surface=await loadTexture(assets.dayFallback);
   if(surface){earthMat.map=surface;earthMat.color.set(0xffffff);earthMat.needsUpdate=true}
   if(topology){earthMat.bumpMap=topology;earthMat.bumpScale=.026;earthMat.needsUpdate=true}
@@ -243,8 +244,9 @@ function initEarth(){
   const moved=Math.hypot(event.clientX-pointerStart.x,event.clientY-pointerStart.y);pointerStart=null;if(moved>7)return;
   const bounds=canvas.getBoundingClientRect();pointer.x=((event.clientX-bounds.left)/bounds.width)*2-1;pointer.y=-((event.clientY-bounds.top)/bounds.height)*2+1;
   raycaster.setFromCamera(pointer,camera);
-  const markerHits=raycaster.intersectObjects(markers.children,false);
-  const hit=markerHits[0]||raycaster.intersectObject(earth,false)[0];if(!hit)return;
+  const markerHit=raycaster.intersectObjects(markers.children,false)[0];
+  const earthHit=raycaster.intersectObject(earth,false)[0];
+  const hit=markerHit&&(!earthHit||markerHit.distance<earthHit.distance)?markerHit:earthHit;if(!hit)return;
   const local=group.worldToLocal(hit.point.clone()).normalize();
   const lat=Math.asin(THREE.MathUtils.clamp(local.y,-1,1))*180/Math.PI;
   const lon=((Math.atan2(local.z,-local.x)*180/Math.PI-180+540)%360)-180;
