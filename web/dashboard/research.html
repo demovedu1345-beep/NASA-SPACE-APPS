@@ -751,10 +751,10 @@
             <span>Average Temperature</span>
             <span style="font-size:16px;">🌡️</span>
           </div>
-          <div class="insight-value" id="insightAvgTemp">24.8°C</div>
+          <div class="insight-value" id="insightAvgTemp">—</div>
           <div class="insight-details">
-            <span>Range: <strong id="insightTempRange">18.2°C – 31.4°C</strong></span>
-            <span class="insight-trend-badge" id="insightTempTrend">Trend: Warming (+0.28°C/dec)</span>
+            <span>Range: <strong id="insightTempRange">—</strong></span>
+            <span class="insight-trend-badge" id="insightTempTrend">Not calculated</span>
           </div>
         </div>
 
@@ -763,10 +763,10 @@
             <span>Annual Precipitation</span>
             <span style="font-size:16px;">🌧️</span>
           </div>
-          <div class="insight-value" id="insightTotalPrecip">1,842 mm</div>
+          <div class="insight-value" id="insightTotalPrecip">—</div>
           <div class="insight-details">
-            <span>Peak Storm: <strong id="insightMaxPrecip">118.4 mm/d</strong></span>
-            <span>Rainy Days: <strong id="insightRainyDays">142 days</strong></span>
+            <span>Peak Storm: <strong id="insightMaxPrecip">—</strong></span>
+            <span>Rainy Days: <strong id="insightRainyDays">—</strong></span>
           </div>
         </div>
 
@@ -775,10 +775,10 @@
             <span>Surface Wind & Pressure</span>
             <span style="font-size:16px;">💨</span>
           </div>
-          <div class="insight-value" id="insightAvgWind">11.4 km/h</div>
+          <div class="insight-value" id="insightAvgWind">—</div>
           <div class="insight-details">
-            <span>Peak Gusts: <strong id="insightMaxWind">32.8 km/h</strong></span>
-            <span>Atm Pressure: <strong id="insightPressure">1012 hPa</strong></span>
+            <span>Peak Gusts: <strong id="insightMaxWind">—</strong></span>
+            <span>Atm Pressure: <strong id="insightPressure">—</strong></span>
           </div>
         </div>
 
@@ -787,9 +787,9 @@
             <span style="color:var(--mint);">Climate Pattern & Field Advisory</span>
             <span style="font-size:16px;">🌿</span>
           </div>
-          <div class="insight-value" style="font-size:20px; color:var(--mint);" id="insightWeatherPattern">Optimal Canopy Conditions</div>
+          <div class="insight-value" style="font-size:20px; color:var(--mint);" id="insightWeatherPattern">Awaiting observations</div>
           <div class="insight-details" style="font-size:11px; line-height:1.4;" id="insightWeatherAdvice">
-            Healthy monsoonal cycle detected. Aboveground biomass stable with minimal thermal fire risk.
+            No field advisory is shown until provider observations are returned.
           </div>
         </div>
       </div>
@@ -803,7 +803,7 @@
             </h2>
             <p class="card-subtitle">Empirical weather probabilities derived from 30+ years of NASA POWER daily observations</p>
           </div>
-          <span class="brand-badge" style="background:var(--cyan-subtle); border-color:var(--cyan); color:var(--cyan);">95% CONFIDENCE INTERVAL</span>
+          <span class="brand-badge" style="background:var(--cyan-subtle); border-color:var(--cyan); color:var(--cyan);">PROVIDER FORECAST · 7 DAYS</span>
         </div>
         <div class="days-grid" id="daysForecastGrid">
           <!-- Populated dynamically via JS -->
@@ -837,7 +837,7 @@
             </h2>
             <p class="card-subtitle">Recorded storm peaks, heavy monsoonal rainfall, and thermal exceedances</p>
           </div>
-          <span style="font-size:12px; font-family:var(--font-mono); color:var(--text-muted);" id="eventsCountBadge">8 Detected Events</span>
+          <span style="font-size:12px; font-family:var(--font-mono); color:var(--text-muted);" id="eventsCountBadge">0 provider events returned</span>
         </div>
         <div class="events-table-wrapper">
           <table class="events-table">
@@ -1151,20 +1151,8 @@
       { name: "ISRO Resourcesat & INSAT", agency: "ISRO", sensor: "LISS-III, AWiFS, VHRR", resolution: "23.5m / 56m Multi-spectral", bands: "Bhuvan WMS Layers, MOSDAC Meteorological", status: "Active (Indian Territory)" }
     ];
 
-    // 11 Connected Services Matrix
-    const SERVICES = [
-      { name: "NASA FIRMS Wildfire Service", envKey: "FIRMS_MAP_KEY", status: "Authenticated & Active", desc: "Pixel-level active thermal anomaly and wildfire alerts." },
-      { name: "NASA Earthdata CMR API", envKey: "EARTHDATA_TOKEN", status: "Authenticated & Active", desc: "Common Metadata Repository live catalog and granule queries." },
-      { name: "NASA POWER Climatology API", envKey: "NASA_POWER_API_KEY", status: "Connected & Active", desc: "Global solar, temperature, wind, and precipitation meteorology." },
-      { name: "NASA AppEEARS Subsetting", envKey: "APPEEARS_TOKEN", status: "Authenticated & Active", desc: "LP DAAC 250m gridded satellite parameter point extraction." },
-      { name: "Protected Planet WDPA", envKey: "PROTECTED_PLANET_TOKEN", status: "Connected & Active", desc: "Global database on protected areas and nature reserve bounds." },
-      { name: "Mapillary Street Imagery", envKey: "MAPILLARY_API_KEY", status: "Connected & Active", desc: "Computer vision and geotagged ground truth environmental photos." },
-      { name: "CARTO Vector Basemaps", envKey: "VITE_CARTO_BASEMAPS_API_KEY", status: "Connected & Active", desc: "High-performance dark matter and positronic vector map tiles." },
-      { name: "Google Earth Engine", envKey: "GOOGLE_APPLICATION_CREDENTIALS", status: "Configured & Active", desc: "Planetary-scale geospatial analysis and Sentinel/Landsat computation." },
-      { name: "OpenAI GPT-4o Synthesis", envKey: "OPENAI_API_KEY", status: "Connected & Active", desc: "Grounded empirical research analyst producing zero hallucinations." },
-      { name: "Copernicus Dataspace STAC", envKey: "STAC_COPERNICUS_EU", status: "Public Access Live", desc: "Authoritative Sentinel-1/2/3 STAC API with cloud-optimized COGs." },
-      { name: "AWS Element 84 STAC", envKey: "EARTH_SEARCH_AWS", status: "Public Access Live", desc: "Public Sentinel-2 L2A COG access on AWS S3 Open Data." }
-    ];
+    // Provider status is populated from the runtime health API below.
+    const SERVICES = [];
 
     // 1. Switch Segmented Navigation View
     function switchOptionView(tabId) {
@@ -1616,26 +1604,38 @@
         `).join('');
       }
 
-      // Services Matrix
+      // Runtime service health matrix. A service is never labelled LIVE from a static catalogue.
       const servDom = document.getElementById('servicesGrid');
-      if (servDom) {
-        servDom.innerHTML = SERVICES.map(s => `
-          <div class="service-card">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <strong style="color:#fff; font-size:14px; font-family:var(--font-display);">${s.name}</strong>
-              <span class="brand-badge" style="background:var(--cyan-subtle); border-color:var(--cyan); color:var(--cyan);">LIVE</span>
-            </div>
-            <div style="font-size:11px; color:var(--text-subtle); font-family:var(--font-mono);">${s.envKey}</div>
-            <p style="font-size:12px; color:var(--text-muted); line-height:1.4;">${s.desc}</p>
-            <div style="font-size:11px; font-family:var(--font-mono); color:var(--mint); border-top:1px solid var(--border); padding-top:6px;">
-              ✓ ${s.status}
-            </div>
-          </div>
-        `).join('');
-      }
+      if (servDom) servDom.innerHTML = '<div class="station-empty-state">Probing configured providers and public fallbacks…</div>';
+      loadServiceMatrix();
 
       // 29 Indian States & UTs Catalog
       loadStatesCatalog();
+    }
+
+    async function loadServiceMatrix() {
+      const root = document.getElementById('servicesGrid');
+      if (!root) return;
+      const safe = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+      try {
+        const response = await fetch('/api/source-health?lat=' + encodeURIComponent(S.lat) + '&lon=' + encodeURIComponent(S.lon));
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Provider health endpoint unavailable');
+        const rows = data.sources || [];
+        root.innerHTML = rows.map(row => {
+          const status = String(row.status || 'UNKNOWN').toUpperCase();
+          const color = status === 'OK' ? 'var(--mint)' : status === 'NOT_CONFIGURED' ? 'var(--text-subtle)' : 'var(--amber)';
+          const latency = row.latency_ms == null ? '—' : Number(row.latency_ms).toFixed(0) + ' ms';
+          const detail = row.detail || (row.sample_available ? 'Provider returned a health sample.' : 'Health probe completed.');
+          return '<article class="service-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">' +
+            '<strong style="color:#fff;font-size:14px;font-family:var(--font-display);">' + safe(row.source || 'Provider') + '</strong>' +
+            '<span class="brand-badge" style="color:' + color + ';border-color:' + color + ';background:transparent;">' + safe(status) + '</span></div>' +
+            '<p style="font-size:12px;color:var(--text-muted);line-height:1.5;">' + safe(detail) + '</p>' +
+            '<div style="font-size:10px;font-family:var(--font-mono);color:var(--text-subtle);border-top:1px solid var(--border);padding-top:7px;">RUNTIME LATENCY · ' + safe(latency) + '</div></article>';
+        }).join('') || '<div class="station-empty-state">No provider checks were returned.</div>';
+      } catch (error) {
+        root.innerHTML = '<div class="station-empty-state">Provider health could not be checked: ' + safe(error.message || error) + '</div>';
+      }
     }
 
     async function loadStatesCatalog() {
@@ -1665,10 +1665,28 @@
       }
     }
 
-    // Export Helpers
-    function exportCSV() { window.open('/api/earth/report?format=csv', '_blank'); }
-    function exportJSON() { window.open(`/api/climate/forecast?lat=${S.lat}&lon=${S.lon}&format=json`, '_blank'); }
-    function exportDossier(fmt) { window.open(`/api/earth/report?format=html&lat=${S.lat}&lon=${S.lon}&region=${encodeURIComponent(S.place)}`, '_blank'); }
+    // Export only the observations actually returned by the live API.
+    function exportCSV() {
+      const series = S.decadalData && S.decadalData.time_series ? S.decadalData.time_series[S.variable] : null;
+      if (!series || !series.dates || !series.values || !series.values.length) {
+        document.getElementById('aiAnalystText').innerText = 'CSV export unavailable: no provider observations are loaded.';
+        return;
+      }
+      const trend = S.decadalData.trends && S.decadalData.trends[S.variable] ? S.decadalData.trends[S.variable] : {};
+      const rows = [['date','variable','value','unit','source'], ...series.dates.map((date, index) => [
+        date, S.variable, series.values[index], trend.unit || '', trend.source || ''
+      ])];
+      const csv = rows.map(row => row.map(value => '"' + String(value == null ? '' : value).replace(/"/g, '""') + '"').join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a'); link.href = url; link.download = 'earthscope-' + S.variable + '-observations.csv';
+      link.click(); URL.revokeObjectURL(url);
+    }
+    function exportJSON() {
+      const params = new URLSearchParams({lat:S.lat,lon:S.lon,region_name:S.place,variables:'ndvi,t2m,precipitation',start_year:'2015',end_year:String(new Date().getFullYear())});
+      window.open('/api/earth/trends/analyze?' + params.toString(), '_blank', 'noopener');
+    }
+    function exportDossier() { exportJSON(); }
 
     async function askAiAnalyst() {
       const query = document.getElementById('aiCustomPrompt').value.trim();
