@@ -266,7 +266,7 @@ def test_modis_lst_reports_credential_or_provider_failure_without_fabricating_da
 @pytest.mark.parametrize(
     "variable,layer_id,data_class",
     [
-        ("gpm_precipitation", "gpm_precipitation", "NASA_DIRECT_OBSERVATION"),
+        ("gpm_precipitation", "gpm_precipitation", "NASA_SATELLITE_GAUGE_MERGED_PRODUCT"),
         ("merra2_t2m", "merra2_t2m", "NASA_MODEL_OUTPUT"),
         ("gldas_soil_moisture", "gldas_soil_moisture", "NASA_MODEL_OUTPUT"),
         ("omi_ozone", "omi_ozone", "NASA_MERGED_SATELLITE_PRODUCT"),
