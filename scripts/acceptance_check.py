@@ -63,8 +63,8 @@ for view in sorted(required_views - present_views):
 
 required_sections = {
     "mainNav", "earthCanvas", "earthDetailPanel", "earthDetailTitle",
-    "worldMap", "systemResults", "featureResults", "layerResults",
-    "forestResults", "fireResults", "climateResults",
+    "worldMap", "searchResults", "layerInspectorContent", "layerGroups",
+    "forestResult", "fireResults", "climateResult", "systemResults", "featureResults",
 }
 html_ids = set(re.findall(r'id="([^"]+)"', html))
 for section in sorted(required_sections - html_ids):
