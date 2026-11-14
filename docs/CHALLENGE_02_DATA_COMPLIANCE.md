@@ -11,8 +11,8 @@ The tool must let a user select Earth-science variables measured by NASA mission
 | NASA POWER T2M | NASA POWER / GMAO gridded near-surface air-temperature model/reanalysis | **Connected** — daily values retrieved from NASA POWER and aggregated to monthly means |
 | NASA POWER PRECTOTCORR | NASA POWER gridded precipitation estimate | **Connected** — daily values retrieved from NASA POWER and summed to monthly totals |
 | Sentinel-2 MSI L2A NDVI | ESA Copernicus satellite-derived vegetation index | **Connected as complementary non-NASA evidence** — must not be described as a NASA mission variable |
-| NASA Terra MODIS MOD13Q1 NDVI/EVI | NASA satellite vegetation-index product | **Earth Engine adapter wired; credential-gated** — count as live only after authenticated regional extraction returns quality-filtered observations |
-| NASA Terra MODIS MOD11A2 LST | NASA satellite land-surface temperature | **Earth Engine adapter wired; credential-gated** — QC_Day filtering and scale conversion are implemented; production extraction remains unverified |
+| NASA Terra MODIS MOD13Q1 NDVI/EVI | NASA satellite vegetation-index product | **Earth Engine adapter wired; credential-gated** — 16-day 250 m composites; SummaryQA ≤ 1; NDVI and EVI use scale 0.0001; count as live only after authenticated extraction |
+| NASA Terra MODIS MOD11A2 LST | NASA satellite land-surface temperature | **Earth Engine adapter wired; credential-gated** — 8-day 1 km day/night composites; QC_Day/QC_Night mandatory bits == 0; scale 0.02 and K→°C conversion |
 | NASA/JAXA GPM IMERG Monthly V07 | Merged satellite-gauge precipitation rate | **Earth Engine adapter wired; credential-gated** — monthly precipitation rate in mm/hr; product coverage currently ends 2025-09; quality-index rejection is not yet applied |
 | NASA MERRA-2 M2T1NXSLV | NASA atmospheric reanalysis | **Earth Engine adapter wired; credential-gated** — hourly T2M aggregated to monthly means and converted K→°C |
 | NASA GLDAS-2.1 Noah | NASA land data-assimilation model | **Earth Engine adapter wired; credential-gated** — 3-hourly 0–10 cm soil moisture aggregated to monthly means |
@@ -52,7 +52,7 @@ For each variable that has a real time series:
 
 - NASA POWER: public API; no key required for the current product path.
 - NASA Earthdata / AppEEARS: requires an Earthdata Login account/token for authenticated task submission and retrieval.
-- Google Earth Engine: requires an enabled Google Cloud project and valid Earth Engine credentials. MOD13Q1, MOD11A2, GPM IMERG, MERRA-2, GLDAS and TOMS/OMI adapters are implemented, but each must pass a real authenticated extraction before being presented as live.
+- Google Earth Engine: requires an enabled Google Cloud project and valid Earth Engine credentials. MOD13Q1 NDVI/EVI, MOD11A2 day/night LST, GPM IMERG, MERRA-2, GLDAS and TOMS/OMI adapters are implemented, but each must pass a real authenticated extraction before being presented as live.
 - NASA FIRMS: requires a valid MAP key for the full fire-detection API.
 - Missing credentials must produce a precise unavailable/credential-required state, never sample data or fabricated measurements.
 
