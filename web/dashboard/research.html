@@ -864,13 +864,17 @@
       <div class="glass-card" style="padding:14px 18px;">
         <div class="card-header-row">
           <span style="font-size:13px; font-weight:600; color:#fff;">Select Earth System Variable:</span>
-          <p class="card-subtitle" style="margin:8px 0 10px;">NASA mission data: Terra MODIS NDVI and LST (Earth Engine credentials required). NASA model data: POWER temperature and precipitation. Sentinel-2 NDVI is ESA Copernicus complementary evidence, not a NASA mission.</p>
+          <p class="card-subtitle" style="margin:8px 0 10px;">NASA mission data: Terra MODIS NDVI/LST, GPM IMERG, and TOMS/OMI merged ozone. NASA model data: POWER, MERRA-2, and GLDAS. Earth Engine credentials are required for MODIS/GPM/MERRA-2/GLDAS/OMI. Sentinel-2 NDVI is ESA Copernicus complementary evidence; AIRS remains catalogue-only until its own extraction path is verified.</p>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="btn active" onclick="switchVariable('ndvi', this)">🌿 Sentinel-2 NDVI (ESA)</button>
             <button class="btn" onclick="switchVariable('t2m', this)">🌡️ NASA POWER T2M</button>
             <button class="btn" onclick="switchVariable('precipitation', this)">🌧️ NASA POWER Precipitation</button>
             <button class="btn" onclick="switchVariable('modis_ndvi', this)">🛰️ NASA Terra MODIS NDVI</button>
             <button class="btn" onclick="switchVariable('modis_lst_day', this)">🌡️ NASA Terra MODIS LST</button>
+            <button class="btn" onclick="switchVariable('gpm_precipitation', this)">🌧️ NASA GPM IMERG</button>
+            <button class="btn" onclick="switchVariable('merra2_t2m', this)">🌡️ NASA MERRA-2 T2M</button>
+            <button class="btn" onclick="switchVariable('gldas_soil_moisture', this)">🌱 NASA GLDAS Soil Moisture</button>
+            <button class="btn" onclick="switchVariable('omi_ozone', this)">🛰️ NASA TOMS/OMI Ozone</button>
           </div>
         </div>
       </div>
@@ -1131,7 +1135,11 @@
       { name: "Terra & Aqua", agency: "NASA", sensor: "MODIS (Moderate Resolution Imaging)", resolution: "250m / 500m / 1km", bands: "MOD13Q1 NDVI/EVI and MOD11A2 LST Day/Night", status: "Earth Engine time-series adapter wired · credentials and regional extraction must pass" },
       { name: "Suomi NPP / NOAA-20 / 21", agency: "NASA / NOAA", sensor: "VIIRS (Visible Infrared Suite)", resolution: "375m Active Fire", bands: "NASA FIRMS pixel-level thermal fire detections", status: "FIRMS MAP key required · runtime status checked separately" },
       { name: "ISS / NASA GEDI", agency: "NASA / Univ. of Maryland", sensor: "Geodetic Lidar", resolution: "25m Footprint Lidar", bands: "L4A Aboveground Biomass Density & Canopy Height", status: "Earth Engine credentials required · product extraction checked separately" },
-      { name: "GPM Core Observatory", agency: "NASA / JAXA", sensor: "DPR & GMI Radar/Radiometer", resolution: "0.1° Gridded", bands: "IMERG Final Run Monthly Precipitation Accumulation", status: "Mission catalogue entry · product availability checked separately" },
+      { name: "GPM Core Observatory", agency: "NASA / JAXA", sensor: "DPR & GMI Radar/Radiometer", resolution: "0.1° Gridded", bands: "IMERG Final Run Monthly Precipitation Rate", status: "Earth Engine adapter wired · monthly product through 2025-09 · credentials checked on run" },
+      { name: "MERRA-2", agency: "NASA GMAO", sensor: "GEOS-5.12.4 Reanalysis", resolution: "~69 × 55 km", bands: "T2M, humidity, pressure and atmospheric diagnostics", status: "Earth Engine adapter wired · authenticated extraction checked on run" },
+      { name: "GLDAS-2.1 Noah", agency: "NASA", sensor: "Land Data Assimilation System", resolution: "0.25° (~27.8 km)", bands: "0–10 cm soil moisture and land-surface variables", status: "Earth Engine adapter wired · authenticated extraction checked on run" },
+      { name: "Aura / OMI", agency: "NASA", sensor: "Ozone Monitoring Instrument", resolution: "~111 km merged grid", bands: "TOMS/OMI merged total-column ozone (Dobson units)", status: "Earth Engine adapter wired · merged record includes historical TOMS and interpolated gaps" },
+      { name: "Aqua / AIRS", agency: "NASA", sensor: "Atmospheric Infrared Sounder", resolution: "Sounding / gridded products", bands: "Atmospheric temperature and water-vapour profiles", status: "Catalogue only · no validated trend extraction adapter connected yet" },
       { name: "ISRO Resourcesat & INSAT", agency: "ISRO", sensor: "LISS-III, AWiFS, VHRR", resolution: "23.5m / 56m Multi-spectral", bands: "Bhuvan WMS Layers, MOSDAC Meteorological", status: "Mission catalogue entry · service response checked separately" }
     ];
 
@@ -1689,7 +1697,7 @@
       link.click(); URL.revokeObjectURL(url);
     }
     function exportJSON() {
-      const params = new URLSearchParams({lat:S.lat,lon:S.lon,region_name:S.place,variables:'ndvi,t2m,precipitation,modis_ndvi,modis_lst_day',start_year:'2015',end_year:String(new Date().getFullYear())});
+      const params = new URLSearchParams({lat:S.lat,lon:S.lon,region_name:S.place,variables:'ndvi,t2m,precipitation,modis_ndvi,modis_lst_day,gpm_precipitation,merra2_t2m,gldas_soil_moisture,omi_ozone',start_year:'2015',end_year:String(new Date().getFullYear())});
       window.open('/api/earth/trends/analyze?' + params.toString(), '_blank', 'noopener');
     }
     function exportDossier() { exportJSON(); }
