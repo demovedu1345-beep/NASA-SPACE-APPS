@@ -965,9 +965,17 @@ def generate_omi_series(lat: float, lon: float, start_year: int, end_year: int, 
     raise RuntimeError("Synthetic environmental data generation is disabled; use a real provider adapter.")
 
 async def run_earthscope_investigation(
-    lat:
+    lat: float,
+    lon: float,
+    region_name: str,
+    variables: List[str],
+    start_year: int = 2015,
+    end_year: int = 2024,
+    alpha: float = 0.05
+) -> Dict[str, Any]:
     """Retired legacy engine. Use the validated /api/earth/trends/analyze route."""
     raise RuntimeError("Legacy EarthScope trend engine is retired; use the validated API route.")
+
 
 def generate_earthscope_report_html(inv: Dict[str, Any]) -> str:
     """
