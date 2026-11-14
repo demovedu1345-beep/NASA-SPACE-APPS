@@ -799,7 +799,7 @@
         <div class="card-header-row">
           <div>
             <h2 class="card-title">
-              <span>🔮 7-Day Day-of-Year (DOY) Probability Forecast</span>
+              <span>🔮 7-Day Provider Weather Forecast</span>
             </h2>
             <p class="card-subtitle">Daily forecast values returned by the weather provider. This is not a 30-year probability or confidence product.</p>
           </div>
@@ -969,12 +969,12 @@
             <p style="font-size:11px; color:var(--text-subtle);">Click anywhere on map to select location</p>
             
             <div style="display:flex; flex-direction:column; gap:6px; font-size:11px; color:var(--text-muted);">
-              <span>📅 Start Date:</span>
+              <span>Forecast horizon:</span>
               <input type="date" class="selector-input" id="mapStartDateInput" value="2026-11-16" style="width:100%;">
             </div>
 
             <div style="display:flex; flex-direction:column; gap:6px; font-size:11px; color:var(--text-muted);">
-              <span>📊 Number of Days (1-30):</span>
+              <span>Provider limit:</span>
               <input type="number" min="1" max="30" value="30" class="selector-input" id="mapDaysInput" style="width:100%;">
             </div>
 
@@ -1014,7 +1014,7 @@
                   <span>📍 <span id="modalLocTitle">Kodagu Forest Region</span></span>
                   <span class="brand-badge" style="background:rgba(120,214,169,0.15); border-color:var(--mint); color:var(--mint);">7-DAY PROVIDER WINDOW</span>
                 </h3>
-                <p style="font-size:12px; color:var(--text-muted); margin-top:4px;" id="modalLocCoords">Coordinates: 12.3375°N, 75.8069°E | Period: 2026-11-16 → 2026-12-15 (30 Days)</p>
+                <p style="font-size:12px; color:var(--text-muted); margin-top:4px;" id="modalLocCoords">Coordinates: 12.3375°N, 75.8069°E | Period will be set by the weather provider</p>
               </div>
               <button onclick="document.getElementById('mapOutlookModal').style.display='none'" style="background:rgba(255,255,255,0.08); border:1px solid var(--border); border-radius:6px; color:#fff; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px;">✕</button>
             </div>
@@ -1038,10 +1038,10 @@
                   <thead>
                     <tr>
                       <th>Date</th>
-                      <th>Temp (Mean)</th>
+                      <th>Temp (high / low)</th>
                       <th>Rain (mm)</th>
                       <th>Rain Chance</th>
-                      <th>Wind (m/s)</th>
+                      <th>Wind (km/h)</th>
                       <th>Data source</th>
                     </tr>
                   </thead>
@@ -1093,7 +1093,7 @@
       <div class="glass-card">
         <div class="card-header-row">
           <div>
-            <h2 class="card-title"><span>🇮🇳 All-India States & Union Territories Rapid Scan</span></h2>
+            <h2 class="card-title"><span>🇮🇳 Indian States & Regional Coordinate Catalogue</span></h2>
             <p class="card-subtitle">Select a coordinate baseline to request live provider weather and a separate satellite/climate trend analysis</p>
           </div>
           <span class="brand-badge">REFERENCE COORDINATES</span>
@@ -1122,14 +1122,14 @@
 
     // 8 Satellite Constellations Catalog
     const CONSTELLATIONS = [
-      { name: "Sentinel-2A & 2B", agency: "ESA Copernicus", sensor: "MSI (Multi-Spectral Instrument)", resolution: "10m / 20m Optical", bands: "RGB, NIR (B8), RedEdge (B8A), SWIR1 (B11), SWIR2 (B12)", status: "Active (5-day revisit)" },
-      { name: "Sentinel-1A & 1B", agency: "ESA Copernicus", sensor: "C-SAR (Synthetic Aperture Radar)", resolution: "C-band All-weather", bands: "VV, VH Polarizations for Cloud-penetrating Radar", status: "Active (ASF Pipeline)" },
-      { name: "Landsat 8 & 9", agency: "NASA / USGS", sensor: "OLI-2 & TIRS-2", resolution: "30m Multispectral + Thermal", bands: "Coastal, Visible, NIR, SWIR, Thermal Infrared", status: "Active (16-day revisit)" },
-      { name: "Terra & Aqua", agency: "NASA", sensor: "MODIS (Moderate Resolution Imaging)", resolution: "250m / 500m / 1km", bands: "MOD13Q1 (NDVI/EVI), MOD11A2 (LST Day/Night)", status: "Active (Daily global)" },
+      { name: "Sentinel-2A & 2B", agency: "ESA Copernicus", sensor: "MSI (Multi-Spectral Instrument)", resolution: "10m / 20m Optical", bands: "RGB, NIR (B8), RedEdge (B8A), SWIR1 (B11), SWIR2 (B12)", status: "Mission catalogue entry · availability checked separately" },
+      { name: "Sentinel-1A & 1B", agency: "ESA Copernicus", sensor: "C-SAR (Synthetic Aperture Radar)", resolution: "C-band All-weather", bands: "VV, VH Polarizations for Cloud-penetrating Radar", status: "Mission catalogue entry · ASF scene search separate" },
+      { name: "Landsat 8 & 9", agency: "NASA / USGS", sensor: "OLI-2 & TIRS-2", resolution: "30m Multispectral + Thermal", bands: "Coastal, Visible, NIR, SWIR, Thermal Infrared", status: "Mission catalogue entry · scene availability checked separately" },
+      { name: "Terra & Aqua", agency: "NASA", sensor: "MODIS (Moderate Resolution Imaging)", resolution: "250m / 500m / 1km", bands: "MOD13Q1 (NDVI/EVI), MOD11A2 (LST Day/Night)", status: "Mission catalogue entry · product availability checked separately" },
       { name: "Suomi NPP / NOAA-20 / 21", agency: "NASA / NOAA", sensor: "VIIRS (Visible Infrared Suite)", resolution: "375m Active Fire", bands: "NASA FIRMS Pixel-level Thermal Wildfire Anomaly", status: "Active (Sub-daily)" },
       { name: "ISS / NASA GEDI", agency: "NASA / Univ. of Maryland", sensor: "Geodetic Lidar", resolution: "25m Footprint Lidar", bands: "L4A Aboveground Biomass Density & Canopy Height", status: "Active (Mission Store)" },
-      { name: "GPM Core Observatory", agency: "NASA / JAXA", sensor: "DPR & GMI Radar/Radiometer", resolution: "0.1° Gridded", bands: "IMERG Final Run Monthly Precipitation Accumulation", status: "Active (Global gridded)" },
-      { name: "ISRO Resourcesat & INSAT", agency: "ISRO", sensor: "LISS-III, AWiFS, VHRR", resolution: "23.5m / 56m Multi-spectral", bands: "Bhuvan WMS Layers, MOSDAC Meteorological", status: "Active (Indian Territory)" }
+      { name: "GPM Core Observatory", agency: "NASA / JAXA", sensor: "DPR & GMI Radar/Radiometer", resolution: "0.1° Gridded", bands: "IMERG Final Run Monthly Precipitation Accumulation", status: "Mission catalogue entry · product availability checked separately" },
+      { name: "ISRO Resourcesat & INSAT", agency: "ISRO", sensor: "LISS-III, AWiFS, VHRR", resolution: "23.5m / 56m Multi-spectral", bands: "Bhuvan WMS Layers, MOSDAC Meteorological", status: "Mission catalogue entry · service response checked separately" }
     ];
 
     // Provider status is populated from the runtime health API below.
