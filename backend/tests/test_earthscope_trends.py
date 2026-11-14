@@ -86,8 +86,8 @@ def test_earth_trend_variable_catalog_only_lists_connected_trend_variables():
     response = client.get("/api/earth/variables")
     assert response.status_code == 200
     body = response.json()
-    assert body["count"] == 9
-    assert set(body["variables"]) == {"ndvi", "t2m", "precipitation", "modis_ndvi", "modis_lst_day", "gpm_precipitation", "merra2_t2m", "gldas_soil_moisture", "omi_ozone"}
+    assert body["count"] == 11
+    assert set(body["variables"]) == {"ndvi", "t2m", "precipitation", "modis_ndvi", "modis_evi", "modis_lst_day", "modis_lst_night", "gpm_precipitation", "merra2_t2m", "gldas_soil_moisture", "omi_ozone"}
 
 
 def test_climate_state_catalog_is_coordinate_reference_not_live_weather():
