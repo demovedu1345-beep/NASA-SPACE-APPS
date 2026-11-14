@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import pytest
 from datetime import date, timedelta
 
 import earthscope_backend
@@ -77,3 +78,20 @@ def test_legacy_trend_engine_never_substitutes_synthetic_ndvi(monkeypatch):
     assert "ndvi" in result["unavailable_variables"]
     assert "No synthetic or proxy series" in result["unavailable_variables"]["ndvi"]
     assert result["results"]["t2m"]["provenance"]["data_class"] == "NASA_MODEL_OUTPUT"
+
+
+@pytest.mark.parametrize(
+    "generator,args",
+    [
+        (earthscope_backend.generate_modis_ndvi_series, (12.3, 75.8, 2015, 2024)),
+        (earthscope_backend.generate_modis_lst_series, (12.3, 75.8, 2015, 2024)),
+        (earthscope_backend.generate_gpm_imerg_series, (12.3, 75.8, 2015, 2024)),
+        (earthscope_backend.generate_merra2_series, (12.3, 75.8, 2015, 2024, "merra2_t2m")),
+        (earthscope_backend.generate_gldas_series, (12.3, 75.8, 2015, 2024, "gldas_sm")),
+        (earthscope_backend.generate_airs_series, (12.3, 75.8, 2015, 2024, "airs_temp")),
+        (earthscope_backend.generate_omi_series, (12.3, 75.8, 2015, 2024, "omi_o3")),
+    ],
+)
+def test_synthetic_environmental_generators_are_disabled(generator, args):
+    with pytest.raises(RuntimeError, match="Synthetic environmental data generation is disabled"):
+        generator(*args)
