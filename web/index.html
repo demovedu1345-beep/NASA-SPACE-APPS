@@ -54,18 +54,21 @@
 <div class="app">
 <aside class="sidebar" id="sidebar">
   <a class="brand" href="/"><span class="brand-logo"><img src="./favicon.svg" alt=""></span><span><b>EARTHSCOPE</b><small>VANRAKSHAK AI</small></span></a>
-  <div class="nav-label">PLANETARY WORKSPACES</div>
   <nav id="mainNav">
     <button class="nav-btn active" data-page="overview"><i data-lucide="orbit"></i><span>Mission Control</span><em>01</em></button>
+    <div class="nav-label nav-group-label">01 / EXPLORE THE PLANET</div>
     <button class="nav-btn" data-page="observatory"><i data-lucide="globe-2"></i><span>Earth Observatory</span><em>02</em></button>
     <button class="nav-btn" data-page="satellites"><i data-lucide="satellite"></i><span>Satellites & Missions</span><em>03</em></button>
     <button class="nav-btn" data-page="layers"><i data-lucide="layers-3"></i><span>Earth Data Layers</span><em>04</em></button>
+    <div class="nav-separator"></div><div class="nav-label nav-group-label">02 / FOREST & ENVIRONMENT</div>
     <button class="nav-btn" data-page="forest"><i data-lucide="trees"></i><span>Forest Intelligence</span><em>05</em></button>
     <button class="nav-btn" data-page="fire"><i data-lucide="flame"></i><span>Fire & Hazards</span><em>06</em></button>
     <button class="nav-btn" data-page="climate"><i data-lucide="cloud-sun"></i><span>Climate & Environment</span><em>07</em></button>
-    <div class="nav-separator"></div><div class="nav-label">ANALYSIS SYSTEMS</div>
+    <div class="nav-separator"></div><div class="nav-label nav-group-label">03 / SCIENCE & DECISIONS</div>
+    <button class="nav-btn" data-page="analytics"><i data-lucide="chart-no-axes-combined"></i><span>Change Analytics</span></button>
+    <button class="nav-btn" data-page="trend-detective"><i data-lucide="chart-spline"></i><span>NASA Trend Detective</span><em>CH.02</em></button>
     <button class="nav-btn" data-page="intelligence"><i data-lucide="brain-circuit"></i><span>AI Intelligence</span></button>
-    <button class="nav-btn" data-page="analytics"><i data-lucide="chart-no-axes-combined"></i><span>Trend Analytics</span></button>
+    <div class="nav-separator"></div><div class="nav-label nav-group-label">04 / RESPONSE & EVIDENCE</div>
     <button class="nav-btn" data-page="operations"><i data-lucide="route"></i><span>Field Operations</span></button>
     <button class="nav-btn" data-page="reports"><i data-lucide="file-chart-line"></i><span>Reports & Evidence</span></button>
   </nav>
@@ -260,6 +263,18 @@
  <section class="panel analysis-controls"><div><label>START DATE</label><input type="date" id="trendStart"></div><div><label>END DATE</label><input type="date" id="trendEnd"></div><div><label>CLOUD THRESHOLD</label><select id="trendCloud"><option>30</option><option selected>50</option><option>70</option><option>90</option></select></div><button class="btn-primary" id="runTrend">RUN VEGETATION SERIES</button></section>
  <section class="panel result-panel"><div class="section-title"><div><small>OBSERVATION SERIES</small><h2>Vegetation time series</h2></div><span class="state-tag" id="trendStatus">NOT RUN</span></div><div id="trendResult" class="result"><div class="empty">Choose a period and run the backend vegetation-series analysis.</div></div></section>
  <section class="panel compare-panel"><div class="section-title"><div><small>REGIONAL TREND CONTRAST</small><h2>Compare two study areas</h2></div><span class="state-tag">SAME PERIOD</span></div><p class="compare-hint">Compare evidence-derived regional indicators. Enter a second region's coordinates; no location or result is invented.</p><div class="compare-fields"><div><label>SECOND REGION NAME</label><input id="compareName" placeholder="e.g. Silent Valley"></div><div><label>LATITUDE</label><input id="compareLat" type="number" step=".0001" placeholder="11.08"></div><div><label>LONGITUDE</label><input id="compareLon" type="number" step=".0001" placeholder="76.45"></div><button class="btn-primary" id="runCompare">COMPARE REGIONS</button></div><div id="compareResult" class="result"><div class="empty">Choose a second region to compare it with the current study area.</div></div></section>
+</section>
+
+<section class="page-view trend-detective-view" data-view="trend-detective">
+ <div class="page-head">
+  <div><div class="eyebrow"><span></span> NASA SPACE APPS / CHALLENGE 02</div><h1>Earth System <b>Trend Detective.</b></h1><p>Investigate climate and vegetation change using provider-backed observations and reproducible non-parametric statistics.</p></div>
+  <div class="head-meta"><div class="utc">SCIENTIFIC WORKSPACE</div><small>OBSERVATIONS · TREND TESTS · PROVENANCE</small></div>
+ </div>
+ <section class="trend-detective-intro panel">
+  <div><small>RESEARCH STATION / EARTH SYSTEM SCIENCE</small><h2>From satellite observations to defensible trend evidence.</h2><p>The research station is integrated from this repository. It uses the same live API origin as the Mission Control workspace. Missing observations are shown as unavailable rather than replaced with generated time series.</p></div>
+  <div class="trend-detective-metrics"><span><b>01</b><small>SELECT LOCATION</small></span><span><b>02</b><small>RETRIEVE DATA</small></span><span><b>03</b><small>TEST TREND</small></span><span><b>04</b><small>EXPORT EVIDENCE</small></span></div>
+ </section>
+ <div class="trend-frame-shell"><iframe class="trend-detective-frame" src="./dashboard/research.html" title="EARTHSCOPE NASA Earth System Trend Detective research workspace" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="fullscreen"></iframe></div>
 </section>
 
 <section class="page-view" data-view="operations">
