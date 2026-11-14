@@ -1498,6 +1498,7 @@ async def run_earthscope_investigation(
                 },
                 "classification": classification
             },
+            "time_series": series,
             "recent_series": series[-24:],
             "anomalies_sample": anomalies[-24:],
             "provenance": {
