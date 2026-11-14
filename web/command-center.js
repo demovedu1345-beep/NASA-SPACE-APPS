@@ -30,62 +30,247 @@ function renderEmpty(text){return `<div class="empty">${esc(text)}</div>`}
 function setLocation(lat,lon,place){
  lat=Number(lat);lon=Number(lon);if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180){toast("Invalid latitude or longitude","error");return}
  state.lat=lat;state.lon=lon;state.place=place||"Selected study area";
- const c=`${Math.abs(lat).toFixed(4)}° ${lat>=0?"N":"S"} · ${Math.abs(lon).toFixed(4)}° ${lon>=0?"E":"W"}`;
- $("latRead").textContent=`${Math.abs(lat).toFixed(4)}° ${lat>=0?"N":"S"}`;$("lonRead").textContent=`${Math.abs(lon).toFixed(4)}° ${lon>=0?"E":"W"}`;
- $("focusName").textContent=state.place.toUpperCase();$("regionName").textContent=state.place;$("regionCoords").textContent=c+"   KARNATAKA / INDIA";
+ const c=Math.abs(lat).toFixed(4)+"° "+(lat>=0?"N":"S")+" · "+Math.abs(lon).toFixed(4)+"° "+(lon>=0?"E":"W");
+ $("latRead").textContent=Math.abs(lat).toFixed(4)+"° "+(lat>=0?"N":"S");$("lonRead").textContent=Math.abs(lon).toFixed(4)+"° "+(lon>=0?"E":"W");
+ $("focusName").textContent=state.place.toUpperCase();$("regionName").textContent=state.place;$("regionCoords").textContent=c;
  ["mapCoordinateReadout","forestCoords"].forEach(id=>{if($(id))$(id).textContent=c});
  ["forestPlace","firePlace"].forEach(id=>{if($(id))$(id).textContent=state.place});
- $("mapLat")&&($("mapLat").value=lat);$("mapLon")&&($("mapLon").value=lon);
+ if($("mapLat"))$("mapLat").value=lat;if($("mapLon"))$("mapLon").value=lon;
  if(state.map)state.map.flyTo({center:[lon,lat],zoom:6,duration:900});
+}
+function latLonToVector(lat,lon,radius=2.04){
+ const phi=(90-lat)*Math.PI/180,theta=(lon+180)*Math.PI/180;
+ return new THREE.Vector3(-radius*Math.sin(phi)*Math.cos(theta),radius*Math.cos(phi),radius*Math.sin(phi)*Math.sin(theta));
+}
+function showEarthSelectionEffect(localPoint){
+ const earthState=state.earth;if(!earthState)return;
+ const normal=localPoint.clone().normalize();
+ earthState.selection.position.copy(normal.clone().multiplyScalar(2.035));
+ earthState.selection.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),normal);
+ earthState.selection.visible=true;earthState.selection.userData.started=performance.now();
+ earthState.controls.autoRotate=false;$("autoRotate")?.classList.remove("active");
+ const cameraDirection=normal.clone().applyQuaternion(earthState.group.quaternion).normalize();
+ const destination=cameraDirection.multiplyScalar(5.15);
+ earthState.controls.enabled=false;
+ const complete=()=>{earthState.controls.target.set(0,0,0);earthState.controls.enabled=true;earthState.controls.update()};
+ if(window.gsap&&!reduced){
+  window.gsap.to(earthState.camera.position,{x:destination.x,y:destination.y,z:destination.z,duration:1.25,ease:"power3.inOut",onUpdate:()=>earthState.controls.update(),onComplete:complete});
+ }else{earthState.camera.position.copy(destination);complete()}
+ const stage=$("globeStage");stage?.classList.remove("is-picking");void stage?.offsetWidth;stage?.classList.add("is-picking");
+ window.setTimeout(()=>stage?.classList.remove("is-picking"),1050);
+}
+function sourceData(result){return result?.data?.data??result?.data??result??null}
+function firstText(...values){return values.find(v=>v!==undefined&&v!==null&&String(v).trim()!=="")??"—"}
+function showInspectorValue(id,value){const el=$(id);if(el)el.textContent=value==null||value===""?"—":String(value)}
+function prettyNumber(value,digits=1,suffix=""){
+ if(value===null||value===undefined||value===""||!Number.isFinite(Number(value)))return "Not available";
+ return Number(value).toFixed(digits)+suffix;
+}
+function listFromPayload(value){
+ if(Array.isArray(value))return value;
+ if(Array.isArray(value?.events))return value.events;
+ if(Array.isArray(value?.features))return value.features;
+ if(Array.isArray(value?.results))return value.results;
+ if(Array.isArray(value?.rows))return value.rows;
+ return [];
+}
+function locationAddress(value){
+ const data=sourceData(value)||{};
+ const feature=data.features?.[0],props=feature?.properties||data.properties||data;
+ return props.address||props;
+}
+async function loadEarthDetails(lat,lon){
+ const panel=$("earthDetailPanel");if(!panel)return;
+ const token=(state.earth?.selectionToken||0)+1;if(state.earth)state.earth.selectionToken=token;
+ panel.hidden=false;panel.classList.add("is-loading");
+ showInspectorValue("earthDetailTitle","Resolving selected point…");
+ showInspectorValue("earthDetailStatus","ENRICHING LOCATION");
+ showInspectorValue("earthDetailCoords",lat.toFixed(4)+"°, "+lon.toFixed(4)+"°");
+ ["earthDetailAdmin","earthDetailCountry","earthDetailElevation","earthDetailSlope","earthDetailAspect","earthDetailTemp","earthDetailHumidity","earthDetailWind","earthDetailRain","earthDetailCloud","earthDetailTrees","earthDetailBiomass","earthDetailCarbon","earthDetailSatellite","earthDetailSceneDate","earthDetailFire","earthDetailEvents","earthDetailPressure","earthDetailPopulation","earthDetailConservation"].forEach(id=>showInspectorValue(id,"Loading…"));
+ $("earthEventList").innerHTML='<div class="earth-event-empty">Querying NASA EONET for regional event context…</div>';
+ if(window.gsap&&!reduced)window.gsap.fromTo(panel,{y:18,autoAlpha:0},{y:0,autoAlpha:1,duration:.55,ease:"power3.out"});
+ const params="lat="+encodeURIComponent(lat)+"&lon="+encodeURIComponent(lon);
+ const requests=await Promise.allSettled([
+  api("/api/forest-profile?"+params+"&place="+encodeURIComponent("Selected Earth location")),
+  api("/api/reverse-geocode?"+params),
+  api("/api/eonet/events?"+params+"&days=30&radius_deg=2")
+ ]);
+ if(state.earth&&token!==state.earth.selectionToken)return;
+ const profileResult=requests[0],geoResult=requests[1],eventResult=requests[2];
+ const profile=profileResult.status==="fulfilled"?profileResult.value:null;
+ const geo=geoResult.status==="fulfilled"?sourceData(geoResult.value):null;
+ const address=locationAddress(geoResult.status==="fulfilled"?geoResult.value:null)||{};
+ const feature=geo?.features?.[0],props=feature?.properties||geo?.properties||geo||{};
+ const displayName=firstText(props.display_name,props.name,profile?.location?.display_name);
+ const locality=firstText(address.city,address.town,address.village,address.municipality,address.county,address.state_district,profile?.location?.district,profile?.location?.state);
+ const stateName=firstText(address.state,profile?.location?.state);
+ const country=firstText(address.country,props.country);
+ if(displayName!=="—"){setLocation(lat,lon,displayName);showInspectorValue("earthDetailTitle",displayName)}
+ else showInspectorValue("earthDetailTitle","Selected Earth location");
+ showInspectorValue("earthDetailAdmin",[locality,stateName].filter(x=>x&&x!=="—").filter((x,i,a)=>a.indexOf(x)===i).join(", ")||"Administrative name unavailable");
+ showInspectorValue("earthDetailCountry",country);
+ showInspectorValue("earthDetailCoords",Math.abs(lat).toFixed(5)+"° "+(lat>=0?"N":"S")+"  /  "+Math.abs(lon).toFixed(5)+"° "+(lon>=0?"E":"W"));
+ if(profileResult.status==="fulfilled"&&profile){
+  const env=profile.environment||{},terrain=profile.terrain||{},forest=profile.forest||{},sat=profile.satellite||{},pressure=profile.human_pressure||{},fire=profile.fire||{};
+  const tree=forest.dynamic_world_tree_probability;
+  showInspectorValue("earthDetailElevation",prettyNumber(terrain.elevation_m,0," m"));
+  showInspectorValue("earthDetailSlope",prettyNumber(terrain.slope_deg,1,"°"));
+  showInspectorValue("earthDetailAspect",prettyNumber(terrain.aspect_deg,0,"°"));
+  showInspectorValue("earthDetailTemp",prettyNumber(env.temperature_c,1,"°C"));
+  showInspectorValue("earthDetailHumidity",prettyNumber(env.humidity_pct,0,"%"));
+  showInspectorValue("earthDetailWind",prettyNumber(env.wind_kmh,1," km/h"));
+  showInspectorValue("earthDetailRain",prettyNumber(env.rain_mm,1," mm"));
+  showInspectorValue("earthDetailCloud",prettyNumber(env.cloud_cover_pct,0,"%"));
+  showInspectorValue("earthDetailTrees",tree==null?"Unavailable":prettyNumber(Number(tree)<=1?Number(tree)*100:tree,1,"%"));
+  showInspectorValue("earthDetailBiomass",prettyNumber(forest.gedi_agbd_mg_per_ha,1," Mg/ha"));
+  showInspectorValue("earthDetailCarbon",prettyNumber(forest.carbon_density_t_per_ha_reference,1," t/ha"));
+  showInspectorValue("earthDetailSatellite",sat.available_scenes==null?"Unavailable":String(sat.available_scenes)+" scenes · "+(sat.resolution_m||"—")+" m");
+  showInspectorValue("earthDetailSceneDate",sat.latest_scene_time?new Date(sat.latest_scene_time).toLocaleString():"No scene returned in the current search window");
+  showInspectorValue("earthDetailFire",fire.detections_in_window==null?"Unavailable":String(fire.detections_in_window));
+  showInspectorValue("earthDetailPressure",pressure.mapped_features==null?"Unavailable":String(pressure.mapped_features));
+  showInspectorValue("earthDetailPopulation",prettyNumber(pressure.population_reference,0));
+  const conservation=profile.conservation,conservationData=conservation?.data??conservation;
+  const conservationItem=listFromPayload(conservationData)[0]||conservationData?.site||conservationData?.protected_area||conservationData;
+  const conservationName=firstText(conservationItem?.name,conservationItem?.NAME,conservationItem?.site_name,conservationItem?.properties?.name,conservationItem?.properties?.name_eng);
+  showInspectorValue("earthDetailConservation",conservationName!=="—"?conservationName:(conservationData?"Reference returned; site name not supplied":"No match returned"));
+  const sources=[sat.available_scenes!=null?"STAC satellite catalogue":"",terrain.source||"",pressure.source||"",profile.earth_engine?.configured?"Google Earth Engine configured":""].filter(Boolean);
+  showInspectorValue("earthDetailSources",sources.join(" · ")||"Sources are displayed with their respective measurements");
+ }else{
+  ["earthDetailElevation","earthDetailSlope","earthDetailAspect","earthDetailTemp","earthDetailHumidity","earthDetailWind","earthDetailRain","earthDetailCloud","earthDetailTrees","earthDetailBiomass","earthDetailCarbon","earthDetailSatellite","earthDetailSceneDate","earthDetailFire","earthDetailPressure","earthDetailPopulation","earthDetailConservation"].forEach(id=>showInspectorValue(id,"Provider data unavailable"));
+  showInspectorValue("earthDetailSources","Forest profile endpoint unavailable for this point");
+ }
+ const eventPayload=eventResult.status==="fulfilled"?sourceData(eventResult.value):null;
+ const events=listFromPayload(eventPayload);
+ showInspectorValue("earthDetailEvents",eventResult.status==="fulfilled"?String(events.length):"Unavailable");
+ if(events.length){
+  $("earthEventList").innerHTML=events.slice(0,4).map(item=>{
+   const p=item.properties||item,geometry=item.geometry?.[0]||item.geometry;
+   const title=firstText(item.title,item.name,p.title,p.name,"Environmental event");
+   const category=firstText(item.categories?.[0]?.title,p.category,"NASA EONET");
+   const date=firstText(geometry?.date,item.updated,p.date,"Date not supplied");
+   return '<div class="earth-event-row"><span></span><div><b>'+esc(title)+'</b><small>'+esc(category)+' · '+esc(String(date).slice(0,16))+'</small></div></div>';
+  }).join("");
+ }else{
+  $("earthEventList").innerHTML='<div class="earth-event-empty">'+(eventResult.status==="fulfilled"?"No NASA EONET events were returned for this 30-day, 2° query window.":"NASA EONET could not be reached for this point.")+'</div>';
+ }
+ panel.classList.remove("is-loading");
+ showInspectorValue("earthDetailStatus",profileResult.status==="fulfilled"?"LOCATION INSPECTED":"PARTIAL DATA");
 }
 function initEarth(){
  const canvas=$("earthCanvas");if(!canvas)return;
- const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(37,1,.1,250);camera.position.set(0,0,6.3);
+ const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(35,1,.1,250);camera.position.set(0,0,5.9);
  const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true,powerPreference:"high-performance"});
- renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.6));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;
- const ambient=new THREE.AmbientLight(0x9ebdce,1.35);scene.add(ambient);
- const sun=new THREE.DirectionalLight(0xffefd9,3);sun.position.set(-5,2.8,5);scene.add(sun);
- const rim=new THREE.PointLight(0x48b8d1,1.2,24);rim.position.set(3,-1,-4);scene.add(rim);
- const starGeo=new THREE.BufferGeometry(),count=2200,pos=new Float32Array(count*3);
- for(let i=0;i<count;i++){const r=40+Math.random()*100,t=Math.random()*Math.PI*2,p=Math.acos(2*Math.random()-1);pos[i*3]=r*Math.sin(p)*Math.cos(t);pos[i*3+1]=r*Math.cos(p);pos[i*3+2]=r*Math.sin(p)*Math.sin(t)}
- starGeo.setAttribute("position",new THREE.BufferAttribute(pos,3));const stars=new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xb8d6e1,size:.085,transparent:true,opacity:.78}));scene.add(stars);
+ renderer.setPixelRatio(Math.min(devicePixelRatio||1,matchMedia("(pointer: coarse)").matches?1.35:1.8));
+ renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
+ scene.add(new THREE.AmbientLight(0x8caebf,1.05));
+ const sun=new THREE.DirectionalLight(0xfff2df,3.15);sun.position.set(-5,2.8,5);scene.add(sun);
+ const rim=new THREE.PointLight(0x48b8d1,1.35,24);rim.position.set(3,-1,-4);scene.add(rim);
+ const starGeo=new THREE.BufferGeometry(),count=2800,pos=new Float32Array(count*3);
+ for(let i=0;i<count;i++){const r=38+Math.random()*105,t=Math.random()*Math.PI*2,p=Math.acos(2*Math.random()-1);pos[i*3]=r*Math.sin(p)*Math.cos(t);pos[i*3+1]=r*Math.cos(p);pos[i*3+2]=r*Math.sin(p)*Math.sin(t)}
+ starGeo.setAttribute("position",new THREE.BufferAttribute(pos,3));
+ const stars=new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xc8e4f2,size:.075,transparent:true,opacity:.62,sizeAttenuation:true}));scene.add(stars);
  const group=new THREE.Group();scene.add(group);
+ const geometry=new THREE.SphereGeometry(2,192,192);
+ const earthMat=new THREE.MeshPhongMaterial({color:0xffffff,shininess:22,specular:new THREE.Color(0x557c9a),bumpScale:.035});
+ const earth=new THREE.Mesh(geometry,earthMat);group.add(earth);
  const loader=new THREE.TextureLoader();loader.setCrossOrigin("anonymous");
- const earthMat=new THREE.MeshPhongMaterial({color:0xa9c7d1,shininess:14,specular:new THREE.Color(0x315d69)});
- const earth=new THREE.Mesh(new THREE.SphereGeometry(2,96,96),earthMat);group.add(earth);
- const nightMat=new THREE.MeshBasicMaterial({color:0xffd9a0,transparent:true,opacity:.17,blending:THREE.AdditiveBlending,depthWrite:false});
- group.add(new THREE.Mesh(new THREE.SphereGeometry(2.003,96,96),nightMat));
- const cloudMat=new THREE.MeshPhongMaterial({color:0xcce0e4,transparent:true,opacity:.28,depthWrite:false});
- const clouds=new THREE.Mesh(new THREE.SphereGeometry(2.018,96,96),cloudMat);group.add(clouds);
- const glow=new THREE.Mesh(new THREE.SphereGeometry(2.12,64,64),new THREE.ShaderMaterial({
-  transparent:true,side:THREE.BackSide,depthWrite:false,uniforms:{glowColor:{value:new THREE.Color(0x4dbbd7)}},
+ const loadTexture=url=>new Promise(resolve=>loader.load(url,texture=>{
+  texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);resolve(texture);
+ },undefined,()=>resolve(null)));
+ const assets={
+  day:"https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/january/world.200401.3x5400x2700.jpg",
+  dayFallback:"https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-blue-marble.jpg",
+  topology:"https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-topology.png",
+  water:"https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-water.png",
+  night:"https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-night.jpg",
+  clouds:"https://raw.githubusercontent.com/turban/webgl-earth/master/images/fair_clouds_4k.png"
+ };
+ const nightMat=new THREE.ShaderMaterial({
+  uniforms:{nightMap:{value:null},sunDirection:{value:sun.position.clone().normalize()}},
+  vertexShader:"varying vec2 vUv;varying vec3 vNormalWorld;void main(){vUv=uv;vNormalWorld=normalize(mat3(modelMatrix)*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}",
+  fragmentShader:"uniform sampler2D nightMap;uniform vec3 sunDirection;varying vec2 vUv;varying vec3 vNormalWorld;void main(){float light=dot(normalize(vNormalWorld),normalize(sunDirection));float darkSide=1.0-smoothstep(-0.08,0.18,light);vec3 lights=texture2D(nightMap,vUv).rgb;float mask=smoothstep(0.08,0.48,max(max(lights.r,lights.g),lights.b));float alpha=darkSide*mask*0.95;gl_FragColor=vec4(lights*vec3(1.0,0.62,0.30)*1.35,alpha);}",
+  transparent:true,depthWrite:false,blending:THREE.AdditiveBlending
+ });
+ const nightLayer=new THREE.Mesh(new THREE.SphereGeometry(2.004,160,160),nightMat);group.add(nightLayer);
+ const cloudMat=new THREE.MeshPhongMaterial({color:0xffffff,transparent:true,opacity:.32,depthWrite:false,side:THREE.DoubleSide});
+ const clouds=new THREE.Mesh(new THREE.SphereGeometry(2.018,128,128),cloudMat);group.add(clouds);
+ const atmosphere=new THREE.Mesh(new THREE.SphereGeometry(2.105,96,96),new THREE.ShaderMaterial({
+  transparent:true,side:THREE.BackSide,depthWrite:false,blending:THREE.AdditiveBlending,
+  uniforms:{glowColor:{value:new THREE.Color(0x62b9e2)}},
   vertexShader:"varying vec3 vN;varying vec3 vV;void main(){vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.0);vV=-mv.xyz;gl_Position=projectionMatrix*mv;}",
-  fragmentShader:"uniform vec3 glowColor;varying vec3 vN;varying vec3 vV;void main(){float f=pow(1.0-max(dot(normalize(vN),normalize(vV)),0.0),2.1);gl_FragColor=vec4(glowColor,f*.72);}"
- }));group.add(glow);
+  fragmentShader:"uniform vec3 glowColor;varying vec3 vN;varying vec3 vV;void main(){float edge=pow(1.0-max(dot(normalize(vN),normalize(vV)),0.0),2.25);gl_FragColor=vec4(glowColor,edge*.66);}"
+ }));group.add(atmosphere);
  const markers=new THREE.Group();group.add(markers);
- const controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.dampingFactor=.055;controls.enablePan=false;controls.minDistance=4.3;controls.maxDistance=8.5;controls.autoRotate=!reduced;controls.autoRotateSpeed=.28;controls.rotateSpeed=.42;controls.zoomSpeed=.65;
- const resize=()=>{const b=canvas.getBoundingClientRect();if(!b.width||!b.height)return;camera.aspect=b.width/b.height;camera.updateProjectionMatrix();renderer.setSize(b.width,b.height,false);renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.6))};
+ const selection=new THREE.Group();selection.visible=false;group.add(selection);
+ const core=new THREE.Mesh(new THREE.SphereGeometry(.035,24,24),new THREE.MeshBasicMaterial({color:0xe8fbff}));
+ const ringA=new THREE.Mesh(new THREE.TorusGeometry(.052,.006,8,56),new THREE.MeshBasicMaterial({color:0x8ce9ff,transparent:true,opacity:.95,depthWrite:false}));
+ const ringB=new THREE.Mesh(new THREE.TorusGeometry(.052,.003,8,56),new THREE.MeshBasicMaterial({color:0xf4bf79,transparent:true,opacity:.75,depthWrite:false}));
+ const ringC=new THREE.Mesh(new THREE.TorusGeometry(.052,.002,8,56),new THREE.MeshBasicMaterial({color:0x8ce9ff,transparent:true,opacity:.45,depthWrite:false}));
+ selection.add(core,ringA,ringB,ringC);selection.userData.rings=[ringA,ringB,ringC];selection.position.set(0,0,2.035);
+ const controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.dampingFactor=.055;controls.enablePan=false;controls.minDistance=4.15;controls.maxDistance=8.7;controls.autoRotate=!reduced;controls.autoRotateSpeed=.22;controls.rotateSpeed=.44;controls.zoomSpeed=.68;controls.target.set(0,0,0);
+ const resize=()=>{const b=canvas.getBoundingClientRect();if(!b.width||!b.height)return;camera.aspect=b.width/b.height;camera.updateProjectionMatrix();renderer.setSize(b.width,b.height,false);renderer.setPixelRatio(Math.min(devicePixelRatio||1,matchMedia("(pointer: coarse)").matches?1.35:1.8))};
  const ro=new ResizeObserver(resize);ro.observe(canvas.parentElement);resize();
- const draw=()=>{if(!canvas.isConnected){ro.disconnect();renderer.dispose();return}controls.update();clouds.rotation.y+=.00012;stars.rotation.y-=.000009;renderer.render(scene,camera);requestAnimationFrame(draw)};requestAnimationFrame(draw);
- const base="https://unpkg.com/three-globe/example/img/";
- Promise.all(["earth-blue-marble.jpg","earth-night.jpg","earth-clouds.png"].map(name=>new Promise(resolve=>loader.load(base+name,tex=>{tex.colorSpace=THREE.SRGBColorSpace;resolve(tex)},undefined,()=>resolve(null)))))
- .then(([surface,night,cloud])=>{if(surface){earthMat.map=surface;earthMat.color.set(0xffffff);earthMat.needsUpdate=true}if(night){nightMat.map=night;nightMat.needsUpdate=true}if(cloud){cloudMat.map=cloud;cloudMat.needsUpdate=true;cloudMat.opacity=.32} $("textureStatus").textContent=surface?"SURFACE TEXTURE READY":"TEXTURE FALLBACK"});
- state.earth={scene,camera,renderer,controls,group,markers};
+ const draw=now=>{
+  if(!canvas.isConnected){ro.disconnect();renderer.dispose();controls.dispose();return}
+  if(!document.hidden){
+   controls.update();clouds.rotation.y+=reduced?0:.00010;stars.rotation.y-=.000006;
+   if(selection.visible){
+    const t=(now-(selection.userData.started||now))/1000;
+    selection.userData.rings.forEach((ring,index)=>{
+     const progress=((t*.68+index*.34)%1);const scale=.85+progress*1.9;
+     ring.scale.setScalar(scale);ring.material.opacity=(1-progress)*(.82-index*.12);
+    });
+   }
+   renderer.render(scene,camera);
+  }
+  requestAnimationFrame(draw);
+ };
+ requestAnimationFrame(draw);
+ Promise.all([loadTexture(assets.day),loadTexture(assets.topology),loadTexture(assets.water),loadTexture(assets.night),loadTexture(assets.clouds)]).then(async([day,topology,water,night,cloud])=>{
+  let surface=day;if(!surface)surface=await loadTexture(assets.dayFallback);
+  if(surface){earthMat.map=surface;earthMat.color.set(0xffffff);earthMat.needsUpdate=true}
+  if(topology){earthMat.bumpMap=topology;earthMat.bumpScale=.026;earthMat.needsUpdate=true}
+  if(water){earthMat.specularMap=water;earthMat.specular.set(0x667f98);earthMat.shininess=24;earthMat.needsUpdate=true}
+  if(night){nightMat.uniforms.nightMap.value=night;nightMat.needsUpdate=true}else nightLayer.visible=false;
+  if(cloud){cloudMat.map=cloud;cloudMat.needsUpdate=true}else clouds.visible=false;
+  $("textureStatus").textContent=surface?(day?"NASA BLUE MARBLE · 5.4K":"EARTH SURFACE TEXTURE READY"):"SURFACE TEXTURE FALLBACK";
+ });
+ state.earth={scene,camera,renderer,controls,group,markers,earth,clouds,selection,selectionToken:0};
+ let pointerStart=null;const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();canvas.style.cursor="crosshair";
+ canvas.addEventListener("pointerdown",event=>{pointerStart={x:event.clientX,y:event.clientY,id:event.pointerId}});
+ canvas.addEventListener("pointerup",event=>{
+  if(!pointerStart||pointerStart.id!==event.pointerId)return;
+  const moved=Math.hypot(event.clientX-pointerStart.x,event.clientY-pointerStart.y);pointerStart=null;if(moved>7)return;
+  const bounds=canvas.getBoundingClientRect();pointer.x=((event.clientX-bounds.left)/bounds.width)*2-1;pointer.y=-((event.clientY-bounds.top)/bounds.height)*2+1;
+  raycaster.setFromCamera(pointer,camera);
+  const markerHits=raycaster.intersectObjects(markers.children,false);
+  const hit=markerHits[0]||raycaster.intersectObject(earth,false)[0];if(!hit)return;
+  const local=group.worldToLocal(hit.point.clone()).normalize();
+  const lat=Math.asin(THREE.MathUtils.clamp(local.y,-1,1))*180/Math.PI;
+  const lon=((Math.atan2(local.z,-local.x)*180/Math.PI-180+540)%360)-180;
+  showEarthSelectionEffect(local);setLocation(lat,lon,"Resolving selected point…");loadEarthDetails(lat,lon);
+ });
+ canvas.addEventListener("pointercancel",()=>{pointerStart=null});
  $("autoRotate").addEventListener("click",()=>{controls.autoRotate=!controls.autoRotate;$("autoRotate").classList.toggle("active",controls.autoRotate)});
- $("resetGlobe").addEventListener("click",()=>{camera.position.set(0,0,6.3);controls.target.set(0,0,0);controls.autoRotate=true;$("autoRotate").classList.add("active")});
+ $("resetGlobe").addEventListener("click",()=>{
+  if(window.gsap&&!reduced)window.gsap.to(camera.position,{x:0,y:0,z:5.9,duration:.9,ease:"power2.inOut"});
+  else camera.position.set(0,0,5.9);
+  controls.target.set(0,0,0);controls.enabled=true;controls.autoRotate=true;$("autoRotate").classList.add("active");selection.visible=false;
+ });
+ $("closeEarthDetail")?.addEventListener("click",()=>{$("earthDetailPanel").hidden=true;selection.visible=false});
 }
+
 function addMarkers(events){
- if(!state.earth)return;const group=state.earth.markers;while(group.children.length){const x=group.children.pop();x.geometry?.dispose();x.material?.dispose()}
- let count=0;
+ if(!state.earth)return;const group=state.earth.markers;
+ while(group.children.length){const marker=group.children[0];group.remove(marker);marker.geometry?.dispose();if(Array.isArray(marker.material))marker.material.forEach(m=>m.dispose());else marker.material?.dispose()}
  for(const e of (events||[]).slice(0,250)){
   let coords=e.geometry?.coordinates;
   if(Array.isArray(e.geometry)&&e.geometry[0])coords=e.geometry[0].coordinates;
   if(!coords&&Array.isArray(e.coordinates))coords=e.coordinates;
   if(!Array.isArray(coords)||coords.length<2)continue;
   const [lon,lat]=coords;if(!Number.isFinite(lat)||!Number.isFinite(lon))continue;
-  const phi=(90-lat)*Math.PI/180,theta=(lon+180)*Math.PI/180,r=2.03;
-  const p=new THREE.Vector3(-r*Math.sin(phi)*Math.cos(theta),r*Math.cos(phi),r*Math.sin(phi)*Math.sin(theta));
-  const marker=new THREE.Mesh(new THREE.SphereGeometry(.018,9,9),new THREE.MeshBasicMaterial({color:0xf0aa70}));marker.position.copy(p);group.add(marker);count++;
+  const marker=new THREE.Mesh(new THREE.SphereGeometry(.025,12,12),new THREE.MeshBasicMaterial({color:0xf0aa70}));
+  marker.position.copy(latLonToVector(lat,lon,2.025));marker.userData={lat,lon,event:e};group.add(marker);
  }
 }
 function initMap(){
@@ -93,7 +278,7 @@ function initMap(){
  const style={version:8,sources:{osm:{type:"raster",tiles:["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],tileSize:256,attribution:"© OpenStreetMap contributors"}},layers:[{id:"osm",type:"raster",source:"osm"}]};
  state.map=new maplibregl.Map({container:"worldMap",style,center:[state.lon,state.lat],zoom:5.2,minZoom:2,maxZoom:16});
  state.map.addControl(new maplibregl.NavigationControl(),"top-right");
- state.map.on("click",e=>{setLocation(e.lngLat.lat,e.lngLat.lng,"Selected map location");toast("Study area updated")});
+ state.map.on("click",e=>{showEarthSelectionEffect(latLonToVector(e.lngLat.lat,e.lngLat.lng,2.03));setLocation(e.lngLat.lat,e.lngLat.lng,"Resolving selected point…");loadEarthDetails(e.lngLat.lat,e.lngLat.lng);toast("Location selected")});
 }
 async function loadOverview(){
  const q=`?lat=${state.lat}&lon=${state.lon}`;
