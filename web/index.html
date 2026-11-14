@@ -9,9 +9,12 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.css">
 <link rel="stylesheet" href="./command-center.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lenis@1.3.27/dist/lenis.css">
+<link rel="stylesheet" href="./cosmic-upgrade.css">
 <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
 <script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.27/dist/lenis.min.js" defer></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js"}}</script>
 </head>
 <body>
@@ -195,5 +198,6 @@
 <div id="toastStack" class="toast-stack"></div>
 <dialog id="regionDialog" class="dialog"><form method="dialog"><div class="dialog-head"><div><small>STUDY AREA</small><h2>Observation centre</h2></div><button class="icon-btn" value="cancel"><i data-lucide="x"></i></button></div><label>Region name</label><input id="regionInputName" value="Kodagu Forest Region"><div class="two-fields"><div><label>Latitude</label><input id="regionInputLat" type="number" step=".0001" value="12.3375"></div><div><label>Longitude</label><input id="regionInputLon" type="number" step=".0001" value="75.8069"></div></div><button class="btn-primary wide" id="saveRegion" value="default">APPLY STUDY AREA</button></form></dialog>
 <dialog id="aboutDialog" class="dialog"><form method="dialog"><div class="dialog-head"><div><small>PLATFORM IDENTITY</small><h2>Earth intelligence, with evidence.</h2></div><button class="icon-btn" value="cancel"><i data-lucide="x"></i></button></div><p>EARTHSCOPE and VanRakshak AI is an independent Earth-observation and forest-intelligence platform. It uses third-party datasets and APIs. Satellite imagery is not continuous live video; observations, model outputs, derived metrics and AI interpretations must remain distinct.</p><p>This project is not an official NASA product and does not imply endorsement by NASA, ESA, USGS or ISRO.</p><button class="btn-primary wide" value="cancel">UNDERSTOOD</button></form></dialog>
+<script src="./cosmic-upgrade.js" defer></script>
 <script type="module" src="./command-center.js"></script>
 </body></html>
