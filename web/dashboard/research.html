@@ -1539,30 +1539,46 @@
         .addTo(map);
 
       map.on('click', async (e) => {
-        const lng = parseFloat(e.lngLat.lng.toFixed(4));
-        const lat = parseFloat(e.lngLat.lat.toFixed(4));
+        const lng = Number(e.lngLat.lng.toFixed(4));
+        const lat = Number(e.lngLat.lat.toFixed(4));
         marker.setLngLat([lng, lat]);
-
-        // Reverse Geocode
-        let placeName = "Selected Coordinates";
-        try {
-          const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10`);
-          const d = await resp.json();
-          placeName = d.address?.county || d.address?.state || d.display_name.split(',')[0];
-        } catch (_) {}
-
-        document.getElementById('drawerPlaceName').innerText = placeName;
-        document.getElementById('drawerCoords').innerText = `${lat}°N, ${lng}°E`;
-        document.getElementById('drawerTemp').innerText = "25.2°C";
-        document.getElementById('drawerRain').innerText = "1,640 mm";
-        document.getElementById('drawerTrend').innerText = "Statistically Significant";
+        S.tempLat = lat; S.tempLon = lng;
+        S.tempPlace = 'Selected coordinates';
+        const put = (id, value) => {
+          const node = document.getElementById(id);
+          if (node) node.innerText = value == null || value === '' ? 'Unavailable' : String(value);
+        };
+        put('drawerPlaceName', 'Resolving selected location…');
+        put('drawerCoords', lat.toFixed(4) + '°N, ' + lng.toFixed(4) + '°E');
+        put('drawerTemp', 'Loading provider data…');
+        put('drawerRain', 'Loading provider data…');
+        put('drawerTrend', 'Run the scientific trend analysis to calculate this');
         document.getElementById('mapTelemetryDrawer').style.display = 'flex';
 
-        S.tempLat = lat;
-        S.tempLon = lng;
-        S.tempPlace = placeName;
+        const query = 'lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng);
+        const responses = await Promise.allSettled([
+          fetch('/api/reverse-geocode?' + query),
+          fetch('/api/weather?' + query),
+          fetch('/api/climate/anomaly?' + query + '&window_days=30&baseline_years=5')
+        ]);
+        const read = async result => {
+          if (result.status !== 'fulfilled' || !result.value.ok) return null;
+          try { return await result.value.json(); } catch (_) { return null; }
+        };
+        const [geo, weather, climate] = await Promise.all(responses.map(read));
+        const geoData = geo && (geo.data || geo);
+        const geoAddress = geoData && (geoData.address || geoData.properties && geoData.properties.address || {});
+        const place = geoAddress ? (geoAddress.county || geoAddress.state_district || geoAddress.state || geoAddress.country) : null;
+        if (place) S.tempPlace = place;
+        put('drawerPlaceName', S.tempPlace);
+        const weatherData = weather && (weather.data || weather);
+        const current = weatherData && (weatherData.current || weatherData.data && weatherData.data.current);
+        put('drawerTemp', current && current.temperature_2m != null ? Number(current.temperature_2m).toFixed(1) + '°C' : 'Unavailable from weather providers');
+        put('drawerRain', current && current.precipitation != null ? Number(current.precipitation).toFixed(1) + ' mm current precipitation' : 'Unavailable from weather providers');
+        const climateData = climate && (climate.data || climate);
+        const anomaly = climateData && (climateData.temperature || climateData.anomaly || climateData.summary);
+        put('drawerTrend', anomaly ? 'Climate anomaly response available; open analysis for full statistics' : 'No climate anomaly result returned');
       });
-    }
 
     function jumpToLocation(lat, lon, name) {
       if (window.earthscopeMap) {
@@ -1627,22 +1643,25 @@
       if (!grid) return;
       try {
         const res = await fetch('/api/climate/states');
+        if (!res.ok) throw new Error('State coordinate catalogue is unavailable');
         const data = await res.json();
-        grid.innerHTML = (data.states || []).map(s => `
-          <div class="state-card" onclick="updateLocation(${s.lat}, ${s.lon}, '${s.name}'); switchOptionView('forecast');">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <strong style="color:#fff; font-size:14px;">${s.name}</strong>
-              <span style="font-size:11px; color:var(--mint); font-family:var(--font-mono);">${s.capital}</span>
-            </div>
-            <div style="font-size:11px; color:var(--text-subtle); font-family:var(--font-mono);">${s.lat}°N, ${s.lon}°E</div>
-            <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); border-top:1px solid var(--border); padding-top:6px;">
-              <span>Baseline Temp: <strong>25.4°C</strong></span>
-              <span style="color:var(--mint);">Click to Analyze →</span>
-            </div>
-          </div>
-        `).join('');
+        const states = data.states || [];
+        grid.innerHTML = states.map(state => {
+          const safeName = String(state.name || '').replace(/'/g, '&#39;');
+          return '<div class="state-card" role="button" tabindex="0" data-lat="' + state.lat + '" data-lon="' + state.lon + '" data-name="' + safeName + '">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;"><strong style="color:#fff;font-size:14px;">' + state.name + '</strong><span style="font-size:10px;color:var(--mint);">COORDINATE BASELINE</span></div>' +
+            '<div style="font-size:11px;color:var(--text-subtle);font-family:var(--font-mono);">' + Number(state.lat).toFixed(4) + '°N, ' + Number(state.lon).toFixed(4) + '°E</div>' +
+            '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:7px;margin-top:7px;">' +
+            '<span>' + (state.climate_zone || 'Climate zone not supplied') + '</span><span style="color:var(--mint);">SELECT & ANALYZE →</span></div>' +
+            '<p style="font-size:10px;color:var(--text-subtle);margin-top:7px;">' + (state.hotspot || '') + '</p></div>';
+        }).join('');
+        grid.querySelectorAll('.state-card').forEach(card => {
+          const choose = () => updateLocation(Number(card.dataset.lat), Number(card.dataset.lon), card.dataset.name);
+          card.addEventListener('click', choose);
+          card.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(); } });
+        });
       } catch (e) {
-        console.error("Failed to load states:", e);
+        grid.innerHTML = '<div class="station-empty-state">' + String(e.message || e) + '</div>';
       }
     }
 
@@ -1651,10 +1670,25 @@
     function exportJSON() { window.open(`/api/climate/forecast?lat=${S.lat}&lon=${S.lon}&format=json`, '_blank'); }
     function exportDossier(fmt) { window.open(`/api/earth/report?format=html&lat=${S.lat}&lon=${S.lon}&region=${encodeURIComponent(S.place)}`, '_blank'); }
 
-    function askAiAnalyst() {
-      const q = document.getElementById('aiCustomPrompt').value.trim();
-      if (!q) return;
-      document.getElementById('aiAnalystText').innerText = `Analyzing NASA POWER and GPM observations for "${q}"... Evidence synthesis confirms localized stability with healthy canopy greenness and standard monsoonal rainfall variability.`;
+    async function askAiAnalyst() {
+      const query = document.getElementById('aiCustomPrompt').value.trim();
+      const output = document.getElementById('aiAnalystText');
+      if (!query || !output) return;
+      output.innerText = 'Parsing the question against the selected study area…';
+      try {
+        const params = new URLSearchParams({ q: query, lat: S.lat, lon: S.lon });
+        const response = await fetch('/api/query?' + params.toString());
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.detail || 'Earth query endpoint unavailable');
+        output.innerText = JSON.stringify({
+          interpreted_query: result.query || query,
+          filters: result.filters || {},
+          matched_intent: result.intent || result.intent_type || null,
+          note: 'This is query parsing, not a generated scientific conclusion. Run the relevant evidence workflow before interpreting environmental impact.'
+        }, null, 2);
+      } catch (error) {
+        output.innerText = 'Query service unavailable: ' + String(error.message || error);
+      }
     }
 
     // Bootstrap Dashboard
@@ -1663,43 +1697,25 @@
     function openMapWeatherPredictionModal() {
       const modal = document.getElementById('mapOutlookModal');
       if (!modal) return;
-      const lat = S.tempLat || S.lat;
-      const lon = S.tempLon || S.lon;
+      const lat = S.tempLat != null ? S.tempLat : S.lat;
+      const lon = S.tempLon != null ? S.tempLon : S.lon;
       const place = S.tempPlace || S.place;
-      const startDate = document.getElementById('mapStartDateInput')?.value || "2026-11-16";
-      const numDays = parseInt(document.getElementById('mapDaysInput')?.value || "30", 10);
-
+      const forecast = S.forecastData && S.forecastData.daily_forecast ? S.forecastData.daily_forecast : [];
       document.getElementById('modalLocTitle').innerText = place;
-      document.getElementById('modalLocCoords').innerText = `Coordinates: ${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E | Period: ${startDate} (${numDays} Days)`;
-
-      // Generate 30 daily predictions
+      document.getElementById('modalLocCoords').innerText = 'Coordinates: ' + lat.toFixed(4) + '°N, ' + lon.toFixed(4) + '°E | Provider forecast window';
       const tbody = document.getElementById('modalPredictionsTableBody');
-      const rows = [];
-      const start = new Date(startDate);
-      for (let i = 0; i < numDays; i++) {
-        const d = new Date(start);
-        d.setDate(start.getDate() + i);
-        const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const temp = (25.5 + Math.sin(i / 5) * 2.5 + (Math.random() * 0.4 - 0.2)).toFixed(1);
-        const minT = (parseFloat(temp) - 3.8).toFixed(1);
-        const maxT = (parseFloat(temp) + 4.2).toFixed(1);
-        const rain = (i % 5 === 0 ? (Math.random() * 8.5).toFixed(1) : (Math.random() * 0.4).toFixed(2));
-        const rainChance = parseFloat(rain) > 2.0 ? Math.floor(45 + Math.random() * 40) : Math.floor(Math.random() * 12);
-        const wind = (3.6 + Math.random() * 1.8).toFixed(1);
-        const windKmh = (parseFloat(wind) * 3.6).toFixed(1);
-        
-        rows.push(`
-          <tr>
-            <td style="font-family:var(--font-mono); color:#fff;">${dateStr}</td>
-            <td style="font-family:var(--font-mono);"><strong style="color:var(--mint);">${temp}°C</strong> <span style="font-size:10px; color:var(--text-subtle);">(${minT}° – ${maxT}°)</span></td>
-            <td style="font-family:var(--font-mono);">${rain} mm</td>
-            <td><span class="event-badge ${rainChance > 30 ? 'badge-rain' : ''}">${rainChance}% (${rainChance > 30 ? 'High' : 'Low'})</span></td>
-            <td style="font-family:var(--font-mono);">${wind} m/s <span style="font-size:10px; color:var(--text-subtle);">(${windKmh} km/h)</span></td>
-            <td style="font-family:var(--font-mono); color:var(--cyan);">95%</td>
-          </tr>
-        `);
+      if (!forecast.length) {
+        tbody.innerHTML = '<tr><td colspan="6">No provider forecast is available for this location. Run the climate query again.</td></tr>';
+      } else {
+        tbody.innerHTML = forecast.map(day => '<tr>' +
+          '<td style="font-family:var(--font-mono);color:#fff;">' + (day.date || '—') + '</td>' +
+          '<td style="font-family:var(--font-mono);">' + (day.temp_high == null ? '—' : Number(day.temp_high).toFixed(1) + '°C') +
+          ' / ' + (day.temp_low == null ? '—' : Number(day.temp_low).toFixed(1) + '°C') + '</td>' +
+          '<td style="font-family:var(--font-mono);">' + (day.rain_mm == null ? '—' : day.rain_mm + ' mm') + '</td>' +
+          '<td>' + (day.rain_prob == null ? '—' : day.rain_prob + '%') + '</td>' +
+          '<td style="font-family:var(--font-mono);">' + (day.wind_kmh == null ? '—' : day.wind_kmh + ' km/h') + '</td>' +
+          '<td style="font-family:var(--font-mono);color:var(--cyan);">Open-Meteo provider forecast</td></tr>').join('');
       }
-      tbody.innerHTML = rows.join('');
       modal.style.display = 'flex';
     }
 
