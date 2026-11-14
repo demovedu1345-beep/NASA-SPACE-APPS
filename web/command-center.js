@@ -142,28 +142,54 @@ function navigate(page){
  icons();
 }
 async function loadSatellites(){
- const root=$("missionGrid");root.innerHTML='<div class="loading">Checking connected mission and satellite data endpoints…</div>';
- const q=`?lat=${state.lat}&lon=${state.lon}`;
- const results=await Promise.allSettled([api("/api/satellite/latest"+q+"&days=45&cloud_lt=70"),api("/api/satellite/sentinel1"+q+"&days=45"),api("/api/satellite/landsat"+q+"&days=90&cloud_lt=70"),api("/api/gibs/catalog"),api("/api/earth-engine/catalog"),api("/api/integrations/open-source")]);
- const defs=[
-  ["Sentinel-2 L2A","OPTICAL / MULTISPECTRAL","MSI · Copernicus STAC","High-resolution optical observation and spectral products",results[0]],
-  ["Sentinel-1 SAR","RADAR / ALL-WEATHER","C-SAR · ASF / Copernicus","Radar scene discovery for cloud-independent observations",results[1]],
-  ["Landsat Collection 2","OPTICAL / THERMAL","OLI / TIRS · USGS catalogue","Historical land observation and thermal archive",results[2]],
-  ["NASA GIBS","BROWSE IMAGERY","NASA Earthdata · WMTS","Time-dependent satellite browse imagery layers",results[3]],
-  ["Google Earth Engine","EARTH OBSERVATION CATALOGUE","Earth Engine · credential-gated","Configured scientific layer catalogue",results[4]],
-  ["Open-source integration registry","DATA CONNECTOR REGISTER","Repository configuration","Runtime and vetted integration components",results[5]]
- ];
- root.innerHTML=defs.map(([name,category,sensor,desc,result])=>{
-  const ok=result.status==="fulfilled"&&(result.value.ok!==false);
-  const status=result.status==="rejected"?"UNAVAILABLE":result.value.status||result.value.freshness||(ok?"RESPONSE RECEIVED":"NO DATA");
+ const root=$("missionGrid");root.innerHTML='<div class="loading">Discovering connected mission platforms and data-product catalogues…</div>';
+ if(!state.layers.length){try{const catalogue=await api("/api/layers");state.layers=catalogue.groups||[]}catch{}}
+ const q="?lat="+state.lat+"&lon="+state.lon;
+ const calls=await Promise.allSettled([
+  api("/api/satellite/latest"+q+"&days=45&cloud_lt=70"),
+  api("/api/satellite/sentinel1"+q+"&days=45"),
+  api("/api/satellite/landsat"+q+"&days=90&cloud_lt=70"),
+  api("/api/gibs/catalog"),
+  api("/api/earth-engine/catalog"),
+  api("/api/bhuvan/info"),
+  api("/api/mosdac/info")
+ ]);
+ const card=(name,category,sensor,description,status,layerId,searchText)=>{
   const cls=classify(status);
-  const body=result.status==="fulfilled"?result.value:{error:result.reason?.message};
-  return `<article class="mission-card" data-search="${esc((name+" "+category+" "+sensor).toLowerCase())}" data-category="${/sentinel-2|landsat|optical/.test(name.toLowerCase())?"optical":/sentinel-1|radar/.test(name.toLowerCase())?"radar":/gibs/.test(name.toLowerCase())?"thermal": "climate"}"><div class="mission-top"><span class="mission-tag">${esc(category)}</span><span class="state-tag ${cls}">${esc(status)}</span></div><h3>${esc(name)}</h3><p>${esc(desc)}. ${esc(body.source||body.error||"Provider metadata available when connected.")}</p><div class="mission-meta"><span>${esc(sensor)}</span><span>${result.status==="fulfilled"?"Endpoint responded":"Endpoint unavailable"}</span></div><button class="link-btn mission-detail" data-detail="${esc(name)}">VIEW SOURCE RESPONSE <i data-lucide="arrow-up-right"></i></button></article>`;
- }).join("");icons();
- root.querySelectorAll(".mission-detail").forEach(btn=>btn.addEventListener("click",()=>{const i=defs.find(x=>x[0]===btn.dataset.detail);const r=i?.[4];showResult("Mission source response",r?.status==="fulfilled"?r.value:{error:r?.reason?.message})}));
- $("missionStatus").textContent=results.some(r=>r.status==="fulfilled")?"ENDPOINT CHECK COMPLETE":"NO API RESPONSE";
- $("missionSearch").oninput=()=>{const q=$("missionSearch").value.toLowerCase();$$(".mission-card").forEach(c=>c.hidden=!c.dataset.search.includes(q))};
+  return '<article class="mission-card" data-search="'+esc((name+" "+category+" "+sensor+" "+(searchText||"")).toLowerCase())+'" data-category="'+(/radar|sar/i.test(category+" "+sensor)?"radar":/thermal|fire/i.test(category)?"thermal":/climate|precip|soil|atmosphere/i.test(category)?"climate":"optical")+'"><div class="mission-top"><span class="mission-tag">'+esc(category)+'</span><span class="state-tag '+cls+'">'+esc(status)+'</span></div><h3>'+esc(name)+'</h3><p>'+esc(description)+'</p><div class="mission-meta"><span>'+esc(sensor)+'</span><span>'+esc(layerId?"Layer registered":"Service catalogue")+'</span></div>'+(layerId?'<button class="link-btn mission-open-layer" data-mission-layer="'+esc(layerId)+'">OPEN DATA LAYER <i data-lucide="arrow-up-right"></i></button>':'')+'</article>';
+ };
+ const cards=[],defs=[
+  {name:"Sentinel-2A / 2B",category:"OPTICAL MULTISPECTRAL",sensor:"MSI · Copernicus",desc:"Recent Level-2A scene discovery and supported spectral modes.",result:calls[0],layer:"sentinel2"},
+  {name:"Sentinel-1A / 1B",category:"C-BAND SAR RADAR",sensor:"C-SAR · ASF / Copernicus",desc:"Radar scene discovery. Availability is not a measured SAR-change result.",result:calls[1],layer:"sentinel1"},
+  {name:"Landsat 8 / 9",category:"OPTICAL / THERMAL",sensor:"OLI / TIRS · USGS",desc:"Historical multispectral and thermal scene discovery.",result:calls[2],layer:"landsat"}
+ ];
+ for(const d of defs){const status=d.result.status==="fulfilled"?(d.result.value.status||d.result.value.freshness||"ENDPOINT RESPONDED"):"UNAVAILABLE";const desc=d.desc+" "+(d.result.status==="fulfilled"?(d.result.value.source||"Provider responded."):(d.result.reason?.message||"Provider unavailable."));cards.push(card(d.name,d.category,d.sensor,desc,status,d.layer))}
+ const rows=state.layers.flatMap(g=>g.layers||[]);
+ const hasLayer=id=>rows.some(l=>l.id===id);
+ const gibs=calls[3].status==="fulfilled"?(calls[3].value.layers||[]):[];
+ const gibsIds=gibs.map(x=>String(x.id||x.identifier||x.layer||x.title||"").toLowerCase()).join(" ");
+ const gibsHas=id=>gibsIds.includes(id);
+ const eeLayers=calls[4].status==="fulfilled"?(calls[4].value.layers||{}):{};
+ const eeText=JSON.stringify(eeLayers).toLowerCase();
+ const candidates=[
+  {test:hasLayer("nasa_modis_terra")||gibsHas("modis_terra"),name:"Terra MODIS",category:"MODERATE-RESOLUTION OPTICAL / THERMAL",sensor:"MODIS · Terra",desc:"NASA GIBS true-colour and supported MODIS observation products.",layer:"nasa_modis_terra"},
+  {test:hasLayer("nasa_modis_aqua")||gibsHas("modis_aqua"),name:"Aqua MODIS",category:"MODERATE-RESOLUTION OPTICAL / THERMAL",sensor:"MODIS · Aqua",desc:"NASA GIBS imagery and catalogue-backed Aqua observation products.",layer:"nasa_modis_aqua"},
+  {test:hasLayer("nasa_viirs_snpp")||gibsHas("viirs_snpp"),name:"Suomi NPP VIIRS",category:"THERMAL / NIGHT LIGHTS",sensor:"VIIRS · JPSS",desc:"NASA/NOAA VIIRS imagery and thermal observation layers.",layer:"nasa_viirs_snpp"},
+  {test:hasLayer("nasa_imerg_rain")||gibsHas("imerg_precipitation_rate"),name:"GPM IMERG",category:"PRECIPITATION / MICROWAVE",sensor:"DPR / GMI · NASA / JAXA",desc:"GPM precipitation product available through the current NASA imagery catalogue.",layer:"nasa_imerg_rain"},
+  {test:hasLayer("nasa_smap_soil_moisture")||gibsHas("smap_soil_moisture"),name:"SMAP",category:"MICROWAVE SOIL MOISTURE",sensor:"L-Band Radiometer · NASA",desc:"NASA SMAP soil-moisture browse layer where available.",layer:"nasa_smap_soil_moisture"},
+  {test:hasLayer("nasa_opera_dist")||gibsHas("opera_dist_alert_hls"),name:"NASA OPERA HLS",category:"SURFACE DISTURBANCE",sensor:"OPERA · NASA",desc:"Harmonized Landsat Sentinel disturbance-alert product.",layer:"nasa_opera_dist"},
+  {test:hasLayer("biomass")||eeText.includes("gedi_agbd"),name:"ISS GEDI",category:"WAVEFORM LIDAR / BIOMASS",sensor:"GEDI · International Space Station",desc:"Above-ground biomass-density layer registered through Earth Engine.",layer:"biomass"},
+  {test:hasLayer("forest_cover")||eeText.includes("dynamic_world"),name:"Dynamic World",category:"LAND COVER / VEGETATION",sensor:"Sentinel-2-derived classification",desc:"Dynamic World land-cover layer with its configured provider/fallback semantics.",layer:"forest_cover"}
+ ];
+ for(const m of candidates)if(m.test)cards.push(card(m.name,m.category,m.sensor,m.desc,"CATALOGUE AVAILABLE",m.layer));
+ if(calls[5].status==="fulfilled")cards.push(card("ISRO Bhuvan","INDIAN EARTH OBSERVATION PORTAL","NRSC / ISRO WMS","Bhuvan service metadata responded. Exact thematic layers depend on its published catalogue.","METADATA RESPONDED","","Bhuvan"));
+ if(calls[6].status==="fulfilled")cards.push(card("ISRO MOSDAC","INDIAN METEOROLOGICAL DATA PORTAL","MOSDAC / ISRO","MOSDAC service metadata responded. Authenticated product download may be required.","METADATA RESPONDED","","MOSDAC"));
+ root.innerHTML=cards.length?cards.join(""):'<div class="empty">No satellite or product catalogue entries were returned. Check provider health and the layer registry.</div>';
+ $("missionStatus").textContent=cards.length+" MISSION / PRODUCT ENTRIES";
+ $("missionSearch").oninput=()=>{const term=$("missionSearch").value.toLowerCase();$$(".mission-card").forEach(c=>c.hidden=!c.dataset.search.includes(term))};
  $("missionFilters").onclick=e=>{const b=e.target.closest("[data-filter]");if(!b)return;$$("#missionFilters button").forEach(x=>x.classList.toggle("selected",x===b));$$(".mission-card").forEach(c=>c.hidden=b.dataset.filter!=="all"&&c.dataset.category!==b.dataset.filter)};
+ $$(".mission-open-layer").forEach(btn=>btn.addEventListener("click",async()=>{navigate("layers");await loadLayers();const layer=state.layers.flatMap(g=>g.layers||[]).find(x=>x.id===btn.dataset.missionLayer);if(layer)await toggleLayer(layer,true,null);else toast("No matching rendered data layer is registered for this mission.","error")}));
+ icons();
 }
 function renderResult(target,data){$(target).innerHTML=renderJson(data)}
 async function loadLayers(){
@@ -279,7 +305,7 @@ async function toggleLayer(layer,enabled,input){
    else if(layer.id==="fire_risk")result=await api("/api/fire/intelligence?lat="+state.lat+"&lon="+state.lon+"&days=3");
    else if(layer.id==="drought"||layer.id==="temperature_anomaly"||layer.id==="rainfall_anomaly")result=await api("/api/climate/anomaly?lat="+state.lat+"&lon="+state.lon+"&window_days=30&baseline_years=5");
    else if(layer.id==="carbon_loss")result=await api("/api/analysis/evidence-chain?lat="+state.lat+"&lon="+state.lon+"&place="+encodeURIComponent(state.place));
-   else if(layer.id==="erosion")result=await api("/api/human-pressure?lat="+state.lat+"&lon="+state.lon+"&radius_m=5000");
+   else if(layer.id==="erosion")throw new Error("No dedicated validated erosion-susceptibility calculation is enabled; human-pressure data is not used as a substitute.");
    else if(layer.id==="fragmentation"){const picker=$("fragmentationUpload");picker?.click();return}
    else throw new Error("No verified analysis endpoint is registered for this layer.");
    renderLayerInspector(layer.label,result);toast(layer.label+" analysis response received.");return;
@@ -398,7 +424,7 @@ async function runCapability(id){
  if(config.layer){await loadLayers();const found=state.layers.flatMap(g=>g.layers||[]).find(x=>x.id===config.layer);if(found)await toggleLayer(found,true,null);return}
  if(config.upload){$("fragmentationUpload").click();return}
  if(config.report){await downloadInvestigationReport();return}
- if(config.compare){const root=$("trendResult");root.innerHTML=renderEmpty("Regional comparison requires two distinct region coordinates. Use the region selector to prepare separate locations before running this comparison.");return}
+ if(config.compare){await runRegionalCompare();return}
  const root=$(config.target);if(!root)return;
  root.innerHTML='<div class="loading">Executing capability '+id+' with the selected study area…</div>';
  try{const data=await api(config.path);root.innerHTML=renderJson(data);toast("Capability response received. Inspect source and limitations in the result.");}
@@ -433,6 +459,22 @@ async function loadSystems(){
  $("featureResults").innerHTML=features?.features?.length?features.features.map(x=>'<button type="button" class="feature-pill" data-feature-id="'+esc(x.id)+'"><b>'+esc(x.name||x.label||x.id||"Capability")+'</b><small>'+esc(x.status||x.runtime_status||"Status not supplied")+'</small><em>OPEN WORKFLOW ↗</em></button>').join(""):renderEmpty("Feature capability registry unavailable.");
  $("[data-feature-id]").forEach(button=>button.addEventListener("click",()=>runCapability(Number(button.dataset.featureId))));
 }
+async function runRegionalCompare(){
+ const name=$("compareName").value.trim(),lat=Number($("compareLat").value),lon=Number($("compareLon").value);
+ if(!name||!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180){$("compareResult").innerHTML=renderEmpty("Enter a second region name and valid coordinates before running the comparison.");return}
+ const start=$("trendStart").value||iso(new Date(Date.now()-3*365*86400000)),end=$("trendEnd").value||iso(new Date());
+ if(start>=end){toast("Choose a valid analysis period first.","error");return}
+ $("compareResult").innerHTML='<div class="loading">Comparing both regions using source-backed evidence…</div>';
+ try{
+  const payload={regions:[
+   {name:state.place,lat:state.lat,lon:state.lon,before_date:start,after_date:end,radius_km:1.5},
+   {name:name,lat:lat,lon:lon,before_date:start,after_date:end,radius_km:1.5}
+  ]};
+  const result=await api("/api/intelligence/compare-live",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  $("compareResult").innerHTML=renderJson(result);toast("Regional comparison response received.");
+ }catch(e){$("compareResult").innerHTML=renderEmpty(e.message);toast("Regional comparison unavailable: "+e.message,"error")}
+}
+
 async function runTrend(){
  const start=$("trendStart").value,end=$("trendEnd").value;if(!start||!end||start>=end)return toast("Choose a valid start/end period","error");
  $("trendStatus").textContent="RUNNING";$("trendResult").innerHTML='<div class="loading">Requesting real vegetation observations…</div>';
@@ -469,15 +511,35 @@ function bind(){
  $("runInvestigation").addEventListener("click",loadForest);
  $("fireDays").addEventListener("change",loadFire);$("refreshFire").addEventListener("click",loadFire);
  $("refreshClimate").addEventListener("click",loadClimate);$("refreshSystems").addEventListener("click",loadSystems);
- $("runTrend").addEventListener("click",runTrend);$("generateReport").addEventListener("click",report);
+ $("runTrend").addEventListener("click",runTrend);$("runCompare").addEventListener("click",runRegionalCompare);$("generateReport").addEventListener("click",downloadInvestigationReport);
  $("globalSearch").addEventListener("keydown",e=>{if(e.key==="Enter")geocode(e.target.value);if(e.key==="Escape")e.target.blur()});
  $("globalSearch").addEventListener("focus",()=>$("globalSearch").parentElement.classList.add("expanded"));
  $("globalSearch").addEventListener("blur",()=>setTimeout(()=>$("globalSearch").parentElement.classList.remove("expanded"),180));
  window.addEventListener("keydown",e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="k"){e.preventDefault();$("globalSearch").focus()}});
 }
 function clock(){const update=()=>{$("utcClock").textContent=new Date().toISOString().slice(11,19)+" UTC"};update();setInterval(update,1000)}
+function initParallax(){
+ if(reduced||matchMedia("(pointer: coarse)").matches)return;
+ let last=0;
+ window.addEventListener("pointermove",event=>{
+  const now=performance.now();if(now-last<24)return;last=now;
+  const x=(event.clientX/innerWidth-.5),y=(event.clientY/innerHeight-.5);
+  if(window.gsap){
+   window.gsap.to(".g1",{x:x*24,y:y*18,duration:1.4,ease:"power3.out",overwrite:true});
+   window.gsap.to(".g2",{x:-x*17,y:-y*13,duration:1.7,ease:"power3.out",overwrite:true});
+  }
+ });
+ $(".mission-card,.feature-grid button,.launch-grid button").forEach(card=>{
+  card.addEventListener("pointermove",event=>{
+   const r=card.getBoundingClientRect(),x=(event.clientX-r.left)/r.width-.5,y=(event.clientY-r.top)/r.height-.5;
+   card.style.transform="perspective(850px) rotateX("+(-y*2.4)+"deg) rotateY("+(x*2.8)+"deg) translateY(-2px)";
+  });
+  card.addEventListener("pointerleave",()=>{card.style.transform=""});
+ });
+}
+
 async function boot(){
- icons();clock();bind();setLocation(state.lat,state.lon,state.place);
+ icons();clock();bind();initParallax();setLocation(state.lat,state.lon,state.place);
  try{initEarth()}catch(e){$("textureStatus").textContent="3D RENDERER UNAVAILABLE";console.error(e)}
  if(!reduced&&window.gsap){gsap.from(".sidebar",{x:-12,opacity:0,duration:.6,ease:"power3.out"});gsap.from(".topbar",{y:-10,opacity:0,duration:.5,delay:.06});gsap.from(".globe-panel",{y:15,opacity:0,duration:.75,delay:.12,ease:"power3.out"});gsap.from(".hero-side .panel",{y:12,opacity:0,duration:.6,stagger:.1,delay:.22})}
  $("trendEnd").value=iso(new Date());$("trendStart").value=iso(new Date(Date.now()-3*365*86400000));

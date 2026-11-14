@@ -50,3 +50,10 @@
 .feature-pill:hover{border-color:var(--line2);background:#7ee0b60b;transform:translateY(-1px)}
 .feature-pill em{display:block;margin-top:6px;color:var(--mint);font:7px var(--mono);font-style:normal;letter-spacing:.08em}
 @media(max-width:700px){.active-layer-stack{align-items:flex-start;flex-direction:column}.active-layer-stack>div:first-child{display:flex;gap:9px;align-items:center}#activeLayerList{justify-content:flex-start}}
+
+.compare-panel{padding:14px;margin-top:12px}
+.compare-hint{margin:0 0 12px;color:#8299a1;font-size:8px;line-height:1.6}
+.compare-fields{display:grid;grid-template-columns:1.2fr 1fr 1fr auto;gap:8px;align-items:end}
+.compare-fields label{display:block;margin:0 0 5px;color:#718a94;font:7px var(--mono);letter-spacing:.12em}
+.compare-fields input{width:100%;min-width:0;height:34px;padding:0 9px;border:1px solid var(--line);border-radius:7px;background:#071521;color:#dce9e6;outline:0;font-size:9px}
+@media(max-width:700px){.compare-fields{grid-template-columns:1fr 1fr}.compare-fields>div:first-child,.compare-fields button{grid-column:1/-1}}
