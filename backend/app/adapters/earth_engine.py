@@ -167,7 +167,7 @@ class EarthEngineAdapter:
                     month_end = month_start.advance(1, "month")
                     month_collection = collection.filterDate(month_start, month_end)
                     monthly_image = month_collection.select(cfg["band"]).mean()
-                    return reduce_image(monthly_image, month_start.format("YYYY-MM"))
+                    return reduce_image(monthly_image, month_start.format("YYYY-MM-dd"))
 
                 feature_list = month_indices.map(to_month_feature)
             else:
