@@ -2807,8 +2807,16 @@ async def climate_forecast_ep(
     current_humidity = current.get("relative_humidity_2m") if current else None
     current_wind = current.get("wind_speed_10m") if current else None
     current_rain = current.get("precipitation") if current else None
-    avg_fc_temp = mean([d["temp_high"] for d in days if d["temp_high"] is not None]) if any(d["temp_high"] is not None for d in days) else None
-    avg_fc_rain = mean([d["rain_mm"] for d in days if d["rain_mm"] is not None]) if any(d["rain_mm"] is not None for d in days) else None
+    valid_highs = [float(d["temp_high"]) for d in days if d["temp_high"] is not None]
+    valid_lows = [float(d["temp_low"]) for d in days if d["temp_low"] is not None]
+    valid_rain = [float(d["rain_mm"]) for d in days if d["rain_mm"] is not None]
+    valid_wind = [float(d["wind_kmh"]) for d in days if d["wind_kmh"] is not None]
+    avg_fc_temp = mean(valid_highs) if valid_highs else None
+    avg_fc_rain = mean(valid_rain) if valid_rain else None
+    sum_fc_rain = sum(valid_rain) if valid_rain else None
+    max_fc_rain = max(valid_rain) if valid_rain else None
+    rainy_days = sum(1 for value in valid_rain if value >= 0.1)
+    max_fc_wind = max(valid_wind) if valid_wind else None
     return {
         "ok": bool(forecast),
         "location": {"name": place, "lat": lat, "lon": lon},
@@ -2817,9 +2825,15 @@ async def climate_forecast_ep(
         "current": current or None,
         "insights": {
             "avgTemp": (str(round(avg_fc_temp, 1)) + "°C") if avg_fc_temp is not None else "Unavailable",
+            "avgTempValueC": round(avg_fc_temp, 2) if avg_fc_temp is not None else None,
             "minTemp": (str(round(min([d["temp_low"] for d in days if d["temp_low"] is not None]), 1)) + "°C") if any(d["temp_low"] is not None for d in days) else "Unavailable",
             "maxTemp": (str(round(max([d["temp_high"] for d in days if d["temp_high"] is not None]), 1)) + "°C") if any(d["temp_high"] is not None for d in days) else "Unavailable",
             "avgWind": (str(round(current_wind, 1)) + " km/h") if current_wind is not None else "Unavailable",
+            "maxWind": (str(round(max_fc_wind, 1)) + " km/h") if max_fc_wind is not None else "Unavailable",
+            "maxPrecip": (str(round(max_fc_rain, 1)) + " mm/day") if max_fc_rain is not None else "Unavailable",
+            "rainyDays": str(rainy_days) + " days" if valid_rain else "Unavailable",
+            "sevenDayPrecipitationTotalMm": round(sum_fc_rain, 2) if sum_fc_rain is not None else None,
+            "pressure": current.get("pressure_msl") if current else None,
             "totalPrecip": (str(round(avg_fc_rain, 1)) + " mm/day (7-day mean)") if avg_fc_rain is not None else "Unavailable",
             "weatherPattern": "Provider forecast" if forecast else "Forecast unavailable",
             "patternDetail": "Seven-day forecast and ten-year monthly reference climatology are shown separately; no forecast is extrapolated beyond the provider horizon.",
