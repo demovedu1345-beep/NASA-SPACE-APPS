@@ -2284,7 +2284,7 @@ def root():
 from pydantic import BaseModel, Field
 from collections import defaultdict
 from statistics import mean, median
-from calendar import month_abbr
+from calendar import month_abbr, monthrange
 
 class EarthTrendRequest(BaseModel):
     lat: float = Field(12.3375, ge=-90, le=90)
@@ -2303,12 +2303,12 @@ class EarthTrendCompareRequest(BaseModel):
 
 _EARTH_TREND_VARIABLES = {
     "ndvi": {
-        "name": "Sentinel-2 NDVI",
+        "name": "Sentinel-2 NDVI (ESA Copernicus; complementary evidence)",
         "unit": "NDVI",
         "dataset": "Sentinel-2 MSI Level-2A",
-        "source": "Element 84 Earth Search / Sentinel-2 L2A COGs",
+        "source": "Element 84 Earth Search / ESA Copernicus Sentinel-2 L2A COGs",
         "resolution": "10 m",
-        "data_class": "DERIVED_METRIC",
+        "data_class": "ESA_DERIVED_METRIC",
         "method": "Cloud/shadow-masked red and near-infrared reflectance, summarized over a 1.5 km radius.",
     },
     "t2m": {
@@ -2523,16 +2523,18 @@ async def _earth_trend_analysis(
             rain_months = defaultdict(list)
             for day, temp, rain in zip(dates, temps, rainfall):
                 month_key = str(day)[:7]
-                if temp is not None:
+                if temp is not None and math.isfinite(float(temp)) and float(temp) > -900:
                     temp_months[month_key].append(float(temp))
-                if rain is not None:
+                if rain is not None and math.isfinite(float(rain)) and float(rain) > -900:
                     rain_months[month_key].append(float(rain))
             for variable in climate_variables:
                 values = temp_months if variable == "t2m" else rain_months
                 rows = []
                 for month_key in sorted(values):
                     vals = values[month_key]
-                    if vals:
+                    year, month = int(month_key[:4]), int(month_key[5:7])
+                    minimum_valid_days = math.ceil(monthrange(year, month)[1] * 0.8)
+                    if len(vals) >= minimum_valid_days:
                         val = mean(vals) if variable == "t2m" else sum(vals)
                         rows.append({"date": month_key + "-15", "value": round(val, 5)})
                 if len(rows) >= 12:
