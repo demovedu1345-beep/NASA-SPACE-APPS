@@ -14,6 +14,9 @@
   const scrim = $("#workspaceScrim");
   let lenis = null;
   let lenisTicker = null;
+  let coverTimeline = null;
+  let fogEffect = null;
+  let fogStarted = false;
 
   function loadScript(src, id) {
     return new Promise((resolve, reject) => {
@@ -32,6 +35,40 @@
       script.onerror = reject;
       document.head.appendChild(script);
     });
+  }
+
+  // Vanta FOG is a desktop-only fallback when the supplied HLS film cannot play.
+  // It is not stacked over a working video, and it never replaces the existing Three.js globe.
+  async function initFogFallback() {
+    if (fogStarted || reduced || !finePointer || innerWidth < 1050) return;
+    fogStarted = true;
+    try {
+      await loadScript("https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js", "earthscope-fog-three");
+      await loadScript("https://cdn.jsdelivr.net/npm/vanta@0.5.24/dist/vanta.fog.min.js", "earthscope-vanta-fog");
+      if (!window.VANTA || !window.VANTA.FOG || !window.THREE) return;
+      fogEffect = window.VANTA.FOG({
+        el: $(".ambient"),
+        THREE: window.THREE,
+        mouseControls: false,
+        touchControls: false,
+        gyroControls: false,
+        minHeight: 200,
+        minWidth: 200,
+        scale: .72,
+        scaleMobile: .4,
+        highlightColor: 0x789ab9,
+        midtoneColor: 0x25364b,
+        lowlightColor: 0x121923,
+        baseColor: 0x090909,
+        blurFactor: .72,
+        speed: .35,
+        zoom: .82
+      });
+      document.documentElement.dataset.fogFallback = "active";
+      window.addEventListener("pagehide", () => fogEffect && fogEffect.destroy(), { once: true });
+    } catch (error) {
+      console.info("Volumetric background unavailable; filmic CSS fallback remains active.", error);
+    }
   }
 
   // Once-per-tab editorial loading moment; returning users reach the dashboard immediately.
@@ -109,11 +146,15 @@
     video.preload = "none";
 
     const tryPlay = () => video.play().catch(() => {
-      // A browser can block background autoplay; the dark filmic fallback remains intact.
+      // A blocked autoplay falls back to a restrained desktop fog, not a broken black rectangle.
       video.classList.add("video-paused");
+      initFogFallback();
     });
     video.addEventListener("playing", () => video.classList.remove("video-paused"), { once: true });
-    video.addEventListener("error", () => video.classList.add("video-failed"), { once: true });
+    video.addEventListener("error", () => {
+      video.classList.add("video-failed");
+      initFogFallback();
+    }, { once: true });
 
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = source;
@@ -142,6 +183,7 @@
           if (recoveries++ > 2) {
             video.classList.add("video-failed");
             hls.destroy();
+            initFogFallback();
             return;
           }
           if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
@@ -149,15 +191,18 @@
           else {
             video.classList.add("video-failed");
             hls.destroy();
+            initFogFallback();
           }
         });
         window.addEventListener("pagehide", () => hls.destroy(), { once: true });
       } else {
         video.classList.add("video-failed");
+        initFogFallback();
       }
     } catch (error) {
       console.info("HLS background unavailable; cinematic CSS fallback active.", error);
       video.classList.add("video-failed");
+      initFogFallback();
     }
   }
 
@@ -281,6 +326,47 @@
     }
   }
 
+  function initCoverMotion(view) {
+    const cover = $("#overviewCover", view || document);
+    if (!cover || !gsap || reduced) return;
+    const copy = $(".cover-copy", cover);
+    const aura = $(".cover-aura", cover);
+    const orbit = $(".cover-orbit", cover);
+    const meta = $(".cover-bottom", cover);
+    if (copy) {
+      gsap.fromTo(copy,
+        { y: 28, autoAlpha: 0, filter: "blur(9px)" },
+        { y: 0, autoAlpha: 1, filter: "blur(0px)", duration: 1.05, delay: .16, ease: "power3.out", clearProps: "filter,opacity,visibility,transform" }
+      );
+    }
+    if (meta) {
+      gsap.fromTo(meta, { y: 12, autoAlpha: 0 }, {
+        y: 0, autoAlpha: 1, duration: .72, delay: .48, ease: "power3.out",
+        clearProps: "opacity,visibility,transform"
+      });
+    }
+    if (coverTimeline) {
+      coverTimeline.scrollTrigger && coverTimeline.scrollTrigger.kill();
+      coverTimeline.kill();
+      coverTimeline = null;
+    }
+    if (ScrollTrigger && scrollArea && copy) {
+      coverTimeline = gsap.timeline({
+        scrollTrigger: {
+          id: "earthscope-cover-parallax",
+          trigger: cover,
+          scroller: scrollArea,
+          start: "top top",
+          end: "bottom top",
+          scrub: .7
+        }
+      });
+      coverTimeline.to(copy, { y: -76, autoAlpha: .22, ease: "none" }, 0);
+      if (aura) coverTimeline.to(aura, { scale: 1.12, opacity: .34, ease: "none" }, 0);
+      if (orbit) coverTimeline.to(orbit, { y: 42, rotation: -5, opacity: .4, ease: "none" }, 0);
+    }
+  }
+
   function initNavigationMotion() {
     if (!gsap || reduced) return;
     const nav = $(".portfolio-nav");
@@ -299,6 +385,12 @@
       $(".portfolio-nav [data-page]").forEach((button) => button.classList.toggle("active", button.dataset.page === pageKey));
       animatePageHeading(active);
       setupScrollReveals(active);
+      if (pageKey === "overview") initCoverMotion(active);
+      else if (coverTimeline) {
+        coverTimeline.scrollTrigger && coverTimeline.scrollTrigger.kill();
+        coverTimeline.kill();
+        coverTimeline = null;
+      }
       if (ScrollTrigger) ScrollTrigger.refresh();
     };
     const observer = new MutationObserver((records) => {
@@ -335,6 +427,7 @@
     initParallax();
     initNavigationMotion();
     observePages();
+    initCoverMotion($('[data-view="overview"]'));
     initHoverTilt();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
