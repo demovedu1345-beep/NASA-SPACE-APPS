@@ -19,7 +19,12 @@
     },
     {
       "source": "/api/:path*",
-      "destination": "https://vanrakshak-api-production-3e28.up.railway.app/api/:path*"
+      "destination": "/api/proxy?__proxy_path=:path*"
     }
-  ]
+  ],
+  "functions": {
+    "api/proxy.js": {
+      "maxDuration": 60
+    }
+  }
 }
