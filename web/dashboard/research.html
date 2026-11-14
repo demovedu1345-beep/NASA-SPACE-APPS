@@ -1297,10 +1297,13 @@
       try {
         const res = await fetch(url);
         const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Climate forecast endpoint unavailable');
         S.forecastData = data;
         renderForecastUI(data);
       } catch (err) {
-        console.warn("Using fallback forecast data:", err);
+        S.forecastData = null;
+        renderForecastUI({ok:false, insights:{weatherPattern:'Forecast unavailable',patternDetail:String(err.message || err)},daily_forecast:[]});
+        console.warn("Provider forecast unavailable:", err);
       }
     }
 
@@ -1315,6 +1318,7 @@
       put('insightRainyDays', ins.rainyDays == null ? '—' : ins.rainyDays);
       put('insightAvgWind', ins.avgWind == null ? 'Unavailable' : ins.avgWind);
       put('insightMaxWind', ins.maxWind == null ? '—' : ins.maxWind);
+      put('insightPressure', ins.pressure == null ? '—' : Number(ins.pressure).toFixed(0) + ' hPa');
       put('insightWeatherPattern', ins.weatherPattern || (data && data.ok ? 'Provider forecast' : 'Unavailable'));
       put('insightWeatherAdvice', ins.patternDetail || 'No advisory is generated without provider observations.');
       const grid = document.getElementById('daysForecastGrid');
@@ -1403,7 +1407,7 @@
         renderDecadalUI(data);
       } catch (err) {
         S.decadalData = null;
-        ['trendZStat','trendPVal','trendSensSlope','trendSlopeCI','trendSeasonalZ','trendFdrStatus'].forEach(id => {
+        ['trendZStat','trendPVal','trendSensSlope','trendSlopeCI','trendSeasonalZ','trendSeasonalMonths','trendFdrStatus','trendFdrQVal'].forEach(id => {
           const node = document.getElementById(id); if (node) node.innerText = '—';
         });
         if (cardsContainer) cardsContainer.innerHTML = '<div class="station-empty-state">' + String(err.message || err) + '</div>';
