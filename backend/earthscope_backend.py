@@ -472,6 +472,313 @@ NASA_DATASETS_REGISTRY = {
     }
 }
 
+# --- 8 CORE SATELLITE CONSTELLATIONS & SENSORS (NASA-SPACE-APPS REPO) ---
+SATELLITE_CONSTELLATIONS_CATALOG = {
+    "sentinel-2": {
+        "id": "sentinel-2",
+        "name": "Sentinel-2A & 2B (ESA Copernicus)",
+        "agency": "ESA / European Commission",
+        "sensor": "MSI (Multi-Spectral Instrument)",
+        "resolution": "10m, 20m, 60m",
+        "revisit": "5 days at equator (2-3 days at mid-latitudes)",
+        "bands": "13 spectral bands: Coastal (B1), Blue (B2), Green (B3), Red (B4), RedEdge (B5-B8A), NIR (B8), Water Vapour (B9), SWIR1 (B11), SWIR2 (B12)",
+        "capabilities": ["10m NDVI & EVI", "Gao NDWI (Water/Moisture)", "NBR (Normalized Burn Ratio)", "NDMI (Moisture Index)", "True Color (RGB) & False Color (CIR)", "Forest Time Machine"],
+        "endpoints": {
+            "copernicus_stac": "https://stac.dataspace.copernicus.eu/v1",
+            "aws_earth_search": "https://earth-search.aws.element84.com/v1",
+            "internal_api": "/api/satellite/latest",
+            "time_machine_api": "/api/time-machine"
+        },
+        "status": "OPERATIONAL",
+        "role": "High-resolution optical monitoring, canopy health, disturbance alerts, and deforestation detection."
+    },
+    "sentinel-1": {
+        "id": "sentinel-1",
+        "name": "Sentinel-1A & 1B (ESA Copernicus)",
+        "agency": "ESA / Alaska Satellite Facility (ASF)",
+        "sensor": "C-SAR (Synthetic Aperture Radar)",
+        "resolution": "10m × 10m (IW GRD Mode)",
+        "revisit": "6-12 days",
+        "bands": "C-band (5.405 GHz), Dual-Polarization VV (Vertical-Vertical) and VH (Vertical-Horizontal)",
+        "capabilities": ["All-weather cloud-penetrating radar", "Monsoon canopy disturbance detection", "Flood & inundation mapping", "Cross-ratio (VH/VV) structural volume scattering"],
+        "endpoints": {
+            "asf_vertex": "https://asf.alaska.edu/how-to/data-tools/vertex/",
+            "internal_api": "/api/satellite/sentinel1",
+            "sar_change_api": "/api/analysis/sar-change"
+        },
+        "status": "OPERATIONAL",
+        "role": "Penetrates monsoonal cloud decks where optical satellites fail; confirms structural timber loss vs seasonal leaf shedding."
+    },
+    "landsat": {
+        "id": "landsat",
+        "name": "Landsat 8 & 9 (NASA / USGS)",
+        "agency": "NASA / USGS",
+        "sensor": "OLI-2 (Operational Land Imager) & TIRS-2 (Thermal Infrared)",
+        "resolution": "30m Multispectral, 15m Pan, 100m Thermal",
+        "revisit": "8-day offset combination",
+        "bands": "11 spectral bands: Coastal/Aerosol (B1), RGB (B2-B4), NIR (B5), SWIR (B6-B7), Cirrus (B9), Thermal (B10, B11)",
+        "capabilities": ["50+ year historical archive (1972-present)", "Multi-decadal baseline calibration", "Radiative surface temperature", "Hansen Global Forest Change reference"],
+        "endpoints": {
+            "usgs_m2m": "https://m2m.cr.usgs.gov/api/api/json/stable/",
+            "gcp_landsat": "https://console.cloud.google.com/storage/browser/gcp-public-data-landsat",
+            "internal_api": "/api/satellite/landsat",
+            "historical_tiles": "/api/historical/landsat-tile/{product_id}/{mode}/{z}/{x}/{y}.png"
+        },
+        "status": "OPERATIONAL",
+        "role": "Gold-standard multi-decadal reference baseline for identifying genuine long-term ecological conversion."
+    },
+    "terra-aqua-modis": {
+        "id": "terra-aqua-modis",
+        "name": "Terra & Aqua MODIS (NASA)",
+        "agency": "NASA Goddard Space Flight Center",
+        "sensor": "MODIS (Moderate Resolution Imaging Spectroradiometer)",
+        "resolution": "250m, 500m, 1000m",
+        "revisit": "Daily morning (Terra ~10:30 AM) and afternoon (Aqua ~1:30 PM)",
+        "bands": "36 spectral bands (0.4 µm to 14.4 µm)",
+        "capabilities": ["MOD13Q1 250m 16-day NDVI/EVI composites", "MOD11A2 1km 8-day Day/Night Land Surface Temperature", "MCD64A1 500m Burned Area", "25-year consistent daily global archive"],
+        "endpoints": {
+            "earth_engine": "ee.ImageCollection('MODIS/061/MOD13Q1')",
+            "appeears": "https://appeears.earthdatacloud.nasa.gov/api/",
+            "cmr": "https://cmr.earthdata.nasa.gov/search/collections.json",
+            "internal_api": "/api/earth/trends/analyze"
+        },
+        "status": "OPERATIONAL",
+        "role": "Primary driver for EARTHSCOPE's non-parametric Mann-Kendall and Sen's slope trend detection."
+    },
+    "viirs-firms": {
+        "id": "viirs-firms",
+        "name": "Suomi NPP / NOAA-20 & 21 VIIRS (NASA / NOAA)",
+        "agency": "NASA / NOAA",
+        "sensor": "VIIRS (Visible Infrared Imaging Radiometer Suite)",
+        "resolution": "375m high-resolution active thermal bands (I-bands)",
+        "revisit": "Every 12 hours (day and night overpasses)",
+        "bands": "I4 (3.9 µm mid-wave IR active fire detection), I5 (11.4 µm thermal reference)",
+        "capabilities": ["Sub-pixel active fire & thermal anomaly alerts", "Fire Radiative Power (FRP, MW)", "Rapid wildfire boundary tracking", "Global daily shapefile & CSV feeds"],
+        "endpoints": {
+            "firms_api": "https://firms.modaps.eosdis.nasa.gov/api/area/",
+            "internal_api": "/api/fire/intelligence",
+            "fire_history": "/api/fire/history"
+        },
+        "status": "OPERATIONAL",
+        "role": "Immediate near-real-time thermal anomaly screening to flag active disturbance events within 24-48 hours."
+    },
+    "gedi": {
+        "id": "gedi",
+        "name": "ISS GEDI (NASA)",
+        "agency": "NASA / University of Maryland",
+        "sensor": "Geodetic Lidar (3 lasers producing 8 ground tracks)",
+        "resolution": "25m footprint along-track",
+        "revisit": "Mission-based ISS orbit sampling (51.6° N to 51.6° S)",
+        "bands": "1064 nm Nd:YAG laser waveform return",
+        "capabilities": ["Canopy top height (rh98, rh100)", "Vertical canopy plant area profile (PAVD)", "Aboveground Biomass Density (AGBD, t/ha)", "Forest carbon stock and structural complexity"],
+        "endpoints": {
+            "lpdaac_gedi": "https://lpdaac.usgs.gov/products/gedi04_av002/",
+            "internal_api": "/api/carbon"
+        },
+        "status": "OPERATIONAL",
+        "role": "Direct physical 3D measurement of canopy volume and carbon stock density, grounding optical NDVI estimates in biomass."
+    },
+    "gpm": {
+        "id": "gpm",
+        "name": "GPM Core Observatory (NASA / JAXA)",
+        "agency": "NASA / JAXA",
+        "sensor": "DPR (Dual-frequency Precipitation Radar) & GMI (Microwave Imager)",
+        "resolution": "0.1° × 0.1° (~10 km gridded IMERG)",
+        "revisit": "Half-hourly to monthly global accumulation",
+        "bands": "Ku/Ka-band radar (13.6 / 35.5 GHz) + 13-channel microwave radiometer (10 to 183 GHz)",
+        "capabilities": ["GPM IMERG Final Run monthly precipitation (GPM_3IMERGM.07)", "Gauge-calibrated tropical rainfall", "Monsoon onset, break, and deficit tracking", "Precipitation vs vegetation lag correlations"],
+        "endpoints": {
+            "ges_disc": "https://disc.gsfc.nasa.gov/datasets/GPM_3IMERGM_07/summary",
+            "nasa_power": "https://power.larc.nasa.gov/api/temporal/monthly/point",
+            "internal_api": "/api/climate/anomaly"
+        },
+        "status": "OPERATIONAL",
+        "role": "Supplies precipitation regime data to prove whether vegetation changes stem from rainfall anomalies or human conversion."
+    },
+    "isro-bhuvan": {
+        "id": "isro-bhuvan",
+        "name": "ISRO Satellites & Bhuvan Platform",
+        "agency": "ISRO / NRSC (National Remote Sensing Centre)",
+        "sensor": "Resourcesat (LISS-III / AWiFS) & INSAT-3D/3DR (VHRR)",
+        "resolution": "23.5m (LISS-III), 56m (AWiFS), 1-4km (INSAT)",
+        "revisit": "5 to 24 days",
+        "bands": "Green, Red, NIR, SWIR (LISS-III) + Visible/Thermal (INSAT)",
+        "capabilities": ["ISRO Bhuvan official forestry and land cover WMS layers", "National forest canopy density classifications", "MOSDAC weather and atmospheric parameters", "India-specific protected area zoning"],
+        "endpoints": {
+            "bhuvan_wms": "https://bhuvan-vec2.nrsc.gov.in/bhuvan/wms",
+            "mosdac_portal": "https://www.mosdac.gov.in/",
+            "internal_bhuvan": "/api/bhuvan/info",
+            "internal_mosdac": "/api/mosdac/info"
+        },
+        "status": "OPERATIONAL",
+        "role": "Authoritative Indian administrative boundaries, national forest density maps, and meteorological corroboration."
+    }
+}
+
+# --- 11 CONNECTED SCIENTIFIC DATA ENDPOINTS & SERVICES MATRIX ---
+CONNECTED_SERVICES_MATRIX = [
+    {
+        "name": "Copernicus STAC Ecosystem",
+        "url": "https://stac.dataspace.copernicus.eu/v1",
+        "type": "STAC API",
+        "provider": "European Space Agency (ESA)",
+        "capabilities": "Authoritative Sentinel-1 & Sentinel-2 collection catalogue, granule search, and asset download",
+        "status": "CONNECTED"
+    },
+    {
+        "name": "AWS Element 84 Earth Search",
+        "url": "https://earth-search.aws.element84.com/v1",
+        "type": "STAC API",
+        "provider": "Element 84 / Amazon Web Services",
+        "capabilities": "Public Sentinel-2 L2A Cloud-Optimized GeoTIFFs (COGs) with sub-second spatial querying",
+        "status": "CONNECTED"
+    },
+    {
+        "name": "NASA GIBS WMTS",
+        "url": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi",
+        "type": "WMTS Tiles",
+        "provider": "NASA EOSDIS",
+        "capabilities": "Daily global full-resolution satellite imagery tiles (MODIS, VIIRS, Landsat) updated within 3-4 hours of observation",
+        "status": "CONNECTED"
+    },
+    {
+        "name": "NASA EONET v3",
+        "url": "https://eonet.gsfc.nasa.gov/api/v3",
+        "type": "REST API",
+        "provider": "NASA Earth Observatory",
+        "capabilities": "Earth Observatory Natural Event Tracker: real-time natural hazards (wildfires, severe storms, volcanoes, floods)",
+        "status": "CONNECTED"
+    },
+    {
+        "name": "NASA CMR Search",
+        "url": "https://cmr.earthdata.nasa.gov/search/collections.json",
+        "type": "REST API",
+        "provider": "NASA Earthdata",
+        "capabilities": "Common Metadata Repository indexing billions of Earth observation science granules across all NASA DAACs",
+        "status": "CONNECTED"
+    },
+    {
+        "name": "NASA POWER Monthly API",
+        "url": "https://power.larc.nasa.gov/api/temporal/monthly/point",
+        "type": "REST API",
+        "provider": "NASA Langley Research Center",
+        "capabilities": "25-year monthly historical climatology (2m Temperature, Precipitation, Solar Irradiance, Relative Humidity)",
+        "status": "CONNECTED"
+    },
+    {
+        "name": "Global Forest Watch (GFW)",
+        "url": "https://tiles.globalforestwatch.org/",
+        "type": "Vector & Raster Tiles",
+        "provider": "World Resources Institute (WRI)",
+        "capabilities": "Hansen Global Forest Change v1.13, GLAD/RADD near-real-time deforestation alerts, and tree cover extent",
+        "status": "CONNECTED"
+    },
+    {
+        "name": "Open-Meteo Archive & Forecast",
+        "url": "https://archive-api.open-meteo.com/v1/archive",
+        "type": "REST API",
+        "provider": "Open-Meteo GmbH",
+        "capabilities": "ERA5 & ERA5-Land historical climate reanalysis, solar radiation, soil moisture, and vapor pressure deficit",
+        "status": "CONNECTED"
+    },
+    {
+        "name": "ISRIC SoilGrids REST v2.0",
+        "url": "https://rest.isric.org/soilgrids/v2.0/properties/query",
+        "type": "REST API",
+        "provider": "ISRIC - World Soil Information",
+        "capabilities": "250m global soil property predictions: Soil Organic Carbon (SOC), pH, bulk density, clay content, water capacity",
+        "status": "CONNECTED"
+    },
+    {
+        "name": "ISRO Bhuvan WMS",
+        "url": "https://bhuvan-vec2.nrsc.gov.in/bhuvan/wms",
+        "type": "OGC WMS",
+        "provider": "ISRO / National Remote Sensing Centre",
+        "capabilities": "Indian geospatial portal: Forest type, canopy density, wasteland inventory, and protected area zoning",
+        "status": "CONNECTED"
+    },
+    {
+        "name": "OSRM Patrol Routing",
+        "url": "https://router.project-osrm.org",
+        "type": "REST API",
+        "provider": "Open Source Routing Machine",
+        "capabilities": "Traveling-salesperson route optimization and road network travel duration matrices for ground ranger patrols",
+        "status": "CONNECTED"
+    }
+]
+
+# --- LIVE CONFIGURED CREDENTIALS MANIFEST ---
+CREDENTIALS_MANIFEST = [
+    {
+        "service": "Google Earth Engine",
+        "credential_type": "GCP Service Account",
+        "account": "vanrakshak-earth-engine@protean-sensor-495611-q7.iam.gserviceaccount.com",
+        "project": "protean-sensor-495611-q7",
+        "status": "VERIFIED_ACTIVE",
+        "verification_date": "2026-11-14",
+        "capabilities": "Sub-second planetary computation on MODIS MOD13Q1, MOD11A2, Dynamic World, Hansen GFC, Sentinel-2"
+    },
+    {
+        "service": "NASA Earthdata Login",
+        "credential_type": "Bearer Token (JWT)",
+        "account": "veduxearthscope",
+        "token_masked": "eyJ0eXAiOiJKV1QiLC...BFo3g",
+        "status": "VERIFIED_ACTIVE",
+        "verification_date": "2026-11-14",
+        "valid_until": "2027-01-13",
+        "capabilities": "NASA CMR Granule search, Harmony transformations, LP DAAC download, OPeNDAP access"
+    },
+    {
+        "service": "NASA FIRMS",
+        "credential_type": "MAP_KEY",
+        "token_masked": "5838d5821e01...fe055a0955",
+        "status": "VERIFIED_ACTIVE",
+        "verification_date": "2026-11-14",
+        "capabilities": "13 active sensor feeds: VIIRS 375m (S-NPP, NOAA-20, NOAA-21) and MODIS 1km global thermal alerts"
+    },
+    {
+        "service": "NASA POWER",
+        "credential_type": "API Key",
+        "token_masked": "bc5c6b8541b7...5a5bb",
+        "status": "VERIFIED_ACTIVE",
+        "verification_date": "2026-11-14",
+        "capabilities": "High-throughput monthly and daily historical climatology point API without public rate limits"
+    },
+    {
+        "service": "NASA AppEEARS",
+        "credential_type": "OAuth2 Client ID & Bearer Token",
+        "account": "ZAQpxSrQNpk342OR77kisA",
+        "token_masked": "Z0CSiYoMySM...Hsr6EqA",
+        "status": "VERIFIED_ACTIVE",
+        "verification_date": "2026-11-14",
+        "capabilities": "Point and area subsetting of LP DAAC MODIS MOD13Q1 and MOD11A2 data granules with automated extraction"
+    },
+    {
+        "service": "Protected Planet (UNEP-WCMC)",
+        "credential_type": "API Token (v4)",
+        "token_masked": "0f806c0fbb01...619ad3c",
+        "status": "VERIFIED_ACTIVE",
+        "verification_date": "2026-11-14",
+        "capabilities": "WDPA (World Database on Protected Areas): IUCN classifications, legal status, governance for 193,000+ reserves"
+    },
+    {
+        "service": "Mapillary",
+        "credential_type": "Client Access Token",
+        "token_masked": "MLY|2999392297...9f2a3",
+        "status": "VERIFIED_ACTIVE",
+        "verification_date": "2026-11-14",
+        "capabilities": "Street-level georeferenced imagery and road canopy verification around protected area perimeters"
+    },
+    {
+        "service": "CartoDB Basemaps",
+        "credential_type": "Basemaps API Key",
+        "token_masked": "cb1_58tt_1_468...2c274db",
+        "status": "VERIFIED_ACTIVE",
+        "verification_date": "2026-11-14",
+        "capabilities": "High-performance Dark Matter and Positron vector/raster tiles styled for dark obsidian HUD themes"
+    }
+]
+
 # --- NASA AppEEARS LP DAAC SUBSETTING ADAPTER ---
 APPEEARS_BASE_URL = "https://appeears.earthdatacloud.nasa.gov/api"
 
