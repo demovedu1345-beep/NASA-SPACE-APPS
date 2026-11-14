@@ -214,3 +214,10 @@ node --check web/app.js
 ## License
 
 Original repository code is MIT licensed. Every external API/dataset keeps its own terms, attribution and access requirements.
+
+
+## NASA Space Apps Challenge 2026 — Earth System Trend Detective
+
+The active Mission Control UI includes a first-class NASA Trend Detective (CH.02) workspace. Validated trend variables are Sentinel-2 L2A NDVI (cloud/shadow-masked AOI summary), 2 m air temperature (Open-Meteo historical / NASA POWER fallback) and precipitation (same climate source chain). The backend exposes GET/POST /api/earth/trends/analyze, GET /api/earth/investigate, POST /api/earth/trends/compare, GET /api/earth/variables, GET /api/earth/cmr/search, GET /api/earth/coverage, GET /api/earth/geocode, GET /api/climate/forecast and GET /api/climate/states. See docs/JUDGING_EVIDENCE.md for methods, limitations and judge demo sequence.
+
+**Inventory reconciliation:** the supplied inventory is a target/reference catalogue, not proof that every route or file exists in this Git tree. A repository tree audit found no local /static/textures/earth_day.jpg, earth_night.jpg, earth_clouds_1024.png, earth_specular_2048.jpg or earth_topology.png. The globe currently uses remote NASA Blue Marble imagery and public fallback maps. Runtime integrations should be checked through /api/source-health; optional Earth Engine, FIRMS and Protected Planet credentials belong in deployment secrets. The active FastAPI app currently contains 95 route decorators (93 /api routes plus root and favicon), not 131.
