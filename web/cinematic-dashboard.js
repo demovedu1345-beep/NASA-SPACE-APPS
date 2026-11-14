@@ -185,7 +185,14 @@
   }
   document.addEventListener("click", (event) => {
     const open = event.target.closest("[data-open-workspaces]");
-    if (open) { event.preventDefault(); setWorkspaceDrawer(true); return; }
+    if (open) {
+      event.preventDefault();
+      const shouldOpen = open.classList.contains("portfolio-mobile-menu")
+        ? !sidebar?.classList.contains("open")
+        : true;
+      setWorkspaceDrawer(shouldOpen);
+      return;
+    }
     if (event.target === scrim || event.target.closest("[data-close-workspaces]")) {
       setWorkspaceDrawer(false);
       return;
