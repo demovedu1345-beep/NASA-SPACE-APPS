@@ -936,144 +936,32 @@ async def fetch_nasa_power_monthly(lat: float, lon: float, start_year: int = 201
         return {"ok": False, "error": str(exc), "t2m": [], "t2m_max": [], "precipitation": []}
 
 def generate_modis_ndvi_series(lat: float, lon: float, start_year: int, end_year: int) -> List[Dict[str, Any]]:
-    """
-    Synthesizes calibrated MODIS MOD13Q1 NDVI time series calibrated to Indian forest biogeography.
-    Incorporates actual monsoon seasonality, regional baseline greenness, and slight trend dynamics.
-    """
-    # Western Ghats baseline greenness ~0.78, monsoon dip/peak cycle
-    base_ndvi = 0.76 if (11 <= lat <= 15 and 74 <= lon <= 77) else 0.64
-    series = []
-    
-    # Seasonality weights for India (Monsoon peak in Aug-Oct, dry minimum in Feb-Apr)
-    month_cycles = {
-        1: 0.02, 2: -0.04, 3: -0.09, 4: -0.11, 5: -0.05, 6: 0.03,
-        7: 0.09, 8: 0.12, 9: 0.14, 10: 0.11, 11: 0.07, 12: 0.04
-    }
-    
-    for yr in range(start_year, end_year + 1):
-        year_offset = (yr - start_year) * -0.0028 # slight pressure trend
-        for m in range(1, 13):
-            # Deterministic pseudo-variation based on coordinates and date
-            jitter = (math.sin(yr * 3.7 + m * 1.3 + lat) * 0.015)
-            val = base_ndvi + month_cycles[m] + year_offset + jitter
-            val = max(0.15, min(0.92, val))
-            series.append({
-                "date": f"{yr}-{m:02d}",
-                "value": round(val, 4)
-            })
-    return series
+    """Synthetic environmental series are disabled in production."""
+    raise RuntimeError("Synthetic environmental data generation is disabled; use a real provider adapter.")
 
 def generate_modis_lst_series(lat: float, lon: float, start_year: int, end_year: int) -> List[Dict[str, Any]]:
-    """
-    Synthesizes calibrated MODIS MOD11A2 Daytime LST time series in Celsius.
-    Incorporates pre-monsoon heat peaks (April/May) and post-monsoon cooling.
-    """
-    base_lst = 31.5 if (11 <= lat <= 15 and 74 <= lon <= 77) else 34.0
-    series = []
-    month_cycles = {
-        1: -2.5, 2: 0.5, 3: 3.8, 4: 5.2, 5: 3.5, 6: -2.0,
-        7: -4.5, 8: -4.0, 9: -2.5, 10: -0.5, 11: -1.8, 12: -3.0
-    }
-    for yr in range(start_year, end_year + 1):
-        warming_trend = (yr - start_year) * 0.042 # ~0.42°C per decade
-        for m in range(1, 13):
-            jitter = (math.cos(yr * 2.1 + m * 0.8 + lon) * 0.4)
-            val = base_lst + month_cycles[m] + warming_trend + jitter
-            series.append({
-                "date": f"{yr}-{m:02d}",
-                "value": round(val, 2)
-            })
-    return series
+    """Synthetic environmental series are disabled in production."""
+    raise RuntimeError("Synthetic environmental data generation is disabled; use a real provider adapter.")
 
 def generate_gpm_imerg_series(lat: float, lon: float, start_year: int, end_year: int, power_precip: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
-    """GPM IMERG Final Run monthly precipitation accumulation in mm."""
-    if power_precip and len(power_precip) >= (end_year - start_year + 1) * 12:
-        return [{"date": p["date"], "value": round(p["value"] * 1.025, 2)} for p in power_precip]
-    series = []
-    monsoon_cycles = {
-        1: 8.5, 2: 12.0, 3: 28.0, 4: 65.0, 5: 140.0, 6: 420.0,
-        7: 680.0, 8: 520.0, 9: 290.0, 10: 160.0, 11: 55.0, 12: 18.0
-    }
-    for yr in range(start_year, end_year + 1):
-        for m in range(1, 13):
-            jitter = math.sin(yr * 2.7 + m * 0.9 + lat) * 15.0
-            val = max(1.0, monsoon_cycles[m] + jitter)
-            series.append({"date": f"{yr}-{m:02d}", "value": round(val, 2)})
-    return series
+    """Synthetic environmental series are disabled in production."""
+    raise RuntimeError("Synthetic environmental data generation is disabled; use a real provider adapter.")
 
 def generate_merra2_series(lat: float, lon: float, start_year: int, end_year: int, var_id: str, power_t2m: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
-    """MERRA-2 atmospheric and land reanalysis series."""
-    series = []
-    if var_id == "merra2_t2m":
-        if power_t2m:
-            return [{"date": p["date"], "value": round(p["value"] + 0.15, 2)} for p in power_t2m]
-        base_t = 24.5
-        for yr in range(start_year, end_year + 1):
-            for m in range(1, 13):
-                val = base_t + math.sin(m * 0.5) * 3.2 + (yr - start_year) * 0.02
-                series.append({"date": f"{yr}-{m:02d}", "value": round(val, 2)})
-    elif var_id == "merra2_soilm":
-        for yr in range(start_year, end_year + 1):
-            for m in range(1, 13):
-                season_wet = 0.65 if 7 <= m <= 10 else 0.45 if 5 <= m <= 6 or 11 <= m <= 12 else 0.26
-                noise = math.cos(yr * 1.5 + m * 0.7 + lon) * 0.03
-                val = max(0.12, min(0.85, season_wet + noise - (yr - start_year) * 0.0015))
-                series.append({"date": f"{yr}-{m:02d}", "value": round(val, 4)})
-    elif var_id == "merra2_evap":
-        for yr in range(start_year, end_year + 1):
-            for m in range(1, 13):
-                season_et = 4.2 if 3 <= m <= 6 else 3.1 if 7 <= m <= 10 else 2.4
-                val = max(0.8, season_et + math.sin(yr + m) * 0.3)
-                series.append({"date": f"{yr}-{m:02d}", "value": round(val, 2)})
-    return series
+    """Synthetic environmental series are disabled in production."""
+    raise RuntimeError("Synthetic environmental data generation is disabled; use a real provider adapter.")
 
 def generate_gldas_series(lat: float, lon: float, start_year: int, end_year: int, var_id: str) -> List[Dict[str, Any]]:
-    """GLDAS Noah land surface model series."""
-    series = []
-    for yr in range(start_year, end_year + 1):
-        for m in range(1, 13):
-            if var_id == "gldas_sm":
-                base = 320.0
-                monsoon_boost = 90.0 if 7 <= m <= 10 else -50.0 if 2 <= m <= 4 else 10.0
-                val = base + monsoon_boost + math.sin(yr * 2.2 + m) * 12.0
-                series.append({"date": f"{yr}-{m:02d}", "value": round(val, 2)})
-            elif var_id == "gldas_runoff":
-                val = 110.0 if 7 <= m <= 9 else 35.0 if m in (6, 10) else 4.0
-                val += math.cos(yr * 3.1 + m) * 3.5
-                series.append({"date": f"{yr}-{m:02d}", "value": round(max(0.1, val), 2)})
-            elif var_id == "gldas_soiltemp":
-                val = 27.5 + math.sin((m - 3) * 0.52) * 4.2 + (yr - start_year) * 0.03
-                series.append({"date": f"{yr}-{m:02d}", "value": round(val, 2)})
-    return series
+    """Synthetic environmental series are disabled in production."""
+    raise RuntimeError("Synthetic environmental data generation is disabled; use a real provider adapter.")
 
 def generate_airs_series(lat: float, lon: float, start_year: int, end_year: int, var_id: str) -> List[Dict[str, Any]]:
-    """Aqua AIRS atmospheric sounding series."""
-    series = []
-    for yr in range(start_year, end_year + 1):
-        for m in range(1, 13):
-            if var_id == "airs_temp":
-                val = -4.5 + math.cos((m - 5) * 0.52) * 2.1 + (yr - start_year) * 0.015
-                series.append({"date": f"{yr}-{m:02d}", "value": round(val, 2)})
-            elif var_id == "airs_h2o":
-                season_h2o = 54.0 if 6 <= m <= 9 else 38.0 if m in (5, 10, 11) else 24.0
-                val = season_h2o + math.sin(yr * 1.8 + m * 0.9) * 3.2
-                series.append({"date": f"{yr}-{m:02d}", "value": round(val, 2)})
-    return series
+    """Synthetic environmental series are disabled in production."""
+    raise RuntimeError("Synthetic environmental data generation is disabled; use a real provider adapter.")
 
 def generate_omi_series(lat: float, lon: float, start_year: int, end_year: int, var_id: str) -> List[Dict[str, Any]]:
-    """Aura OMI atmospheric composition series."""
-    series = []
-    for yr in range(start_year, end_year + 1):
-        for m in range(1, 13):
-            if var_id == "omi_o3":
-                val = 265.0 + math.sin((m - 2) * 0.52) * 14.0 + (yr - start_year) * 0.18
-                series.append({"date": f"{yr}-{m:02d}", "value": round(val, 2)})
-            elif var_id == "omi_no2":
-                val = 1.45 + math.cos(m * 0.52) * 0.35 + (yr - start_year) * 0.02
-                series.append({"date": f"{yr}-{m:02d}", "value": round(max(0.5, val), 3)})
-    return series
-
-# --- COMPLETE TREND WORKFLOW CONTROLLER ---
+    """Synthetic environmental series are disabled in production."""
+    raise RuntimeError("Synthetic environmental data generation is disabled; use a real provider adapter.")
 
 async def run_earthscope_investigation(
     lat: float,
