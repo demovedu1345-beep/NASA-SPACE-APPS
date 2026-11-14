@@ -148,7 +148,9 @@ class EarthEngineAdapter:
                     "value": reduced.get(cfg["band"]),
                 })
 
-            features = ee.FeatureCollection(collection.map(to_feature)).filter(ee.Filter.notNull(["value"]))
+            image_list = collection.toList(collection.size())
+            feature_list = image_list.map(lambda image: to_feature(ee.Image(image)))
+            features = ee.FeatureCollection(feature_list).filter(ee.Filter.notNull(["value"]))
             raw = features.getInfo().get("features", [])
             observations = []
             for feature in raw:
