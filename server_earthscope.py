@@ -148,7 +148,7 @@ async def get_appeears_products():
 
 @app.post('/api/earth/appeears/task', tags=["EARTHSCOPE NASA Trends"])
 async def submit_appeears_task(req: AppEEARSTaskRequest):
-    """Submits or validates an AppEEARS sample extraction task for LP DAAC products."""
+    """Return a validated AppEEARS request preview; do not pretend a task was submitted."""
     payload = build_appeears_task_payload(
         task_name=req.task_name,
         lat=req.lat,
@@ -158,18 +158,15 @@ async def submit_appeears_task(req: AppEEARSTaskRequest):
         start_date=req.start_date,
         end_date=req.end_date
     )
-    import hashlib
-    task_hash = hashlib.md5(f"{req.lat}:{req.lon}:{req.product_id}:{req.layer_name}".encode()).hexdigest()[:8]
-    task_id = f"appeears-sub-{task_hash}"
     return {
         "ok": True,
-        "task_id": task_id,
-        "task_name": req.task_name,
-        "status": "QUEUED",
-        "progress": "Subsetting 250m MODIS LP DAAC grid at coordinate point",
-        "appeears_api_url": "https://appeears.earthdatacloud.nasa.gov/api/",
+        "submitted": False,
+        "status": "REQUEST_PREVIEW_ONLY",
+        "provider": "NASA LP DAAC AppEEARS",
+        "api_url": "https://appeears.earthdatacloud.nasa.gov/api/",
         "payload": payload,
-        "download_url": f"https://appeears.earthdatacloud.nasa.gov/api/bundle/{task_id}"
+        "required_next_step": "Authenticate with an Earthdata Login token and POST this payload to the official AppEEARS /task endpoint; poll the returned task ID before claiming data are ready.",
+        "warning": "This endpoint has not submitted a remote job and has no download bundle yet."
     }
 
 @app.get('/api/earth/variables', tags=["EARTHSCOPE NASA Trends"])
@@ -184,18 +181,52 @@ async def search_nasa_cmr(keyword: str = Query("MODIS"), page_size: int = Query(
 
 @app.get('/api/earth/coverage', tags=["EARTHSCOPE NASA Trends"])
 async def get_earth_coverage(lat: float = Query(12.3375), lon: float = Query(75.8069)):
-    """Checks data availability and coverage for specified geographic coordinates."""
+    """Check real NASA POWER retrieval; distinguish catalogue coverage from extracted data."""
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        return {"ok": False, "error": "Coordinates must be within WGS84 bounds"}
+    from datetime import datetime
+    year = datetime.now().year - 1
+    power = await fetch_nasa_power_monthly(lat, lon, year, year)
+    power_ok = bool(power.get("ok") and (power.get("t2m") or power.get("precipitation")))
     return {
         "ok": True,
         "location": {"lat": lat, "lon": lon},
+        "checked_at": datetime.now(timezone.utc).isoformat(),
         "coverage": {
-            "MOD13Q1": {"status": "AVAILABLE", "temporal_range": "2000-02-18 to Present", "resolution": "250m"},
-            "MOD11A2": {"status": "AVAILABLE", "temporal_range": "2000-03-05 to Present", "resolution": "1km"},
-            "NASA_POWER": {"status": "AVAILABLE", "temporal_range": "1981-01-01 to Present", "resolution": "0.5°"},
-            "GPM_IMERG": {"status": "AVAILABLE", "temporal_range": "2000-06-01 to Present", "resolution": "0.1°"},
-            "MERRA2": {"status": "AVAILABLE", "temporal_range": "1980-01-01 to Present", "resolution": "0.5°x0.625°"},
-            "GLDAS": {"status": "AVAILABLE", "temporal_range": "2000-01-01 to Present", "resolution": "0.25°"}
-        }
+            "NASA_POWER": {
+                "status": "AVAILABLE" if power_ok else "UNAVAILABLE",
+                "retrieved_observations": len(power.get("t2m") or []),
+                "source": "NASA POWER Monthly Point API",
+                "data_class": "NASA_MODEL_OUTPUT",
+                "error": power.get("error") if not power_ok else None,
+            },
+            "MOD13Q1": {
+                "status": "CATALOGUE_ONLY_NOT_EXTRACTED",
+                "source": "NASA Terra MODIS / LP DAAC",
+                "resolution": "250 m",
+                "note": "Product is catalogued; no live AppEEARS/Earth Engine extraction has been completed by this runtime.",
+            },
+            "MOD11A2": {
+                "status": "CATALOGUE_ONLY_NOT_EXTRACTED",
+                "source": "NASA Terra MODIS / LP DAAC",
+                "resolution": "1 km",
+                "note": "Product is catalogued; no live AppEEARS/Earth Engine extraction has been completed by this runtime.",
+            },
+            "GPM_IMERG": {
+                "status": "CATALOGUE_ONLY_NOT_EXTRACTED",
+                "source": "NASA/JAXA GPM IMERG / GES DISC",
+                "resolution": "0.1 degree",
+            },
+            "MERRA2": {
+                "status": "CATALOGUE_ONLY_NOT_EXTRACTED",
+                "source": "NASA GMAO MERRA-2",
+            },
+            "GLDAS": {
+                "status": "CATALOGUE_ONLY_NOT_EXTRACTED",
+                "source": "NASA GLDAS",
+            },
+        },
+        "note": "Catalogue coverage is not the same as a successful regional data extraction. Only NASA POWER is probed for real observations here.",
     }
 
 @app.post('/api/earth/trends/analyze', tags=["EARTHSCOPE NASA Trends"])
@@ -216,18 +247,21 @@ async def analyze_earth_trends(req: TrendAnalysisRequest):
 
 @app.post('/api/earth/trends/compare', tags=["EARTHSCOPE NASA Trends"])
 async def compare_earth_trends(req: TrendCompareRequest):
-    """Compares Earth System trends across multiple geographic regions."""
+    """Compare regions while preserving per-region provider failures and unavailable variables."""
     results = []
     for r in req.regions:
         r_name = r.get("name", "Unknown Region")
         r_lat = float(r.get("lat", 12.3375))
         r_lon = float(r.get("lon", 75.8069))
-        inv = await run_earthscope_investigation(
-            lat=r_lat, lon=r_lon, region_name=r_name,
-            variables=req.variables, start_year=req.start_year, end_year=req.end_year
-        )
+        try:
+            inv = await run_earthscope_investigation(
+                lat=r_lat, lon=r_lon, region_name=r_name,
+                variables=req.variables, start_year=req.start_year, end_year=req.end_year
+            )
+        except Exception as exc:
+            inv = {"ok": False, "region": {"name": r_name, "latitude": r_lat, "longitude": r_lon}, "error": str(exc)[:240]}
         results.append(inv)
-    return {"ok": True, "count": len(results), "comparisons": results}
+    return {"ok": any(item.get("ok") for item in results), "count": len(results), "comparisons": results}
 
 @app.get('/api/earth/report', tags=["EARTHSCOPE NASA Trends"])
 async def get_earthscope_report(
