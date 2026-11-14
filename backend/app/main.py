@@ -407,12 +407,23 @@ async def ready():
         checks["database_error"]=str(exc)
 
     production=settings.environment.lower() in {"production","prod","railway"}
+    degraded_checks=[]
+
     if production:
+        # Redis is an optimization, not a hard dependency: the cache module
+        # deliberately falls back to bounded in-process memory when Redis is
+        # unavailable. Keep its health visible without taking the API offline.
         redis_result=await redis_ping()
         checks["redis"]=bool(redis_result.get("ok"))
         if not checks["redis"]:
             checks["redis_error"]=redis_result.get("error")
+            checks["cache_mode"]="in_memory_fallback"
+            degraded_checks.append("redis")
+        else:
+            checks["cache_mode"]="redis"
 
+        # TiTiler is an optional rendering accelerator. Core satellite,
+        # vector, GIBS and public STAC routes have provider-native fallbacks.
         checks["titiler"]=False
         try:
             url=settings.titiler_internal_url.rstrip("/")+"/"
@@ -422,14 +433,27 @@ async def ready():
             checks["titiler_status"]=response.status_code
         except Exception as exc:
             checks["titiler_error"]=str(exc)
+        if not checks["titiler"]:
+            checks["titiler_public_fallback"]=bool(
+                settings.titiler_public_url
+                and settings.titiler_public_url.startswith(("http://","https://"))
+            )
+            degraded_checks.append("titiler")
     else:
         checks["redis"]="OPTIONAL_IN_DEVELOPMENT"
         checks["titiler"]="OPTIONAL_IN_DEVELOPMENT"
+        checks["cache_mode"]="development_fallback"
 
-    required=["static","database"] + (["redis","titiler"] if production else [])
+    # Only the assets and database connection are required for the API to
+    # serve requests. Optional integrations are surfaced as degradation,
+    # rather than incorrectly returning HTTP 503 for an otherwise usable API.
+    required=["static","database"]
     ok=all(bool(checks.get(k)) for k in required)
     payload={
         "ok":ok,
+        "status":"READY" if ok else "NOT_READY",
+        "degraded":bool(degraded_checks),
+        "degraded_checks":degraded_checks,
         "service":settings.app_name,
         "environment":settings.environment,
         "required_checks":required,
