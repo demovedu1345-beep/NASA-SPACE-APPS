@@ -4,13 +4,14 @@ import gsap from "https://cdn.jsdelivr.net/npm/gsap@3.13.0/index.js";
 
 const API_BASE=(window.VANRAKSHAK_API_BASE||"").replace(/\/$/,"");
 const $=id=>document.getElementById(id), $$=s=>Array.from(document.querySelectorAll(s));
-const state={lat:12.3375,lon:75.8069,place:"Kodagu Forest Region",earth:null,map:null,layers:[],integrations:[],sourceHealth:null,events:[],mapMode:"true_color",currentPage:"overview"};
+const state={lat:12.3375,lon:75.8069,place:"Kodagu Forest Region",earth:null,map:null,layers:[],integrations:[],sourceHealth:null,events:[],mapMode:"true_color",currentPage:"overview",activeLayers:new Map()};
 const reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const esc=v=>String(v??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
 const n=(v,d=1)=>v==null||!Number.isFinite(Number(v))?"—":Number(v).toFixed(d);
 const iso=d=>d.toISOString().slice(0,10);
-async function api(path){
- const r=await fetch(API_BASE+path,{headers:{Accept:"application/json"}});
+async function api(path,init={}){
+ const headers={Accept:"application/json",...(init.headers||{})};
+ const r=await fetch(API_BASE+path,{...init,headers});
  const t=await r.text();let data;try{data=t?JSON.parse(t):{}}catch{throw new Error("Non-JSON provider response")}
  if(!r.ok)throw new Error(typeof data.detail==="string"?data.detail:`HTTP ${r.status}`);
  return data;
@@ -167,21 +168,141 @@ async function loadSatellites(){
 function renderResult(target,data){$(target).innerHTML=renderJson(data)}
 async function loadLayers(){
  const root=$("layerGroups");root.innerHTML='<div class="loading">Loading connected layer catalogue…</div>';
- try{const data=await api("/api/layers");state.layers=data.groups||[];renderLayers();$("layersStatus").textContent=state.layers.reduce((n,g)=>n+(g.layers||[]).length,0)+" REGISTERED LAYERS"}
+ try{const data=await api("/api/layers");state.layers=data.groups||[];renderLayers();renderActiveLayers();$("layersStatus").textContent=state.layers.reduce((n,g)=>n+(g.layers||[]).length,0)+" REGISTERED LAYERS"}
  catch(e){root.innerHTML=renderEmpty(e.message);$("layersStatus").textContent="REGISTRY UNAVAILABLE"}
 }
 function renderLayers(){
  const q=($("layerSearch")?.value||"").toLowerCase(),groups=state.layers||[];
- const filtered=groups.map(g=>({...g,layers:(g.layers||[]).filter(l=>((l.label||"")+" "+(l.source||"")+" "+(l.id||"")).toLowerCase().includes(q))})).filter(g=>g.layers.length);
+ const filtered=groups.map(g=>({...g,layers:(g.layers||[]).filter(l=>((l.label||"")+" "+(l.source||"")+" "+(l.id||"")+" "+(l.render||"")).toLowerCase().includes(q))})).filter(g=>g.layers.length);
  $("filterCount").textContent=filtered.reduce((n,g)=>n+g.layers.length,0)+" matching layers";
- $("layerGroups").innerHTML=filtered.length?filtered.map(g=>`<section class="layer-group"><div class="layer-group-head"><b>${esc(g.icon||"◈")} ${esc(g.label||g.name||"Data layers")}</b><small>${g.layers.length} LAYERS</small></div><div class="layer-list">${g.layers.map(l=>`<label class="layer-item"><input type="checkbox" data-layer="${esc(l.id)}"><span><b>${esc(l.label||l.id)}</b><small>${esc(l.source||"Source not supplied")} · ${l.resolution_m==null?"Resolution N/A":esc(l.resolution_m)+" m"}</small></span></label>`).join("")}</div></section>`).join(""):renderEmpty("No layer entries matched this filter.");
- $$("[data-layer]").forEach(input=>input.addEventListener("change",()=>{const l=groups.flatMap(g=>g.layers||[]).find(x=>x.id===input.dataset.layer);if(l){const mode=l.mode||"true_color";if(["true_color","false_color","ndvi","ndmi","nbr","ndwi"].includes(mode)){$("layerMode").value=mode;loadMapLayer()}else toast("Registered layer does not expose a compatible raster preview through the current map endpoint.","error")}input.checked=false}));
+ $("layerGroups").innerHTML=filtered.length?filtered.map(g=>'<section class="layer-group"><div class="layer-group-head"><b>'+esc(g.icon||"◈")+" "+esc(g.label||g.name||"Data layers")+'</b><small>'+g.layers.length+' LAYERS</small></div><div class="layer-list">'+g.layers.map(l=>'<label class="layer-item"><input type="checkbox" data-layer="'+esc(l.id)+'" '+(state.activeLayers.has(l.id)?"checked":"")+'><span><b>'+esc(l.label||l.id)+'</b><small>'+esc(l.source||"Source not supplied")+' · '+(l.resolution_m==null?"Resolution N/A":esc(l.resolution_m)+" m")+' · '+esc(l.freshness||"")+'</small></span><em>'+esc((l.render||"").replaceAll("_"," "))+'</em></label>').join("")+'</div></section>').join(""):renderEmpty("No layer entries matched this filter.");
+ $("[data-layer]").forEach(input=>input.addEventListener("change",()=>{const l=groups.flatMap(g=>g.layers||[]).find(x=>x.id===input.dataset.layer);if(l)toggleLayer(l,input.checked,input)}));
+}
+function ensureLayerMapReady(){
+ initMap();
+ if(!state.map)return Promise.reject(new Error("MapLibre is unavailable"));
+ return state.map.isStyleLoaded()?Promise.resolve():new Promise(resolve=>state.map.once("load",resolve));
+}
+function layerPath(layer){
+ const p=encodeURIComponent;
+ if(layer.render==="satellite")return "/api/map/satellite-layer?lat="+state.lat+"&lon="+state.lon+"&mode="+p(layer.mode||"true_color")+"&days=90&cloud_lt=70";
+ if(layer.render==="gibs")return "/api/gibs/layer/"+p(layer.gibs_layer)+"?date="+dateForImagery();
+ if(layer.render==="earth_engine")return "/api/earth-engine/layer/"+p(layer.ee_layer)+"?lat="+state.lat+"&lon="+state.lon+"&days=90";
+ if(layer.render==="gfw")return "/api/map/gfw-layer?dataset="+p(layer.dataset)+"&confidence=high";
+ return "";
+}
+function dateForImagery(){return iso(new Date(Date.now()-2*86400000))}
+function renderLayerInspector(title,payload){
+ const root=$("layerInspectorContent");
+ if(!root)return;
+ root.innerHTML='<div class="inspector-title"><small>SELECTED DATA SOURCE</small><b>'+esc(title)+'</b></div>'+renderJson(payload);
+}
+function renderActiveLayers(){
+ const root=$("activeLayerList");if(!root)return;
+ const rows=Array.from(state.activeLayers.values());
+ $("activeLayerCount").textContent=rows.length+" ACTIVE";
+ root.innerHTML=rows.length?rows.map(x=>'<span class="active-layer-chip">'+esc(x.label)+'<button type="button" data-remove-layer="'+esc(x.id)+'" aria-label="Remove '+esc(x.label)+'">×</button></span>').join(""):'<span class="muted">No raster overlays selected.</span>';
+ $("[data-remove-layer]").forEach(btn=>btn.addEventListener("click",()=>removeActiveLayer(btn.dataset.removeLayer)));
+}
+function removeActiveLayer(id){
+ const rec=state.activeLayers.get(id);if(!rec)return;
+ try{if(state.map?.getLayer(rec.layer))state.map.removeLayer(rec.layer);if(state.map?.getSource(rec.source))state.map.removeSource(rec.source)}catch{}
+ state.activeLayers.delete(id);renderLayers();renderActiveLayers();
+}
+async function installRasterLayer(layer,result){
+ await ensureLayerMapReady();
+ if(!result?.tile_url)throw new Error("The provider did not return a usable tile URL");
+ removeActiveLayer(layer.id);
+ const source="earthscope-src-"+layer.id,layerId="earthscope-layer-"+layer.id;
+ state.map.addSource(source,{type:"raster",tiles:[result.tile_url],tileSize:256,maxzoom:Number(result.max_zoom||result.maxzoom||18),attribution:result.attribution||result.source||layer.source||"Data provider"});
+ state.map.addLayer({id:layerId,type:"raster",source,paint:{"raster-opacity":.78,"raster-fade-duration":180}});
+ state.activeLayers.set(layer.id,{id:layer.id,label:layer.label,source,layer:layerId,provider:result.source||layer.source||"Unknown",freshness:result.freshness||layer.freshness||"UNKNOWN"});
+ state.map.flyTo({center:[state.lon,state.lat],zoom:Math.max(5,Math.min(8,state.map.getZoom())),duration:650});
+ renderActiveLayers();renderLayers();renderLayerInspector(layer.label,result);
+ toast(layer.label+" enabled · "+(result.source||layer.source||"provider"));
+}
+function rowsFromResult(result){
+ const data=result?.data??result;
+ if(Array.isArray(data))return data;
+ return data?.rows||data?.features||data?.observations||data?.events||[];
+}
+async function installPointFeatures(layer,features){
+ await ensureLayerMapReady();
+ removeActiveLayer(layer.id);
+ if(!features.length)throw new Error("The provider returned no mappable features for this request.");
+ const source="earthscope-src-"+layer.id,layerId="earthscope-layer-"+layer.id;
+ state.map.addSource(source,{type:"geojson",data:{type:"FeatureCollection",features}});
+ state.map.addLayer({id:layerId,type:"circle",source,paint:{"circle-radius":["interpolate",["linear"],["zoom"],3,3,10,6],"circle-color":layer.id==="active_fire"?"#f07868":"#7ee0b6","circle-stroke-width":1,"circle-stroke-color":"#f4fff9","circle-opacity":.9}});
+ state.activeLayers.set(layer.id,{id:layer.id,label:layer.label,source,layer:layerId,provider:layer.source||"Provider data",freshness:layer.freshness||"UNKNOWN"});
+ renderActiveLayers();renderLayers();renderLayerInspector(layer.label,{source:layer.source,feature_count:features.length,features:features.slice(0,20)});
+ toast(layer.label+" enabled · "+features.length+" features");
+}
+async function toggleLayer(layer,enabled,input){
+ if(!enabled){removeActiveLayer(layer.id);return}
+ input&&(input.disabled=true);
+ try{
+  if(layer.render==="satellite"||layer.render==="gibs"||layer.render==="earth_engine"||layer.render==="gfw"){
+   const result=await api(layerPath(layer));await installRasterLayer(layer,result);return;
+  }
+  if(layer.render==="firms_points"){
+   const result=await api("/api/fire?lat="+state.lat+"&lon="+state.lon+"&days=3");
+   const rows=rowsFromResult(result);
+   const features=rows.map(row=>{
+    const p=row.properties||row;
+    const lat=Number(p.latitude??p.lat??p.y),lon=Number(p.longitude??p.lon??p.x);
+    return Number.isFinite(lat)&&Number.isFinite(lon)?{type:"Feature",geometry:{type:"Point",coordinates:[lon,lat]},properties:p}:null;
+   }).filter(Boolean);
+   renderLayerInspector(layer.label,result);if(features.length)await installPointFeatures(layer,features);else toast("Fire source responded but returned no georeferenced points for this query.");return;
+  }
+  if(layer.render==="overpass"){
+   const result=await api("/api/human-pressure?lat="+state.lat+"&lon="+state.lon+"&radius_m=5000");
+   const data=result.data||{},features=(data.elements||[]).map(item=>{
+    const p=item.tags||{},lat=Number(item.lat??item.center?.lat),lon=Number(item.lon??item.center?.lon);
+    if(Number.isFinite(lat)&&Number.isFinite(lon))return {type:"Feature",geometry:{type:"Point",coordinates:[lon,lat]},properties:{...p,osm_id:item.id,osm_type:item.type}};
+    return null;
+   }).filter(Boolean);
+   renderLayerInspector(layer.label,result);if(features.length)await installPointFeatures(layer,features);else toast("Overpass returned no point locations to plot.");return;
+  }
+  if(layer.render==="protected_context"){
+   const result=await api("/api/protected-area/context?lat="+state.lat+"&lon="+state.lon);
+   renderLayerInspector(layer.label,result);toast("Protected-area context loaded from the configured provider chain.");return;
+  }
+  if(layer.render==="point_data"){
+   const soilIds=["soil_type","soil_ph","soc","nitrogen","texture","bulk_density","cec"];
+   const result=soilIds.includes(layer.id)?await api("/api/soil?lat="+state.lat+"&lon="+state.lon):await api("/api/weather?lat="+state.lat+"&lon="+state.lon);
+   renderLayerInspector(layer.label,result);toast(layer.label+" values retrieved for the selected point.");return;
+  }
+  if(layer.render==="analysis"){
+   const start=iso(new Date(Date.now()-3*365*86400000)),end=iso(new Date());
+   let result;
+   if(layer.id==="vegetation_health")result=await api("/api/analysis/vegetation-series?lat="+state.lat+"&lon="+state.lon+"&start="+start+"&end="+end+"&max_observations=12&cloud_lt=50");
+   else if(layer.id==="fire_risk")result=await api("/api/fire/intelligence?lat="+state.lat+"&lon="+state.lon+"&days=3");
+   else if(layer.id==="drought"||layer.id==="temperature_anomaly"||layer.id==="rainfall_anomaly")result=await api("/api/climate/anomaly?lat="+state.lat+"&lon="+state.lon+"&window_days=30&baseline_years=5");
+   else if(layer.id==="carbon_loss")result=await api("/api/analysis/evidence-chain?lat="+state.lat+"&lon="+state.lon+"&place="+encodeURIComponent(state.place));
+   else if(layer.id==="erosion")result=await api("/api/human-pressure?lat="+state.lat+"&lon="+state.lon+"&radius_m=5000");
+   else if(layer.id==="fragmentation"){const picker=$("fragmentationUpload");picker?.click();return}
+   else throw new Error("No verified analysis endpoint is registered for this layer.");
+   renderLayerInspector(layer.label,result);toast(layer.label+" analysis response received.");return;
+  }
+  if(layer.render==="metadata"||layer.render==="planned_adapter"){
+   let result;
+   if(layer.id==="sentinel1")result=await api("/api/satellite/sentinel1?lat="+state.lat+"&lon="+state.lon+"&days=45");
+   else if(layer.id==="landsat")result=await api("/api/satellite/landsat?lat="+state.lat+"&lon="+state.lon+"&days=90&cloud_lt=70");
+   else result=await api("/api/satellite/latest?lat="+state.lat+"&lon="+state.lon+"&days=45&cloud_lt=70");
+   renderLayerInspector(layer.label,result);toast(layer.label+" catalogue response received.");return;
+  }
+  throw new Error("No renderer is registered for this layer type: "+(layer.render||"unknown"));
+ }catch(error){input&&(input.checked=false);toast(layer.label+": "+error.message,"error");renderLayerInspector(layer.label,{status:"UNAVAILABLE",error:error.message,source:layer.source})}
+ finally{if(input)input.disabled=false}
+}
+function removeRasterOverlay(){
+ const id="sentinel2-quick";
+ const rec=state.activeLayers.get(id);
+ if(rec)removeActiveLayer(id);
 }
 async function loadMapLayer(){
- initMap();if(!state.map)return toast("MapLibre is unavailable","error");
- const mode=$("layerMode").value,q=`?lat=${state.lat}&lon=${state.lon}&mode=${mode}&days=90&cloud_lt=70`;
- try{const data=await api("/api/map/satellite-layer"+q);if(!data.tile_url)throw new Error("No tile URL returned by the provider");const src="earthscope-overlay",lyr="earthscope-overlay-layer";if(state.map.getLayer(lyr))state.map.removeLayer(lyr);if(state.map.getSource(src))state.map.removeSource(src);state.map.addSource(src,{type:"raster",tiles:[data.tile_url],tileSize:256,attribution:data.attribution||data.source||"Data provider"});state.map.addLayer({id:lyr,type:"raster",source:src,paint:{"raster-opacity":.88}});state.map.flyTo({center:[state.lon,state.lat],zoom:7,duration:800});toast(mode.toUpperCase()+" layer loaded · "+(data.source||"provider"))}
- catch(e){toast(e.message,"error")}
+ const layer={id:"sentinel2-quick",label:"Sentinel-2 "+$("layerMode").value,source:"Copernicus / Earth Search",render:"satellite",mode:$("layerMode").value};
+ await toggleLayer(layer,true,null);
 }
 async function loadForest(){
  $("forestResult").innerHTML='<div class="loading">Retrieving forest profile and investigation evidence…</div>';
@@ -209,24 +330,96 @@ async function loadClimate(){
  catch(e){$("climateResult").innerHTML=renderEmpty(e.message)}
 }
 const actionMap={
- "forest-profile":()=>`/api/forest-profile?lat=${state.lat}&lon=${state.lon}&place=${encodeURIComponent(state.place)}`,
- "remote-change":()=>`/api/analysis/remote-change?lat=${state.lat}&lon=${state.lon}&before_date=${iso(new Date(Date.now()-365*86400000))}&after_date=${iso(new Date())}`,
- "vegetation-series":()=>`/api/analysis/vegetation-series?lat=${state.lat}&lon=${state.lon}&start=${iso(new Date(Date.now()-3*365*86400000))}&end=${iso(new Date())}&max_observations=12&cloud_lt=50`,
- "forest-doctor":()=>`/api/intelligence/forest-doctor?lat=${state.lat}&lon=${state.lon}&place=${encodeURIComponent(state.place)}`,
- "anomaly-radar":()=>`/api/intelligence/anomaly-radar?lat=${state.lat}&lon=${state.lon}`,
- "risk":()=>`/api/intelligence/risk?lat=${state.lat}&lon=${state.lon}&place=${encodeURIComponent(state.place)}`,
- "what-if":()=>`/api/intelligence/what-if-location?lat=${state.lat}&lon=${state.lon}&place=${encodeURIComponent(state.place)}`,
- "patrol":()=>`/api/patrol/live?lat=${state.lat}&lon=${state.lon}&place=${encodeURIComponent(state.place)}`,
- "intervention":()=>`/api/intelligence/intervention?lat=${state.lat}&lon=${state.lon}&place=${encodeURIComponent(state.place)}`,
- "recovery":()=>`/api/intelligence/recovery?lat=${state.lat}&lon=${state.lon}&place=${encodeURIComponent(state.place)}`
+ "forest-profile":()=>"/api/forest-profile?lat="+state.lat+"&lon="+state.lon+"&place="+encodeURIComponent(state.place),
+ "remote-change":()=>"/api/analysis/remote-change?lat="+state.lat+"&lon="+state.lon+"&before_date="+iso(new Date(Date.now()-365*86400000))+"&after_date="+iso(new Date()),
+ "vegetation-series":()=>"/api/analysis/vegetation-series?lat="+state.lat+"&lon="+state.lon+"&start="+iso(new Date(Date.now()-3*365*86400000))+"&end="+iso(new Date())+"&max_observations=12&cloud_lt=50",
+ "forest-doctor":()=>"/api/intelligence/live?lat="+state.lat+"&lon="+state.lon+"&place="+encodeURIComponent(state.place),
+ "anomaly-radar":()=>"/api/intelligence/live?lat="+state.lat+"&lon="+state.lon+"&place="+encodeURIComponent(state.place),
+ "risk":()=>"/api/intelligence/live?lat="+state.lat+"&lon="+state.lon+"&place="+encodeURIComponent(state.place),
+ "what-if":()=>"/api/intelligence/what-if-location?lat="+state.lat+"&lon="+state.lon+"&place="+encodeURIComponent(state.place),
+ "patrol":()=>"/api/patrol/live?lat="+state.lat+"&lon="+state.lon+"&place="+encodeURIComponent(state.place)+"&before_date="+iso(new Date(Date.now()-365*86400000))+"&after_date="+iso(new Date()),
+ "intervention":()=>"/api/intelligence/live?lat="+state.lat+"&lon="+state.lon+"&place="+encodeURIComponent(state.place),
+ "recovery":()=>"/api/analysis/recovery-location?lat="+state.lat+"&lon="+state.lon+"&start="+iso(new Date(Date.now()-3*365*86400000))+"&end="+iso(new Date())+"&max_observations=12&cloud_lt=50"
 };
 async function runAction(action){
+ if(action==="fragmentation"){navigate("forest");$("fragmentationUpload").click();return}
  const path=actionMap[action];if(!path)return toast("Analysis route not registered","error");
  const target=["forest-profile","remote-change","vegetation-series"].includes(action)?"forestResult":["forest-doctor","anomaly-radar","risk","what-if"].includes(action)?"intelligenceResult":"operationsResult";
  if(target==="forestResult")navigate("forest");else if(target==="intelligenceResult")navigate("intelligence");else navigate("operations");
  $(target).innerHTML='<div class="loading">Running backend analysis…</div>';
  try{const data=await api(path());renderResult(target,data);toast("Analysis response received")}
  catch(e){$(target).innerHTML=renderEmpty(e.message);toast("Analysis unavailable: "+e.message,"error")}
+}
+async function runCapability(id){
+ const start=iso(new Date(Date.now()-3*365*86400000)),end=iso(new Date()),before=iso(new Date(Date.now()-365*86400000)),after=end;
+ const q="/api/intelligence/live?lat="+state.lat+"&lon="+state.lon+"&place="+encodeURIComponent(state.place)+"&before_date="+before+"&after_date="+after;
+ const routes={
+  1:{page:"satellites",path:"/api/satellite/latest?lat="+state.lat+"&lon="+state.lon+"&days=45&cloud_lt=70",target:""},
+  2:{page:"layers",layer:"forest_cover"},
+  3:{page:"forest",path:"/api/analysis/remote-change?lat="+state.lat+"&lon="+state.lon+"&before_date="+before+"&after_date="+after,target:"forestResult"},
+  4:{page:"layers",path:"/api/map/compare?lat="+state.lat+"&lon="+state.lon+"&before_date="+before+"&after_date="+after+"&mode=true_color",target:"layerInspectorContent"},
+  5:{page:"layers",layer:"ndvi"},
+  6:{page:"layers",navigateOnly:true},
+  7:{page:"forest",path:"/api/investigate?lat="+state.lat+"&lon="+state.lon+"&place="+encodeURIComponent(state.place),target:"forestResult"},
+  8:{page:"climate",path:"/api/climate/anomaly?lat="+state.lat+"&lon="+state.lon+"&window_days=30&baseline_years=5",target:"climateResult"},
+  9:{page:"climate",path:"/api/weather?lat="+state.lat+"&lon="+state.lon,target:"climateResult"},
+  10:{page:"climate",path:"/api/climate/anomaly?lat="+state.lat+"&lon="+state.lon+"&window_days=30&baseline_years=5",target:"climateResult"},
+  11:{page:"fire",path:"/api/fire/intelligence?lat="+state.lat+"&lon="+state.lon+"&days=3",target:"fireResults"},
+  12:{page:"analytics",path:"/api/analysis/vegetation-series?lat="+state.lat+"&lon="+state.lon+"&start="+start+"&end="+end+"&max_observations=12&cloud_lt=50",target:"trendResult"},
+  13:{page:"intelligence",path:q,target:"intelligenceResult"},
+  14:{page:"intelligence",path:q,target:"intelligenceResult"},
+  15:{page:"intelligence",path:q,target:"intelligenceResult"},
+  16:{page:"analytics",path:"/api/intelligence/predict-location?lat="+state.lat+"&lon="+state.lon+"&start="+start+"&end="+end+"&max_observations=12&cloud_lt=50",target:"trendResult"},
+  17:{page:"intelligence",path:q,target:"intelligenceResult"},
+  18:{page:"intelligence",path:q,target:"intelligenceResult"},
+  19:{page:"operations",path:"/api/patrol/live?lat="+state.lat+"&lon="+state.lon+"&place="+encodeURIComponent(state.place)+"&before_date="+before+"&after_date="+after,target:"operationsResult"},
+  20:{page:"intelligence",path:"/api/intelligence/what-if-location?lat="+state.lat+"&lon="+state.lon+"&place="+encodeURIComponent(state.place),target:"intelligenceResult"},
+  21:{page:"intelligence",path:q,target:"intelligenceResult"},
+  22:{page:"analytics",path:"/api/analysis/recovery-location?lat="+state.lat+"&lon="+state.lon+"&start="+start+"&end="+end+"&max_observations=12&cloud_lt=50",target:"trendResult"},
+  23:{page:"analytics",path:"/api/analysis/recovery-location?lat="+state.lat+"&lon="+state.lon+"&start="+start+"&end="+end+"&max_observations=12&cloud_lt=50",target:"trendResult"},
+  24:{page:"intelligence",path:q,target:"intelligenceResult"},
+  25:{page:"forest",path:"/api/protected-area/context?lat="+state.lat+"&lon="+state.lon,target:"forestResult"},
+  26:{page:"forest",upload:true},
+  27:{page:"forest",path:"/api/analysis/evidence-chain?lat="+state.lat+"&lon="+state.lon+"&place="+encodeURIComponent(state.place)+"&before_date="+before+"&after_date="+after,target:"forestResult"},
+  28:{page:"analytics",path:"/api/analysis/climate-forest-correlation?lat="+state.lat+"&lon="+state.lon+"&start="+start+"&end="+end+"&max_observations=12&cloud_lt=50",target:"trendResult"},
+  29:{page:"intelligence",path:"/api/analysis/evidence-chain?lat="+state.lat+"&lon="+state.lon+"&place="+encodeURIComponent(state.place)+"&before_date="+before+"&after_date="+after,target:"intelligenceResult"},
+  30:{page:"intelligence",path:q,target:"intelligenceResult"},
+  31:{page:"intelligence",path:"/api/query/live?q="+encodeURIComponent("Investigate forest change and environmental conditions near "+state.place)+"&lat="+state.lat+"&lon="+state.lon+"&place="+encodeURIComponent(state.place),target:"intelligenceResult"},
+  32:{page:"reports",report:true},
+  33:{page:"analytics",compare:true},
+  34:{page:"analytics",path:"/api/time-machine?lat="+state.lat+"&lon="+state.lon+"&start="+start+"&end="+end+"&cloud_lt=60&limit=30",target:"trendResult"},
+  35:{page:"systems",path:"/api/source-health?lat="+state.lat+"&lon="+state.lon,target:"systemResults"},
+  36:{page:"forest",path:"/api/forest-profile?lat="+state.lat+"&lon="+state.lon+"&place="+encodeURIComponent(state.place),target:"forestResult"},
+  37:{page:"intelligence",path:"/api/news?place="+encodeURIComponent(state.place)+"&timespan=1week",target:"intelligenceResult"}
+ };
+ const config=routes[id];if(!config)return toast("No route is registered for this capability.","error");
+ navigate(config.page);
+ if(config.navigateOnly){await loadLayers();return}
+ if(config.layer){await loadLayers();const found=state.layers.flatMap(g=>g.layers||[]).find(x=>x.id===config.layer);if(found)await toggleLayer(found,true,null);return}
+ if(config.upload){$("fragmentationUpload").click();return}
+ if(config.report){await downloadInvestigationReport();return}
+ if(config.compare){const root=$("trendResult");root.innerHTML=renderEmpty("Regional comparison requires two distinct region coordinates. Use the region selector to prepare separate locations before running this comparison.");return}
+ const root=$(config.target);if(!root)return;
+ root.innerHTML='<div class="loading">Executing capability '+id+' with the selected study area…</div>';
+ try{const data=await api(config.path);root.innerHTML=renderJson(data);toast("Capability response received. Inspect source and limitations in the result.");}
+ catch(e){root.innerHTML=renderEmpty(e.message);toast("Capability "+id+" unavailable: "+e.message,"error")}
+}
+async function downloadInvestigationReport(){
+ const root=$("reportResult");root.innerHTML='<div class="loading">Generating PDF report from source-backed evidence…</div>';
+ const url="/api/report/investigation?lat="+state.lat+"&lon="+state.lon+"&place="+encodeURIComponent(state.place);
+ try{const response=await fetch(API_BASE+url);if(!response.ok)throw new Error("Report service returned HTTP "+response.status);const blob=await response.blob();if(!blob.type.includes("pdf"))throw new Error("The report service did not return a PDF.");const href=URL.createObjectURL(blob);const link=document.createElement("a");link.href=href;link.download="vanrakshak-investigation-report.pdf";link.click();setTimeout(()=>URL.revokeObjectURL(href),30000);root.innerHTML='<div class="empty">PDF report generated and downloaded. The file contains the backend response for the selected study area.</div>';toast("Investigation PDF downloaded.");}
+ catch(e){root.innerHTML=renderEmpty(e.message);toast("Report unavailable: "+e.message,"error")}
+}
+function initFragmentationUpload(){
+ const input=$("fragmentationUpload");if(!input)return;
+ input.addEventListener("change",async()=>{
+  const file=input.files?.[0];if(!file)return;
+  const target=$("forestResult");target.innerHTML='<div class="loading">Uploading raster for fragmentation analysis…</div>';
+  const body=new FormData();body.append("raster",file);
+  try{const result=await api("/api/analysis/fragmentation",{method:"POST",body});target.innerHTML=renderJson(result);$("forestResultStatus").textContent="ANALYSIS RECEIVED";toast("Fragmentation analysis response received.");}
+  catch(e){target.innerHTML=renderEmpty(e.message);toast("Fragmentation analysis failed: "+e.message,"error")}
+  finally{input.value=""}
+ });
 }
 async function loadSystems(){
  $("systemResults").innerHTML='<div class="loading">Checking backend and data-provider health…</div>';
@@ -237,7 +430,8 @@ async function loadSystems(){
  let arr=sources?.sources||sources?.providers||sources?.checks||[];if(!Array.isArray(arr)&&arr&&typeof arr==="object")arr=Object.entries(arr).map(([name,x])=>({name,...(typeof x==="object"?x:{status:x})}));
  $("sourceTotal").textContent=arr.length||"—";$("featureTotal").textContent=features?.count??features?.features?.length??"—";
  $("systemResults").innerHTML=arr.length?arr.map(x=>{const s=x.status||x.state||(x.ok?"connected":"unknown");return `<div class="system-row"><i class="provider-dot ${classify(s)}"></i><b>${esc(x.name||x.source||x.provider||x.service||"Provider")}</b><small>${esc(x.capabilities||x.detail||x.type||"Capability metadata not supplied")}</small><span class="state-tag ${classify(s)}">${esc(s)}</span></div>`}).join(""):renderEmpty("Provider health returned no records or is unavailable.");
- $("featureResults").innerHTML=features?.features?.length?features.features.map(x=>`<div class="feature-pill"><b>${esc(x.name||x.label||x.id||"Capability")}</b><small>${esc(x.status||x.runtime_status||"Status not supplied")}</small></div>`).join(""):renderEmpty("Feature capability registry unavailable.");
+ $("featureResults").innerHTML=features?.features?.length?features.features.map(x=>'<button type="button" class="feature-pill" data-feature-id="'+esc(x.id)+'"><b>'+esc(x.name||x.label||x.id||"Capability")+'</b><small>'+esc(x.status||x.runtime_status||"Status not supplied")+'</small><em>OPEN WORKFLOW ↗</em></button>').join(""):renderEmpty("Feature capability registry unavailable.");
+ $("[data-feature-id]").forEach(button=>button.addEventListener("click",()=>runCapability(Number(button.dataset.featureId))));
 }
 async function runTrend(){
  const start=$("trendStart").value,end=$("trendEnd").value;if(!start||!end||start>=end)return toast("Choose a valid start/end period","error");
@@ -256,7 +450,8 @@ async function geocode(q){
  catch(e){toast(e.message,"error")}
 }
 function bind(){
- $$("[data-page]").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.page)));
+ initFragmentationUpload();
+ $("[data-page]").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.page)));
  $$("[data-action]").forEach(b=>b.addEventListener("click",()=>runAction(b.dataset.action)));
  $("mobileMenu").addEventListener("click",()=>$("sidebar").classList.toggle("open"));
  $("refreshHealth").addEventListener("click",()=>loadOverview().then(()=>toast("Source health refreshed")));

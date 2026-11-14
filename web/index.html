@@ -120,7 +120,8 @@
 
 <section class="page-view" data-view="layers">
  <div class="page-head"><div><div class="eyebrow"><span></span> GEOSPATIAL DATA CATALOGUE</div><h1>Earth Data <b>Layers.</b></h1><p>Explore provider-backed imagery, environmental indicators and contextual layers.</p></div><div class="head-meta"><div class="utc">LAYER REGISTRY</div><small id="layersStatus">LOADING REGISTRY</small></div></div>
- <div class="panel layer-preview"><div class="layer-preview-head"><div><small>MAP PREVIEW</small><b>Selected observation layer</b></div><div class="inline-controls"><select id="layerMode"><option value="true_color">True colour</option><option value="false_color">False colour</option><option value="ndvi">NDVI</option><option value="ndmi">NDMI</option><option value="nbr">NBR</option><option value="ndwi">NDWI</option></select><button class="btn-secondary" id="applyLayerMode">LOAD LAYER</button></div></div><div id="layerMap" class="layer-map"></div></div>
+ <div class="panel layer-preview"><div class="layer-preview-head"><div><small>MAP PREVIEW</small><b>Selected observation layer</b></div><div class="inline-controls"><select id="layerMode"><option value="true_color">True colour</option><option value="false_color">False colour</option><option value="ndvi">NDVI</option><option value="ndmi">NDMI</option><option value="nbr">NBR</option><option value="ndwi">NDWI</option></select><button class="btn-secondary" id="applyLayerMode">LOAD LAYER</button></div></div><div id="layerMap" class="layer-map"></div><div class="active-layer-stack"><div><small>ACTIVE OVERLAYS</small><b id="activeLayerCount">0 ACTIVE</b></div><div id="activeLayerList"><span class="muted">No raster overlays selected.</span></div></div></div>
+ <section class="panel result-panel layer-inspector"><div class="section-title"><div><small>LAYER INSPECTOR</small><h2>Selected data response</h2></div></div><div id="layerInspectorContent" class="result"><div class="empty">Select a layer to inspect its real provider response and provenance.</div></div></section>
  <div class="toolbar"><div class="mini-search"><i data-lucide="search"></i><input id="layerSearch" placeholder="Search layers, source or variable"></div><span class="muted" id="filterCount"></span></div>
  <div id="layerGroups" class="layer-groups"><div class="loading">Loading layer registry…</div></div>
 </section>
@@ -132,9 +133,9 @@
   <button data-action="forest-profile"><i data-lucide="trees"></i><b>Forest Digital Profile</b><small>Forest context, terrain, cover and protected-area evidence</small></button>
   <button data-action="remote-change"><i data-lucide="scan-line"></i><b>Remote Change Screening</b><small>Multispectral before/after evidence and candidate changes</small></button>
   <button data-action="vegetation-series"><i data-lucide="leaf"></i><b>Vegetation Health</b><small>NDVI time-series and historical observations</small></button>
-  <button data-action="fragmentation"><i data-lucide="git-branch"></i><b>Forest Fragmentation</b><small>Landscape connectivity and fragmentation metrics</small></button>
+  <button data-action="fragmentation"><i data-lucide="git-branch"></i><b>Forest Fragmentation</b><small>Upload a raster mask for component and patch analysis</small></button>
  </div>
- <section class="panel result-panel"><div class="section-title"><div><small>SOURCE-BACKED OUTPUT</small><h2>Investigation result</h2></div><span class="state-tag" id="forestResultStatus">NOT RUN</span></div><div id="forestResult" class="result"><div class="empty">Run a regional investigation to retrieve actual provider results.</div></div></section>
+ <input id="fragmentationUpload" type="file" accept=".tif,.tiff,.png,.jpg,.jpeg" hidden><section class="panel result-panel"><div class="section-title"><div><small>SOURCE-BACKED OUTPUT</small><h2>Investigation result</h2></div><span class="state-tag" id="forestResultStatus">NOT RUN</span></div><div id="forestResult" class="result"><div class="empty">Run a regional investigation to retrieve actual provider results.</div></div></section>
 </section>
 
 <section class="page-view" data-view="fire">
