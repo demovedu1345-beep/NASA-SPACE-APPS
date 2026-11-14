@@ -86,8 +86,8 @@ def test_earth_trend_variable_catalog_only_lists_connected_trend_variables():
     response = client.get("/api/earth/variables")
     assert response.status_code == 200
     body = response.json()
-    assert body["count"] == 3
-    assert set(body["variables"]) == {"ndvi", "t2m", "precipitation"}
+    assert body["count"] == 5
+    assert set(body["variables"]) == {"ndvi", "t2m", "precipitation", "modis_ndvi", "modis_lst_day"}
 
 
 def test_climate_state_catalog_is_coordinate_reference_not_live_weather():
@@ -196,3 +196,68 @@ def test_trend_climate_variables_use_nasa_power_as_primary_source(monkeypatch):
     assert body["trends"]["precipitation"]["n"] == 96
     assert body["trends"]["t2m"]["data_class"] == "NASA_MODEL_OUTPUT"
     assert body["trends"]["precipitation"]["data_class"] == "NASA_MODEL_OUTPUT"
+
+
+def test_modis_ndvi_trend_uses_quality_filtered_earth_engine_observations(monkeypatch):
+    observations = []
+    for year in range(2015, 2025):
+        for month in range(1, 13):
+            observations.append({
+                "date": f"{year}-{month:02d}-08",
+                "value": 0.78 - (year - 2015) * 0.004 + month * 0.0002,
+            })
+
+    def fake_modis_timeseries(layer_id, lat, lon, start_date, end_date):
+        assert layer_id == "modis_ndvi"
+        assert start_date == "2015-01-01"
+        assert end_date == "2025-01-01"
+        return {
+            "source": "Test NASA Terra MODIS / Earth Engine fixture",
+            "dataset": "MODIS/061/MOD13Q1",
+            "quality_mask": "SummaryQA <= 1",
+            "observations": observations,
+        }
+
+    monkeypatch.setattr(main.ee, "timeseries", fake_modis_timeseries)
+    response = client.get(
+        "/api/earth/investigate",
+        params={
+            "lat": 12.3375,
+            "lon": 75.8069,
+            "variable": "modis_ndvi",
+            "region_name": "Kodagu MODIS test area",
+            "start_year": 2015,
+            "end_year": 2024,
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert body["variables_evaluated"] == ["modis_ndvi"]
+    assert body["metadata"]["modis_ndvi"]["provider"] == "Test NASA Terra MODIS / Earth Engine fixture"
+    assert body["metadata"]["modis_ndvi"]["quality_control"] == "SummaryQA <= 1"
+    assert body["trends"]["modis_ndvi"]["n"] == 120
+    assert body["trends"]["modis_ndvi"]["data_class"] == "NASA_DIRECT_OBSERVATION"
+    assert body["time_series"]["modis_ndvi"]["dates"][0] == "2015-01-08"
+
+
+def test_modis_lst_reports_credential_or_provider_failure_without_fabricating_data(monkeypatch):
+    def unavailable_modis(*args, **kwargs):
+        raise RuntimeError("Earth Engine is not authenticated")
+
+    monkeypatch.setattr(main.ee, "timeseries", unavailable_modis)
+    response = client.get(
+        "/api/earth/investigate",
+        params={
+            "lat": 12.3375,
+            "lon": 75.8069,
+            "variable": "modis_lst_day",
+            "start_year": 2015,
+            "end_year": 2024,
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is False
+    assert body["trends"] == {}
+    assert "Earth Engine is not authenticated" in body["unavailable_variables"]["modis_lst_day"]
