@@ -223,6 +223,19 @@
     }
   }
 
+  // Defensive Number & Array Formatters
+  function fmt(v, d = 4, def = '0.0000') {
+    if (v === null || v === undefined || typeof v !== 'number' || isNaN(v)) return def;
+    return v.toFixed(d);
+  }
+
+  function getCI(arr) {
+    if (Array.isArray(arr) && arr.length >= 2 && typeof arr[0] === 'number') {
+      return `[${arr[0].toFixed(3)}, ${arr[1].toFixed(3)}]`;
+    }
+    return '[N/A, N/A]';
+  }
+
   // Update ECharts with Decadal Observations and Confidence Intervals
   function updateChart(data) {
     if (!S.chart || !data || !data.results) return;
@@ -232,30 +245,40 @@
     if (!item || !item.time_series) return;
 
     const ts = item.time_series;
-    const meta = item.metadata;
-    const stats = item.statistics;
+    const meta = item.metadata || {};
+    const stats = item.statistics || {};
+    const ss = stats.sens_slope || {};
+    const mk = stats.mann_kendall || {};
     const dates = ts.map(p => p.date);
     const values = ts.map(p => p.value);
 
     // Compute Sen's slope line
     const n = values.length;
     const meanIdx = (n - 1) / 2;
-    const meanVal = values.reduce((a, b) => a + b, 0) / n;
-    const slopePerMonth = stats.sens_slope.slope_per_month;
+    const meanVal = values.reduce((a, b) => a + b, 0) / (n || 1);
+    const slopePerMonth = ss.slope_per_month ?? (ss.slope_per_year ? ss.slope_per_year / 12 : 0);
+    const slopePerYear = ss.slope_per_year ?? 0;
     const trendLine = dates.map((_, i) => {
       const v = meanVal + (i - meanIdx) * slopePerMonth;
       return roundNum(v, 4);
     });
 
     // 95% Confidence Bounds
-    const ciUpper = dates.map((_, i) => roundNum(trendLine[i] + Math.abs(stats.sens_slope.confidence_interval_95[1] - stats.sens_slope.slope_per_year) * 0.1, 4));
-    const ciLower = dates.map((_, i) => roundNum(trendLine[i] - Math.abs(stats.sens_slope.slope_per_year - stats.sens_slope.confidence_interval_95[0]) * 0.1, 4));
+    const ciRaw = ss.confidence_interval_95 || ss.ci_95_per_year || [slopePerYear * 0.9, slopePerYear * 1.1];
+    const ciLowerVal = (Array.isArray(ciRaw) && ciRaw.length >= 2) ? ciRaw[0] : slopePerYear * 0.9;
+    const ciUpperVal = (Array.isArray(ciRaw) && ciRaw.length >= 2) ? ciRaw[1] : slopePerYear * 1.1;
+
+    const ciUpper = dates.map((_, i) => roundNum(trendLine[i] + Math.max(0.001, Math.abs(ciUpperVal - slopePerYear)) * 0.1, 4));
+    const ciLower = dates.map((_, i) => roundNum(trendLine[i] - Math.max(0.001, Math.abs(slopePerYear - ciLowerVal)) * 0.1, 4));
+
+    const pValFormatted = fmt(mk.p_value, 4);
+    const slopeFormatted = (slopePerYear > 0 ? '+' : '') + fmt(slopePerYear, 4);
 
     const option = {
       backgroundColor: 'transparent',
       title: {
-        text: `${meta.name} — Historical Changes Over Time`,
-        subtext: `Sen's Median Slope: ${stats.sens_slope.slope_per_year > 0 ? '+' : ''}${stats.sens_slope.slope_per_year.toFixed(4)} ${meta.units}/yr • p = ${stats.mann_kendall.p_value.toFixed(4)} (${stats.classification})`,
+        text: `${meta.name || 'Variable'} — Historical Changes Over Time`,
+        subtext: `Sen's Median Slope: ${slopeFormatted} ${meta.units || ''}/yr • p = ${pValFormatted} (${stats.classification || 'Analysis Complete'})`,
         left: 'center',
         top: 8,
         textStyle: { color: '#ffffff', fontSize: 13, fontFamily: 'Roboto, sans-serif' },
@@ -444,22 +467,30 @@
 
     let html = '';
     for (const [vid, res] of Object.entries(data.results)) {
-      const meta = res.metadata;
-      const st = res.statistics;
-      const mk = st.mann_kendall;
-      const ss = st.sens_slope;
+      const meta = res.metadata || {};
+      const st = res.statistics || {};
+      const mk = st.mann_kendall || {};
+      const ss = st.sens_slope || {};
+      const ac = st.autocorrelation || st.autocorrelation_diagnostics || {};
+      const ciRaw = ss.confidence_interval_95 || ss.ci_95_per_year || [0, 0];
+      const slopePerYear = ss.slope_per_year ?? 0;
+      const changePerDecade = ss.change_per_decade ?? (slopePerYear * 10);
+      const pVal = mk.p_value ?? 1.0;
+      const nObs = mk.n ?? 0;
+      const r1 = ac.lag_1_autocorrelation ?? ac.lag1_r1 ?? 0;
+      const effN = ac.effective_sample_size ?? nObs;
 
       // Dynamic Classification according to section 9
       let statusLabel = 'No Statistically Significant Monotonic Trend Detected';
       let statusColor = '#8E8E93';
       let statusBg = 'rgba(255,255,255,0.06)';
 
-      if (mk.n < 10) {
+      if (nObs < 10) {
         statusLabel = 'Insufficient Data for Reliable Trend Assessment';
         statusColor = '#f59e0b';
         statusBg = 'rgba(245,158,11,0.15)';
       } else if (mk.significant) {
-        if (ss.slope_per_year > 0) {
+        if (slopePerYear > 0) {
           statusLabel = 'Significant Increasing Trend';
           statusColor = '#22c55e';
           statusBg = 'rgba(34,197,94,0.15)';
@@ -492,40 +523,40 @@
           <div class="fp-stats-grid">
             <div class="fp-cell" title="The estimated rate of change in the selected variable over time.">
               <span>Sen's Slope</span>
-              <strong style="color:${ss.slope_per_year > 0 ? '#22c55e' : ss.slope_per_year < 0 ? '#f43f5e' : '#fff'};">
-                ${ss.slope_per_year > 0 ? '+' : ''}${ss.slope_per_year.toFixed(4)}
+              <strong style="color:${slopePerYear > 0 ? '#22c55e' : slopePerYear < 0 ? '#f43f5e' : '#fff'};">
+                ${slopePerYear > 0 ? '+' : ''}${fmt(slopePerYear, 4)}
               </strong>
-              <small style="font-size:9px; color:var(--es-text-subtle);">${meta.units}/yr</small>
+              <small style="font-size:9px; color:var(--es-text-subtle);">${meta.units || ''}/yr</small>
             </div>
 
             <div class="fp-cell" title="The estimated change expressed over a ten-year period.">
               <span>Change Per Decade</span>
-              <strong>${ss.change_per_decade > 0 ? '+' : ''}${ss.change_per_decade.toFixed(3)}</strong>
-              <small style="font-size:9px; color:var(--es-text-subtle);">${meta.units}/10yr</small>
+              <strong>${changePerDecade > 0 ? '+' : ''}${fmt(changePerDecade, 3)}</strong>
+              <small style="font-size:9px; color:var(--es-text-subtle);">${meta.units || ''}/10yr</small>
             </div>
 
             <div class="fp-cell" title="The statistical evidence against the absence of a monotonic trend under the selected test.">
               <span>P-value (MK)</span>
-              <strong>${mk.p_value.toFixed(4)}</strong>
+              <strong>${fmt(pVal, 4)}</strong>
               <small style="font-size:9px; color:var(--es-text-subtle);">α = 0.05</small>
             </div>
 
             <div class="fp-cell" title="The estimated range of uncertainty associated with the reported trend magnitude.">
               <span>95% Confidence Interval</span>
-              <strong style="font-size:11px;">[${ss.confidence_interval_95[0].toFixed(3)}, ${ss.confidence_interval_95[1].toFixed(3)}]</strong>
+              <strong style="font-size:11px;">${getCI(ciRaw)}</strong>
               <small style="font-size:9px; color:var(--es-text-subtle);">Gilbert Rank CI</small>
             </div>
 
             <div class="fp-cell" title="The number of usable observations included in the analysis.">
               <span>Valid Observations</span>
-              <strong>${mk.n}</strong>
+              <strong>${nObs}</strong>
               <small style="font-size:9px; color:var(--es-text-subtle);">Monthly Epochs</small>
             </div>
 
             <div class="fp-cell" title="A measure of temporal dependence within the analysed time series.">
               <span>Temporal Autocorrelation</span>
-              <strong>r₁ = ${st.autocorrelation.lag_1_autocorrelation ? st.autocorrelation.lag_1_autocorrelation.toFixed(3) : '0.000'}</strong>
-              <small style="font-size:9px; color:var(--es-text-subtle);">N* = ${st.autocorrelation.effective_sample_size || mk.n}</small>
+              <strong>r₁ = ${fmt(r1, 3)}</strong>
+              <small style="font-size:9px; color:var(--es-text-subtle);">N* = ${effN}</small>
             </div>
           </div>
         </article>
@@ -560,13 +591,15 @@
 
     let html = '';
     for (const [vid, res] of Object.entries(data.results)) {
-      const meta = res.metadata;
-      const st = res.statistics;
-      const mk = st.mann_kendall;
-      const ss = st.sens_slope;
-      const smk = st.seasonal_mann_kendall;
-      const ac = st.autocorrelation;
-      const fdr = st.multiple_testing_correction || {};
+      const meta = res.metadata || {};
+      const st = res.statistics || {};
+      const mk = st.mann_kendall || {};
+      const ss = st.sens_slope || {};
+      const smk = st.seasonal_mann_kendall || {};
+      const ac = st.autocorrelation || st.autocorrelation_diagnostics || {};
+      const fdr = st.multiple_testing_correction || st.benjamini_hochberg_fdr || {};
+      const r1Val = ac.lag_1_autocorrelation ?? ac.lag1_r1 ?? 0;
+      const qVal = fdr.q_value ?? fdr.fdr_q_value ?? mk.p_value ?? 1.0;
 
       html += `
         <article class="fingerprint-card" style="margin-bottom:12px;">
@@ -580,35 +613,35 @@
           <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-bottom:10px; font-family:var(--es-font-mono); font-size:11px;">
             <div style="background:rgba(255,255,255,0.03); padding:6px 8px; border-radius:4px;">
               <span style="color:var(--es-text-subtle); display:block; font-size:9.5px;">S-STATISTIC</span>
-              <b style="color:#fff;">${mk.s}</b>
+              <b style="color:#fff;">${mk.s ?? 0}</b>
             </div>
             <div style="background:rgba(255,255,255,0.03); padding:6px 8px; border-radius:4px;">
               <span style="color:var(--es-text-subtle); display:block; font-size:9.5px;">KENDALL'S TAU (τ)</span>
-              <b style="color:#fff;">${mk.tau.toFixed(4)}</b>
+              <b style="color:#fff;">${fmt(mk.tau, 4)}</b>
             </div>
             <div style="background:rgba(255,255,255,0.03); padding:6px 8px; border-radius:4px;">
               <span style="color:var(--es-text-subtle); display:block; font-size:9.5px;">Z-STATISTIC</span>
-              <b style="color:#fff;">${mk.z.toFixed(4)}</b>
+              <b style="color:#fff;">${fmt(mk.z, 4)}</b>
             </div>
             <div style="background:rgba(255,255,255,0.03); padding:6px 8px; border-radius:4px;">
               <span style="color:var(--es-text-subtle); display:block; font-size:9.5px;">P-VALUE</span>
-              <b style="color:${mk.p_value < 0.05 ? '#22c55e' : '#fff'};">${mk.p_value.toFixed(5)}</b>
+              <b style="color:${(mk.p_value ?? 1) < 0.05 ? '#22c55e' : '#fff'};">${fmt(mk.p_value, 5)}</b>
             </div>
             <div style="background:rgba(255,255,255,0.03); padding:6px 8px; border-radius:4px;">
               <span style="color:var(--es-text-subtle); display:block; font-size:9.5px;">ADJUSTED Q-VALUE</span>
-              <b style="color:#38bdf8;">${fdr.q_value ? fdr.q_value.toFixed(5) : mk.p_value.toFixed(5)}</b>
+              <b style="color:#38bdf8;">${fmt(qVal, 5)}</b>
             </div>
             <div style="background:rgba(255,255,255,0.03); padding:6px 8px; border-radius:4px;">
               <span style="color:var(--es-text-subtle); display:block; font-size:9.5px;">AUTOCORR (r₁)</span>
-              <b style="color:${Math.abs(ac.lag_1_autocorrelation) > 0.1 ? '#f59e0b' : '#fff'};">${ac.lag_1_autocorrelation.toFixed(3)}</b>
+              <b style="color:${Math.abs(r1Val) > 0.1 ? '#f59e0b' : '#fff'};">${fmt(r1Val, 3)}</b>
             </div>
           </div>
 
           <div style="background:rgba(120,214,169,0.06); border:1px solid rgba(120,214,169,0.2); border-radius:6px; padding:10px; font-family:var(--es-font-mono); font-size:11px; line-height:1.6;">
-            <b>Seasonal Mann-Kendall:</b> Seasonal Z = <b>${smk.seasonal_z.toFixed(3)}</b>, Seasonal p = <b>${smk.seasonal_p_value.toFixed(5)}</b>.<br>
-            <b>Effective Sample Size:</b> N* = <b>${ac.effective_sample_size || mk.n}</b> (adjusted for serial persistence).<br>
-            <b>Yue-Pilon Pre-whitening:</b> ${ac.prewhitened ? '<span style="color:#22c55e;">Applied (serial dependence mitigated)</span>' : '<span style="color:var(--es-text-muted);">Not required (|r₁| ≤ 0.1)</span>'}.<br>
-            <b>Hypothesis Decision:</b> ${mk.p_value < 0.05 ? '<span style="color:#22c55e;">Reject H₀ in favor of H₁ (statistically significant monotonic trend detected at α = 0.05).</span>' : '<span style="color:#8E8E93;">Fail to reject H₀ (observed variability does not exceed random noise threshold at α = 0.05).</span>'}
+            <b>Seasonal Mann-Kendall:</b> Seasonal Z = <b>${fmt(smk.seasonal_z, 3)}</b>, Seasonal p = <b>${fmt(smk.seasonal_p_value, 5)}</b>.<br>
+            <b>Effective Sample Size:</b> N* = <b>${ac.effective_sample_size || mk.n || 0}</b> (adjusted for serial persistence).<br>
+            <b>Yue-Pilon Pre-whitening:</b> ${ac.prewhitened || ac.prewhitened_applied ? '<span style="color:#22c55e;">Applied (serial dependence mitigated)</span>' : '<span style="color:var(--es-text-muted);">Not required (|r₁| ≤ 0.1)</span>'}.<br>
+            <b>Hypothesis Decision:</b> ${(mk.p_value ?? 1) < 0.05 ? '<span style="color:#22c55e;">Reject H₀ in favor of H₁ (statistically significant monotonic trend detected at α = 0.05).</span>' : '<span style="color:#8E8E93;">Fail to reject H₀ (observed variability does not exceed random noise threshold at α = 0.05).</span>'}
           </div>
         </article>
       `;

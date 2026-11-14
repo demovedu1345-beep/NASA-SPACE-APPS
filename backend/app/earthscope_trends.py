@@ -1142,11 +1142,24 @@ async def run_earthscope_investigation(
                 },
                 "sens_slope": {
                     "slope_per_observation": sens_res["slope"],
+                    "slope_per_month": sens_res["slope"],
                     "slope_per_year": round(annual_sens_slope, 5),
                     "slope_unit": f"{v_meta['unit']} / year",
-                    "ci_95_per_year": annual_ci_95
+                    "confidence_interval_95": annual_ci_95,
+                    "ci_95_per_year": annual_ci_95,
+                    "change_per_decade": round(annual_sens_slope * 10.0, 5)
+                },
+                "autocorrelation": {
+                    "lag_1_autocorrelation": autocorr["r_1"],
+                    "lag1_r1": autocorr["r_1"],
+                    "critical_bounds": autocorr["critical_bounds"],
+                    "is_autocorrelated": autocorr["is_autocorrelated"],
+                    "effective_sample_size": autocorr["effective_n"],
+                    "prewhitened_applied": autocorr["prewhitened"],
+                    "prewhitened_mann_kendall": pw_mk
                 },
                 "autocorrelation_diagnostics": {
+                    "lag_1_autocorrelation": autocorr["r_1"],
                     "lag1_r1": autocorr["r_1"],
                     "critical_bounds": autocorr["critical_bounds"],
                     "is_autocorrelated": autocorr["is_autocorrelated"],
