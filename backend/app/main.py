@@ -2325,9 +2325,27 @@ _EARTH_TREND_VARIABLES = {
         "unit": "mm/month",
         "dataset": "NASA POWER Daily Point API (NASA model/reanalysis product)",
         "source": "NASA POWER PRECTOTCORR daily values aggregated to monthly totals",
-        "resolution": "Provider grid",
+        "resolution": "0.5° × 0.625° (approximately 50 km)",
         "data_class": "NASA_MODEL_OUTPUT",
         "method": "Monthly totals calculated from NASA POWER daily PRECTOTCORR values; provider provenance is retained.",
+    },
+    "modis_ndvi": {
+        "name": "MODIS NDVI (NASA Terra)",
+        "unit": "NDVI",
+        "dataset": "MODIS/061/MOD13Q1",
+        "source": "Google Earth Engine / NASA Terra MODIS MOD13Q1.061",
+        "resolution": "250 m",
+        "data_class": "NASA_DIRECT_OBSERVATION",
+        "method": "16-day composite; SummaryQA <= 1; 1.5 km buffered AOI mean; NDVI scale factor 0.0001.",
+    },
+    "modis_lst_day": {
+        "name": "MODIS Daytime Land Surface Temperature (NASA Terra)",
+        "unit": "°C",
+        "dataset": "MODIS/061/MOD11A2",
+        "source": "Google Earth Engine / NASA Terra MODIS MOD11A2.061",
+        "resolution": "1 km",
+        "data_class": "NASA_DIRECT_OBSERVATION",
+        "method": "8-day composite; QC_Day mandatory QA bits == 0; scale factor 0.02 and Kelvin-to-Celsius conversion.",
     },
 }
 
@@ -2506,6 +2524,43 @@ async def _earth_trend_analysis(
             unavailable["ndvi"] = "Sentinel-2 vegetation observations unavailable: " + str(exc)[:220]
             provider_errors.append({"variable": "ndvi", "error": str(exc)[:300]})
 
+    modis_layers = {
+        "modis_ndvi": "modis_ndvi",
+        "modis_lst_day": "modis_lst",
+    }
+    for variable, layer_id in modis_layers.items():
+        if variable not in requested:
+            continue
+        try:
+            end_exclusive = (end_dt + timedelta(days=1)).date().isoformat()
+            extraction = await asyncio.to_thread(
+                ee.timeseries, layer_id, lat, lon, start_text, end_exclusive,
+            )
+            observations = extraction.get("observations") or []
+            rows = [
+                {"date": str(item.get("date") or "")[:10], "value": item.get("value")}
+                for item in observations
+                if item.get("date") and item.get("value") is not None
+                and math.isfinite(float(item["value"]))
+            ]
+            if len(rows) >= 12:
+                series_by_variable[variable] = rows
+                metadata[variable] = {
+                    **_EARTH_TREND_VARIABLES[variable],
+                    "sample_count": len(rows),
+                    "provider": extraction.get("source") or _EARTH_TREND_VARIABLES[variable]["source"],
+                    "quality_control": extraction.get("quality_mask"),
+                    "extraction_period": extraction.get("period"),
+                }
+            else:
+                unavailable[variable] = (
+                    f"NASA MODIS extraction returned {len(rows)} quality-filtered observations; "
+                    "at least 12 are required for a trend result."
+                )
+        except Exception as exc:
+            unavailable[variable] = "NASA MODIS observations unavailable: " + str(exc)[:220]
+            provider_errors.append({"variable": variable, "error": str(exc)[:300]})
+
     climate_variables = {"t2m", "precipitation"}.intersection(requested)
     if climate_variables:
         try:
@@ -2564,7 +2619,7 @@ async def _earth_trend_analysis(
             "data_class": _EARTH_TREND_VARIABLES[variable]["data_class"],
         }
         time_series[variable] = {
-            "dates": [row["date"][:7] for row in rows],
+            "dates": [row["date"][:10] for row in rows],
             "values": [row["value"] for row in rows],
         }
 
@@ -2630,7 +2685,9 @@ async def _earth_trend_analysis(
             "limitations": [
                 "Trend statistics are computed only from returned provider observations; no synthetic NDVI, LST or climate series are inserted.",
                 "Sentinel-2 optical observations are irregular and cloud-masked; revisit gaps and seasonal sampling can affect trend interpretation.",
-                "Open-Meteo/NASA POWER climate grids are regional gridded estimates, not field microclimate measurements.",
+                "NASA POWER climate grids are regional model/reanalysis estimates, not field microclimate measurements.",
+                "NASA MODIS values are quality-masked satellite composites summarized over a buffered point area; they are not field sensor measurements.",
+                "Earth Engine MODIS extraction requires a configured Google Cloud project and authenticated Earth Engine credentials.",
                 "Correlation is descriptive and does not establish environmental causation.",
                 "A detected vegetation decline is a screening result, not legal proof of deforestation.",
             ],
