@@ -13,7 +13,7 @@
     lon: 75.8069,
     place: 'Kodagu Rainforest',
     sub: 'Western Ghats, India',
-    activeVars: ['ndvi', 't2m', 'precipitation', 'lst_day'],
+    activeVars: ['ndvi', 't2m', 'precipitation'],
     currentPriority: 'ALL',
     activeTab: 'trends',
     lastInvestigation: null,
@@ -33,19 +33,19 @@
   const REGISTERED_VARIABLES = {
     ndvi: {
       id: 'ndvi',
-      name: 'NDVI — Normalized Difference Vegetation Index',
-      tagline: 'Satellite-derived vegetation index measuring canopy greenness and photosynthetic activity.',
-      category: 'Vegetation',
-      mission: 'Terra / MODIS',
-      dataset: 'MOD13Q1.061',
-      provider: 'NASA LP DAAC',
-      resolution: '250 m',
-      cadence: '16-Day Composite',
-      units: 'NDVI (unitless, -0.2 to +1.0)',
-      coverage: '2000-02 to Present (Operational)',
-      qa: 'DetailedQA Bitmask (Cloud, Shadow, Cirrus filtering)',
-      citation: 'Didan, K. (2015). MOD13Q1 MODIS/Terra Vegetation Indices 16-Day L3 Global 250m SIN Grid V061. NASA EOSDIS LP DAAC.',
-      limitations: 'Optical signal saturated over dense equatorial rain-forests; persistent cloud cover during monsoon seasons can produce gaps.'
+      name: 'NDVI — Sentinel-2 Vegetation Index',
+      tagline: 'Cloud/shadow-masked vegetation greenness derived from Sentinel-2 red and near-infrared reflectance.',
+      category: 'Vegetation · Complementary',
+      mission: 'ESA Copernicus Sentinel-2 MSI',
+      dataset: 'Sentinel-2 L2A',
+      provider: 'Element 84 Earth Search / Copernicus',
+      resolution: '10 m',
+      cadence: 'Irregular clear-sky overpasses',
+      units: 'NDVI (unitless)',
+      coverage: '2015 to Present (scene availability varies)',
+      qa: 'Scene Classification Layer cloud/shadow masking; valid-pixel fraction retained',
+      citation: 'ESA Copernicus Sentinel-2 MSI Level-2A surface reflectance product documentation.',
+      limitations: 'This is an ESA mission, not a NASA satellite. It is supplementary evidence; cloud gaps and irregular scene sampling affect trend inference.'
     },
     evi: {
       id: 'evi',
@@ -100,32 +100,32 @@
       name: 'Near-Surface Air Temperature (2-Meter)',
       tagline: 'Atmospheric ambient temperature at 2 meters above ground level from meteorological assimilation.',
       category: 'Climate & Atmosphere',
-      mission: 'NASA POWER / MERRA-2',
-      dataset: 'POWER Monthly Climatology',
+      mission: 'NASA POWER / NASA GMAO',
+      dataset: 'NASA POWER Daily Point API — T2M',
       provider: 'NASA Langley Research Center',
       resolution: '0.5° × 0.5° (~50 km)',
       cadence: 'Monthly',
       units: '°C',
       coverage: '1981 to Present',
-      qa: 'GMAO GEOS-5 FP-IT / MERRA-2 assimilation QC',
+      qa: 'NASA POWER fill values excluded; at least 80% valid daily values required per month',
       citation: 'Stackhouse, P. W. et al. (2020). The NASA POWER Project: A Global Climatology for Sustainable Infrastructure.',
       limitations: 'Gridded reanalysis spatial grid smooths localized valley thermal inversions and microclimatic understory canopies.'
     },
     precipitation: {
       id: 'precipitation',
       name: 'Precipitation Accumulation',
-      tagline: 'Monthly rainfall and moisture accumulation combining satellite microwave, radar, and gauge stations.',
+      tagline: 'Monthly precipitation totals calculated from real NASA POWER daily PRECTOTCORR values.',
       category: 'Precipitation',
-      mission: 'NASA POWER / GPM Calibrated',
-      dataset: 'POWER Monthly Hydrology',
-      provider: 'NASA Langley / GSFC',
-      resolution: '0.5° × 0.5°',
+      mission: 'NASA POWER / NASA GMAO',
+      dataset: 'NASA POWER Daily Point API — PRECTOTCORR',
+      provider: 'NASA Langley Research Center',
+      resolution: '0.5° × 0.625° (~50 km)',
       cadence: 'Monthly Accumulation',
       units: 'mm / month',
       coverage: '1981 to Present',
-      qa: 'Multi-satellite gauge cross-calibration',
-      citation: 'Huffman, G. J. et al. (2020). Integrated Multi-satellitE Retrievals for GPM (IMERG) Technical Documentation.',
-      limitations: 'Extreme convective storm cells may be under-sampled in complex mountain topography without dense rain-gauge networks.'
+      qa: 'Fill values excluded; at least 80% valid daily values required per month; daily values summed',
+      citation: 'NASA POWER Project API documentation — daily PRECTOTCORR parameter.',
+      limitations: 'NASA POWER is a coarse gridded model/reanalysis estimate, not a local rain gauge or the higher-resolution GPM IMERG satellite product.'
     },
     gpm_imerg: {
       id: 'gpm_imerg',
@@ -239,95 +239,68 @@
   // Update ECharts with Decadal Observations and Confidence Intervals
   function updateChart(data) {
     if (!S.chart || !data || !data.results) return;
-
     const firstVarKey = Object.keys(data.results)[0];
     const item = data.results[firstVarKey];
-    if (!item || !item.time_series) return;
-
+    if (!item || !item.time_series || !item.time_series.length) return;
     const ts = item.time_series;
     const meta = item.metadata || {};
     const stats = item.statistics || {};
     const ss = stats.sens_slope || {};
     const mk = stats.mann_kendall || {};
-    const dates = ts.map(p => p.date);
-    const values = ts.map(p => p.value);
-
-    // Compute Sen's slope line
-    const n = values.length;
-    const meanIdx = (n - 1) / 2;
-    const meanVal = values.reduce((a, b) => a + b, 0) / (n || 1);
-    const slopePerMonth = ss.slope_per_month ?? (ss.slope_per_year ? ss.slope_per_year / 12 : 0);
-    const slopePerYear = ss.slope_per_year ?? 0;
-    const trendLine = dates.map((_, i) => {
-      const v = meanVal + (i - meanIdx) * slopePerMonth;
-      return roundNum(v, 4);
+    const dates = ts.map(point => point.date);
+    const values = ts.map(point => Number(point.value));
+    const timestamps = dates.map(date => Date.parse(date.length === 7 ? date + '-15T00:00:00Z' : date + 'T00:00:00Z'));
+    const validTimes = timestamps.filter(Number.isFinite);
+    const meanTime = validTimes.reduce((sum, value) => sum + value, 0) / (validTimes.length || 1);
+    const meanVal = values.reduce((sum, value) => sum + value, 0) / (values.length || 1);
+    const slopePerYear = Number(ss.slope_per_year || 0);
+    const trendLine = values.map((_, index) => {
+      const elapsedYears = Number.isFinite(timestamps[index]) ? (timestamps[index] - meanTime) / (365.2425 * 86400000) : 0;
+      return roundNum(meanVal + elapsedYears * slopePerYear, 4);
     });
-
-    // 95% Confidence Bounds
-    const ciRaw = ss.confidence_interval_95 || ss.ci_95_per_year || [slopePerYear * 0.9, slopePerYear * 1.1];
-    const ciLowerVal = (Array.isArray(ciRaw) && ciRaw.length >= 2) ? ciRaw[0] : slopePerYear * 0.9;
-    const ciUpperVal = (Array.isArray(ciRaw) && ciRaw.length >= 2) ? ciRaw[1] : slopePerYear * 1.1;
-
-    const ciUpper = dates.map((_, i) => roundNum(trendLine[i] + Math.max(0.001, Math.abs(ciUpperVal - slopePerYear)) * 0.1, 4));
-    const ciLower = dates.map((_, i) => roundNum(trendLine[i] - Math.max(0.001, Math.abs(slopePerYear - ciLowerVal)) * 0.1, 4));
-
+    const ciRaw = ss.confidence_interval_95 || ss.ci_95_per_year || [null, null];
+    const ciText = Array.isArray(ciRaw) && ciRaw.length >= 2 && ciRaw[0] !== null && ciRaw[1] !== null
+      ? '[' + fmt(ciRaw[0], 4) + ', ' + fmt(ciRaw[1], 4) + '] ' + (meta.units || '') + '/yr'
+      : 'not available';
     const pValFormatted = fmt(mk.p_value, 4);
     const slopeFormatted = (slopePerYear > 0 ? '+' : '') + fmt(slopePerYear, 4);
-
     const option = {
       backgroundColor: 'transparent',
       title: {
-        text: `${meta.name || 'Variable'} — Historical Changes Over Time`,
-        subtext: `Sen's Median Slope: ${slopeFormatted} ${meta.units || ''}/yr • p = ${pValFormatted} (${stats.classification || 'Analysis Complete'})`,
-        left: 'center',
-        top: 8,
+        text: (meta.name || 'Variable') + ' — Historical Changes Over Time',
+        subtext: "Sen's slope: " + slopeFormatted + ' ' + (meta.units || '') + '/yr • 95% slope CI ' + ciText + ' • p = ' + pValFormatted,
+        left: 'center', top: 8,
         textStyle: { color: '#ffffff', fontSize: 13, fontFamily: 'Roboto, sans-serif' },
-        subtextStyle: { color: '#78D6A9', fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }
+        subtextStyle: { color: '#78D6A9', fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }
       },
       tooltip: {
-        trigger: 'axis',
-        backgroundColor: '#0a0a0f',
-        borderColor: '#2e3038',
+        trigger: 'axis', backgroundColor: '#0a0a0f', borderColor: '#2e3038',
         textStyle: { color: '#e5e7eb', fontSize: 11.5, fontFamily: 'JetBrains Mono, monospace' },
         formatter: function (params) {
           const date = params[0].axisValue;
-          let tip = `<div style="font-weight:700; color:#fff; border-bottom:1px solid #2e3038; padding-bottom:4px; margin-bottom:6px;">Epoch: ${date}</div>`;
-          params.forEach(p => {
-            tip += `<div style="display:flex; justify-content:space-between; gap:14px; line-height:1.5;">
-              <span style="color:${p.color};">${p.seriesName}:</span>
-              <span style="font-weight:700;">${p.value} ${meta.units}</span>
-            </div>`;
+          let tip = '<div style="font-weight:700;color:#fff;border-bottom:1px solid #2e3038;padding-bottom:4px;margin-bottom:6px;">Date: ' + date + '</div>';
+          params.forEach(point => {
+            tip += '<div style="display:flex;justify-content:space-between;gap:14px;line-height:1.5;"><span style="color:' + point.color + ';">' + point.seriesName + ':</span><span style="font-weight:700;">' + point.value + ' ' + (meta.units || '') + '</span></div>';
           });
           return tip;
         }
       },
       legend: {
-        data: ['Original Observations', 'Sen\'s Median Trajectory', '95% Confidence Interval'],
+        data: ['Observed values', "Sen's slope trajectory"],
         top: 48,
         textStyle: { color: '#8E8E93', fontSize: 10.5, fontFamily: 'Roboto, sans-serif' }
       },
-      grid: {
-        left: '4%',
-        right: '4%',
-        bottom: '8%',
-        top: 85,
-        containLabel: true
-      },
+      grid: { left: '4%', right: '4%', bottom: '8%', top: 85, containLabel: true },
       xAxis: {
-        type: 'category',
-        data: dates,
+        type: 'category', data: dates,
         axisLine: { lineStyle: { color: '#2e3038' } },
         axisLabel: {
-          color: '#8E8E93',
-          fontFamily: 'JetBrains Mono, monospace',
-          fontSize: 10,
-          rotate: 30,
-          interval: 11
+          color: '#8E8E93', fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 10, rotate: 30, interval: Math.max(0, Math.ceil(dates.length / 8) - 1)
         }
       },
       yAxis: {
-        type: 'value',
-        name: meta.units,
+        type: 'value', name: meta.units || '',
         nameTextStyle: { color: '#8E8E93', fontSize: 10, fontFamily: 'JetBrains Mono, monospace' },
         axisLine: { lineStyle: { color: '#2e3038' } },
         splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } },
@@ -335,41 +308,17 @@
       },
       series: [
         {
-          name: 'Original Observations',
-          type: 'line',
-          data: values,
+          name: 'Observed values', type: 'line', data: values,
           itemStyle: { color: '#78D6A9' },
-          lineStyle: { color: '#78D6A9', width: 1.8 },
-          symbolSize: 5
+          lineStyle: { color: '#78D6A9', width: 1.8 }, symbolSize: 5
         },
         {
-          name: 'Sen\'s Median Trajectory',
-          type: 'line',
-          data: trendLine,
+          name: "Sen's slope trajectory", type: 'line', data: trendLine,
           itemStyle: { color: '#f43f5e' },
-          lineStyle: { color: '#f43f5e', width: 2.2, type: 'dashed' },
-          symbol: 'none'
-        },
-        {
-          name: '95% Confidence Interval',
-          type: 'line',
-          data: ciUpper,
-          lineStyle: { opacity: 0 },
-          stack: 'confidence-band',
-          symbol: 'none'
-        },
-        {
-          name: '95% Confidence Interval',
-          type: 'line',
-          data: ciLower.map((l, i) => roundNum(ciUpper[i] - l, 4)),
-          lineStyle: { opacity: 0 },
-          areaStyle: { color: 'rgba(120, 214, 169, 0.12)' },
-          stack: 'confidence-band',
-          symbol: 'none'
+          lineStyle: { color: '#f43f5e', width: 2.2, type: 'dashed' }, symbol: 'none'
         }
       ]
     };
-
     S.chart.setOption(option);
   }
 
@@ -419,7 +368,7 @@
           region_name: S.place,
           variables: S.activeVars,
           start_year: 2015,
-          end_year: 2024,
+          end_year: new Date().getUTCFullYear() - 1,
           alpha: 0.05
         })
       });
@@ -437,12 +386,13 @@
       updateStageMessage('Preparing your analysis results and provenance information...');
       await new Promise(r => setTimeout(r, 100));
 
-      S.lastInvestigation = data;
-      renderTrendCards(data);
-      renderStatisticalLab(data);
-      renderCorrelations(data);
-      renderAnalyst(data);
-      updateChart(data);
+      const normalized = normalizeEarthTrendPayload(data);
+      S.lastInvestigation = normalized;
+      renderTrendCards(normalized);
+      renderStatisticalLab(normalized);
+      renderCorrelations(normalized);
+      renderAnalyst(normalized);
+      updateChart(normalized);
 
       console.log('Your scientific analysis has been completed.');
     } catch (e) {
@@ -459,6 +409,73 @@
       if (btn) btn.innerHTML = '🔬 Run Scientific Analysis';
     }
   };
+
+  // Normalize the live FastAPI trend schema for all dashboard renderers.
+  function normalizeEarthTrendPayload(raw) {
+    if (!raw || !raw.trends) return raw;
+    const results = {};
+    for (const [vid, trend] of Object.entries(raw.trends)) {
+      const sourceMeta = (raw.metadata || {})[vid] || {};
+      const series = (raw.time_series || {})[vid] || {};
+      const dates = series.dates || [];
+      const values = series.values || [];
+      const points = dates.map((date, index) => ({ date, value: values[index] }))
+        .filter(point => point.value !== null && point.value !== undefined && Number.isFinite(Number(point.value)));
+      const slope = trend.sens_slope;
+      const ci = Array.isArray(trend.ci_95) ? trend.ci_95 : [null, null];
+      const p = trend.p_value;
+      const significant = trend.significant === true;
+      const direction = trend.direction || 'NO_DIRECTION';
+      const classification = p === null || p === undefined
+        ? 'INSUFFICIENT DATA'
+        : (significant ? 'STATISTICALLY SIGNIFICANT ' : 'NOT STATISTICALLY SIGNIFICANT ') + direction + ' TREND';
+      results[vid] = {
+        metadata: {
+          ...sourceMeta,
+          name: sourceMeta.name || vid,
+          dataset: sourceMeta.dataset || sourceMeta.source || 'Provider dataset',
+          mission: sourceMeta.source || 'Provider source',
+          product_id: sourceMeta.dataset || 'Provider product',
+          best_access_method: sourceMeta.source || 'Live provider API',
+          priority: sourceMeta.data_class === 'NASA_MODEL_OUTPUT' ? 'P0' : 'P1',
+          units: sourceMeta.unit || trend.unit || '',
+        },
+        statistics: {
+          mann_kendall: {
+            n: trend.n, s: trend.mann_kendall_s, tau: trend.mann_kendall_tau,
+            z: trend.mann_kendall_z, p_value: p, significant,
+          },
+          sens_slope: {
+            slope_per_year: slope,
+            slope_per_month: Number.isFinite(slope) ? slope / 12 : null,
+            change_per_decade: Number.isFinite(slope) ? slope * 10 : null,
+            confidence_interval_95: ci,
+            ci_95_per_year: ci,
+          },
+          autocorrelation: {
+            lag_1_autocorrelation: trend.lag1_autocorrelation,
+            effective_sample_size: trend.n,
+            prewhitened_applied: false,
+          },
+          seasonal_mann_kendall: {
+            seasonal_z: trend.seasonal_mk_z,
+            seasonal_p_value: trend.seasonal_mk_p_value,
+            significant: trend.seasonal_mk_p_value !== null && trend.seasonal_mk_p_value < 0.05,
+          },
+          multiple_testing_correction: {
+            q_value: trend.fdr_q_value,
+            fdr_significant: trend.fdr_significant,
+          },
+          classification,
+        },
+        time_series: points,
+        series: points,
+        source: trend.source,
+        data_class: trend.data_class,
+      };
+    }
+    return { ...raw, results };
+  }
 
   // Render Trend Fingerprint Cards
   function renderTrendCards(data) {
@@ -640,7 +657,7 @@
           <div style="background:rgba(120,214,169,0.06); border:1px solid rgba(120,214,169,0.2); border-radius:6px; padding:10px; font-family:var(--es-font-mono); font-size:11px; line-height:1.6;">
             <b>Seasonal Mann-Kendall:</b> Seasonal Z = <b>${fmt(smk.seasonal_z, 3)}</b>, Seasonal p = <b>${fmt(smk.seasonal_p_value, 5)}</b>.<br>
             <b>Effective Sample Size:</b> N* = <b>${ac.effective_sample_size || mk.n || 0}</b> (adjusted for serial persistence).<br>
-            <b>Yue-Pilon Pre-whitening:</b> ${ac.prewhitened || ac.prewhitened_applied ? '<span style="color:#22c55e;">Applied (serial dependence mitigated)</span>' : '<span style="color:var(--es-text-muted);">Not required (|r₁| ≤ 0.1)</span>'}.<br>
+            <b>Autocorrelation treatment:</b> <span style="color:#f59e0b;">Lag-1 is reported as a diagnostic; pre-whitening is not applied in this runtime. Interpret nominal p-values cautiously when serial dependence is present.</span><br>
             <b>Hypothesis Decision:</b> ${(mk.p_value ?? 1) < 0.05 ? '<span style="color:#22c55e;">Reject H₀ in favor of H₁ (statistically significant monotonic trend detected at α = 0.05).</span>' : '<span style="color:#8E8E93;">Fail to reject H₀ (observed variability does not exceed random noise threshold at α = 0.05).</span>'}
           </div>
         </article>
@@ -657,15 +674,16 @@
     let html = '';
     for (const [pair, c] of Object.entries(data.correlation_matrix)) {
       const r = c.pearson_r;
-      const rColor = r > 0.5 ? '#22c55e' : r < -0.5 ? '#f43f5e' : '#38bdf8';
+      const hasCorrelation = typeof r === 'number' && Number.isFinite(r);
+      const rColor = !hasCorrelation ? '#8E8E93' : r > 0.5 ? '#22c55e' : r < -0.5 ? '#f43f5e' : '#38bdf8';
 
       html += `
         <article class="fingerprint-card" style="margin-bottom:10px;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <strong style="font-family:var(--es-font-serif); font-size:13.5px; color:#fff;">${c.variable_a.toUpperCase()} ⟷ ${c.variable_b.toUpperCase()}</strong>
-            <span style="font-family:var(--es-font-mono); font-size:13px; font-weight:700; color:${rColor};">r = ${r > 0 ? '+' : ''}${r.toFixed(4)}</span>
+            <span style="font-family:var(--es-font-mono); font-size:13px; font-weight:700; color:${rColor};">r = ${hasCorrelation ? (r > 0 ? '+' : '') + r.toFixed(4) : 'not available'}</span>
           </div>
-          <p style="font-family:var(--es-font-mono); font-size:11.5px; color:var(--es-text-muted); margin:4px 0;">Observed Feedback: <b>${c.relationship}</b></p>
+          <p style="font-family:var(--es-font-mono); font-size:11.5px; color:var(--es-text-muted); margin:4px 0;">Observed Feedback: <b>${c.relationship || 'Insufficient aligned observations'}</b></p>
           <small style="font-size:10.5px; color:var(--es-text-subtle);">${c.caveat}</small>
         </article>
       `;
@@ -696,8 +714,8 @@
               <h4 style="margin:2px 0 0 0; color:#fff; font-size:14px;">${v.name}</h4>
               <p style="font-size:11.5px; color:var(--es-text-muted); margin:4px 0 8px 0;">${v.tagline}</p>
             </div>
-            <button class="btn-primary" style="padding:5px 12px; font-size:11px;" onclick="useThisVariable('${v.id}')">
-              Use This Variable
+            <button class="btn-primary" style="padding:5px 12px; font-size:11px; opacity:${['ndvi','t2m','precipitation'].includes(v.id) ? '1' : '0.55'};" ${['ndvi','t2m','precipitation'].includes(v.id) ? '' : 'disabled'} onclick="useThisVariable('${v.id}')">
+              ${['ndvi','t2m','precipitation'].includes(v.id) ? 'Run Live Trend' : 'Catalogue Only'}
             </button>
           </div>
 
@@ -733,6 +751,11 @@
 
   // Use This Variable Action
   window.useThisVariable = function (vid) {
+    if (!['ndvi','t2m','precipitation'].includes(vid)) {
+      const note = document.getElementById('aiAnalystSummaryText');
+      if (note) note.innerText = 'This NASA product is in the catalogue, but a validated live regional extraction is not connected yet. No trend result will be fabricated.';
+      return;
+    }
     if (!S.activeVars.includes(vid)) {
       S.activeVars.push(vid);
     }
@@ -772,7 +795,7 @@
           </div>
           <div style="background:rgba(255,255,255,0.03); padding:6px 8px; border-radius:4px;">
             <span style="color:var(--es-text-subtle); font-size:9px; display:block;">ANALYSIS PERIOD</span>
-            <b>2015-01 to 2024-12 (120 Mo)</b>
+            <b>${S.lastInvestigation?.timeframe?.start_year || 2015}-01 to ${S.lastInvestigation?.timeframe?.end_year || (new Date().getUTCFullYear() - 1)}-12</b>
           </div>
           <div style="background:rgba(255,255,255,0.03); padding:6px 8px; border-radius:4px;">
             <span style="color:var(--es-text-subtle); font-size:9px; display:block;">STATISTICAL TEST</span>
