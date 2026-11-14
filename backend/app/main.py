@@ -2316,7 +2316,7 @@ _EARTH_TREND_VARIABLES = {
         "unit": "°C",
         "dataset": "NASA POWER Daily Point API (NASA model/reanalysis product)",
         "source": "NASA POWER T2M daily observations aggregated to monthly means",
-        "resolution": "Provider grid",
+        "resolution": "0.5° × 0.625° (approximately 50 km)",
         "data_class": "NASA_MODEL_OUTPUT",
         "method": "Monthly means calculated from NASA POWER daily T2M values; provider provenance is retained.",
     },
