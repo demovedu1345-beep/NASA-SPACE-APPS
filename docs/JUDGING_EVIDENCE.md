@@ -173,8 +173,8 @@ The challenge is not simply a satellite-map viewer. The core workflow is: choose
 |---|---|---|---|
 | 2 m air temperature | NASA POWER / GMAO | Daily T2M → monthly mean; 80% valid-day threshold | Public API; no key |
 | Precipitation | NASA POWER / GMAO | Daily PRECTOTCORR → monthly total; 80% valid-day threshold | Public API; no key |
-| MODIS NDVI | Terra MOD13Q1.061 | 16-day composite; SummaryQA ≤ 1; scale 0.0001; buffered AOI mean | Earth Engine project + credentials |
-| MODIS daytime LST | Terra MOD11A2.061 | 8-day composite; QC_Day mandatory bits == 0; scale 0.02; Kelvin → °C | Earth Engine project + credentials |
+| MODIS NDVI / EVI | Terra MOD13Q1.061 | 16-day 250 m composite; SummaryQA ≤ 1; scale 0.0001; buffered AOI mean | Earth Engine project + credentials |
+| MODIS daytime / nighttime LST | Terra MOD11A2.061 | 8-day 1 km composite; QC_Day/QC_Night mandatory bits == 0; scale 0.02; Kelvin → °C | Earth Engine project + credentials |
 | GPM IMERG | GPM Monthly V07 | Monthly merged satellite-gauge precipitation rate (mm/hr); current collection ends 2025-09 | Earth Engine project + credentials |
 | MERRA-2 T2M | NASA GMAO M2T1NXSLV | Hourly reanalysis → monthly mean; Kelvin → °C | Earth Engine project + credentials |
 | GLDAS soil moisture | GLDAS-2.1 Noah | 3-hourly 0–10 cm soil moisture → monthly mean | Earth Engine project + credentials |
