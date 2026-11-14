@@ -54,6 +54,17 @@ body{overflow:hidden}
 .portfolio-link[data-open-workspaces]{display:flex;align-items:center;gap:8px}
 .portfolio-link[data-open-workspaces] span{font-size:16px;color:#9bb6d0}
 .portfolio-tools{display:flex;align-items:center;gap:8px;min-width:0}
+.portfolio-mobile-menu{
+  display:none;width:35px;height:35px;flex:none;position:relative;place-items:center;
+  border:1px solid rgba(255,255,255,.14);border-radius:50%;
+  background:rgba(255,255,255,.045);color:#f4f4f4;
+}
+.portfolio-mobile-menu i{position:absolute;width:16px;height:16px;transition:opacity .3s ease,transform .3s ease}
+.portfolio-mobile-menu .menu-icon{opacity:1;transform:rotate(0) scale(1)}
+.portfolio-mobile-menu .close-icon{opacity:0;transform:rotate(90deg) scale(.75)}
+.portfolio-mobile-menu[aria-expanded="true"] .menu-icon{opacity:0;transform:rotate(-90deg) scale(.75)}
+.portfolio-mobile-menu[aria-expanded="true"] .close-icon{opacity:1;transform:rotate(0) scale(1)}
+
 .portfolio-tools .search-wrap{width:205px;height:34px;padding:0 9px;border-radius:999px}
 .portfolio-tools .search-wrap input{font-size:10px}
 .portfolio-tools .search-wrap kbd{font-size:8px}
@@ -69,8 +80,8 @@ body{overflow:hidden}
 .visually-hidden,.mobile-menu{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 /* Cinematic film, rather than a card/panel pretending to be a hero. */
 .ambient video{
-  opacity:.68;
-  filter:brightness(.48) saturate(.55) contrast(1.08);
+  opacity:.76;
+  filter:brightness(.64) saturate(.94) contrast(1.09);
 }
 .ambient::before{background:rgba(0,0,0,.23)}
 .ambient::after{
@@ -263,6 +274,8 @@ body{overflow:hidden}
   }
   .portfolio-tools .search-wrap.expanded input{display:block}
   .portfolio-tools .icon-btn{display:none}
+  .portfolio-tools [data-open-workspaces]:not(.portfolio-mobile-menu){display:none}
+  .portfolio-mobile-menu{display:grid}
   .portfolio-tools .portfolio-cta{min-height:32px;padding:0 10px;font-size:8px}
   .page{padding:18px 11px 30px}
   .overview-cover{width:calc(100% + 22px);min-height:calc(100svh - 78px);margin:-18px -11px 54px;padding:70px 18px 106px}
