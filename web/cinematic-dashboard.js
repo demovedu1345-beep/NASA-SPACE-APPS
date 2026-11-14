@@ -134,84 +134,37 @@
     });
   }
 
-  // Supplied Mux HLS film loop. Native Safari HLS first, hls.js everywhere else.
+  // Cinematic Earth-from-space MP4 background. Direct MP4 avoids the extra HLS runtime.
   async function initAmbientVideo() {
     if (!video) return;
-    const source = "https://stream.mux.com/Aa02T7oM1wH5Mk5EEVDYhbZ1ChcdhRsS2m1NYyx4Ua1g.m3u8";
+    const source = "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260613_180732_a54afbf6-b30d-470e-861f-669871f09f67.mp4";
     video.muted = true;
     video.defaultMuted = true;
     video.loop = true;
     video.autoplay = true;
     video.playsInline = true;
-    video.preload = "none";
+    video.preload = "metadata";
+    video.src = source;
 
-    const tryPlay = () => video.play().catch(() => {
-      // A blocked autoplay falls back to a restrained desktop fog, not a broken black rectangle.
-      video.classList.add("video-paused");
-      initFogFallback();
-    });
-    video.addEventListener("playing", () => video.classList.remove("video-paused"), { once: true });
+    video.addEventListener("playing", () => {
+      video.classList.remove("video-paused", "video-failed");
+      document.documentElement.dataset.earthVideo = "playing";
+    }, { once: true });
     video.addEventListener("error", () => {
       video.classList.add("video-failed");
+      document.documentElement.dataset.earthVideo = "fallback";
       initFogFallback();
     }, { once: true });
 
-    if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = source;
-      video.load();
-      tryPlay();
-      return;
-    }
     try {
-      await loadScript("https://cdn.jsdelivr.net/npm/hls.js@1.7.4/dist/hls.light.min.js", "earthscope-hlsjs");
-      if (window.Hls && window.Hls.isSupported()) {
-        const hls = new window.Hls({
-          enableWorker: true,
-          capLevelToPlayerSize: true,
-          maxBufferLength: 12,
-          maxMaxBufferLength: 22,
-          maxBufferSize: 12 * 1000 * 1000,
-          backBufferLength: 8,
-          startLevel: -1
-        });
-        hls.loadSource(source);
-        hls.attachMedia(video);
-        hls.on(window.Hls.Events.MANIFEST_PARSED, tryPlay);
-        let recoveries = 0;
-        hls.on(window.Hls.Events.ERROR, (_event, data) => {
-          if (!data.fatal) return;
-          if (recoveries++ > 2) {
-            video.classList.add("video-failed");
-            hls.destroy();
-            initFogFallback();
-            return;
-          }
-          if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
-          else if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
-          else {
-            video.classList.add("video-failed");
-            hls.destroy();
-            initFogFallback();
-          }
-        });
-        window.addEventListener("pagehide", () => hls.destroy(), { once: true });
-      } else {
-        video.classList.add("video-failed");
-        initFogFallback();
-      }
+      video.load();
+      await video.play();
     } catch (error) {
-      console.info("HLS background unavailable; cinematic CSS fallback active.", error);
-      video.classList.add("video-failed");
+      // Keep the premium dark background and optional fog when autoplay is restricted.
+      video.classList.add("video-paused");
       initFogFallback();
+      console.info("Earth background autoplay unavailable; fallback atmosphere active.", error);
     }
-  }
-
-  const navSearch = $(".portfolio-tools .search-wrap");
-  if (navSearch) {
-    navSearch.addEventListener("click", (event) => {
-      const field = $("#globalSearch", navSearch);
-      if (field && event.target.closest("i")) field.focus();
-    });
   }
 
   function setWorkspaceDrawer(open) {
@@ -220,6 +173,8 @@
     document.body.classList.toggle("workspaces-open", open);
     const trigger = $('[data-open-workspaces]');
     if (trigger) trigger.setAttribute("aria-expanded", String(open));
+    const mobileToggle = $(".portfolio-mobile-menu");
+    if (mobileToggle) mobileToggle.setAttribute("aria-expanded", String(open));
   }
   document.addEventListener("click", (event) => {
     const open = event.target.closest("[data-open-workspaces]");
