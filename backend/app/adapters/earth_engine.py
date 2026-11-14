@@ -11,7 +11,11 @@ EE_LAYERS = {
     "srtm_elevation": {"dataset": "USGS/SRTMGL1_003", "kind": "image", "band": "elevation", "vis": {"min": 0, "max": 3500, "palette": ["0b3d2e","d9c98b","ffffff"]}, "freshness": "REFERENCE", "resolution_m": 30},
     "jrc_water_occurrence": {"dataset": "JRC/GSW1_4/GlobalSurfaceWater", "kind": "image", "band": "occurrence", "vis": {"min": 0, "max": 100, "palette": ["ffffff","0050ff"]}, "freshness": "HISTORICAL", "resolution_m": 30},
     "modis_ndvi": {"dataset": "MODIS/061/MOD13Q1", "kind": "collection", "band": "NDVI", "qa_band": "SummaryQA", "qa_method": "lte", "qa_max": 1, "scale_factor": 0.0001, "offset": 0.0, "unit": "NDVI", "quality_label": "SummaryQA <= 1 (good or marginal)", "buffer_m": 1500, "vis": {"min": -2000, "max": 10000, "palette": ["8c510a","d8b365","f6e8c3","c7eae5","5ab4ac","01665e"]}, "freshness": "DYNAMIC_RECENT", "resolution_m": 250},
-    "modis_lst": {"dataset": "MODIS/061/MOD11A2", "kind": "collection", "band": "LST_Day_1km", "qa_band": "QC_Day", "qa_method": "bitwise_eq", "qa_mask": 3, "qa_value": 0, "scale_factor": 0.02, "offset": -273.15, "unit": "°C", "quality_label": "QC_Day mandatory QA bits == 0", "buffer_m": 3000, "vis": {"min": 13000, "max": 16500, "palette": ["313695","74add1","ffffbf","f46d43","a50026"]}, "freshness": "DYNAMIC_RECENT", "resolution_m": 1000},
+    "modis_lst": {"dataset": "MODIS/061/MOD11A2", "kind": "collection", "band": "LST_Day_1km", "qa_band": "QC_Day", "qa_method": "bitwise_eq", "qa_mask": 3, "qa_value": 0, "scale_factor": 0.02, "offset": -273.15, "unit": "°C", "quality_label": "QC_Day mandatory QA bits == 0", "buffer_m": 3000, "source": "Google Earth Engine / NASA Terra MODIS MOD11A2.061", "vis": {"min": 13000, "max": 16500, "palette": ["313695","74add1","ffffbf","f46d43","a50026"]}, "freshness": "DYNAMIC_RECENT", "resolution_m": 1000},
+    "gpm_precipitation": {"dataset": "NASA/GPM_L3/IMERG_MONTHLY_V07", "kind": "collection", "band": "precipitation", "unit": "mm/hr", "aggregation": "per_observation", "buffer_m": 12000, "source": "Google Earth Engine / NASA GPM IMERG Monthly V07", "vis": {"min": 0, "max": 1.5, "palette": ["ffffff","9ecae1","3182bd","08519c"]}, "freshness": "HISTORICAL", "resolution_m": 11132},
+    "merra2_t2m": {"dataset": "NASA/GSFC/MERRA/slv/2", "kind": "collection", "band": "T2M", "unit": "°C", "scale_factor": 1.0, "offset": -273.15, "aggregation": "monthly_mean", "buffer_m": 40000, "source": "Google Earth Engine / NASA MERRA-2 M2T1NXSLV", "vis": {"min": 250, "max": 310, "palette": ["313695","74add1","ffffbf","f46d43","a50026"]}, "freshness": "HISTORICAL", "resolution_m": 60000},
+    "gldas_soil_moisture": {"dataset": "NASA/GLDAS/V021/NOAH/G025/T3H", "kind": "collection", "band": "SoilMoi0_10cm_inst", "unit": "kg/m²", "aggregation": "monthly_mean", "buffer_m": 20000, "source": "Google Earth Engine / NASA GLDAS-2.1 Noah", "vis": {"min": 0, "max": 50, "palette": ["f7fbff","6baed6","08306b"]}, "freshness": "HISTORICAL", "resolution_m": 27830},
+    "omi_ozone": {"dataset": "TOMS/MERGED_V4", "kind": "collection", "band": "ozone", "unit": "Dobson units", "aggregation": "monthly_mean", "buffer_m": 55000, "source": "Google Earth Engine / NASA TOMS-OMI merged total ozone", "vis": {"min": 200, "max": 500, "palette": ["313695","74add1","ffffbf","f46d43","a50026"]}, "freshness": "HISTORICAL", "resolution_m": 111000},
     "chirps_rainfall": {"dataset": "UCSB-CHG/CHIRPS/DAILY", "kind": "collection", "band": "precipitation", "vis": {"min": 0, "max": 100, "palette": ["ffffff","a6cee3","1f78b4","08306b"]}, "freshness": "DYNAMIC_RECENT", "resolution_m": 5566},
     "modis_burned_area": {"dataset": "MODIS/061/MCD64A1", "kind": "collection", "band": "BurnDate", "vis": {"min": 1, "max": 366, "palette": ["ffffcc","fd8d3c","bd0026"]}, "freshness": "DYNAMIC_RECENT", "resolution_m": 500},
     "gedi_agbd": {"dataset": "LARSE/GEDI/GEDI04_A_002_MONTHLY", "kind": "collection", "band": "agbd", "vis": {"min": 0, "max": 300, "palette": ["fff7bc","7fcdbb","2c7fb8","253494"]}, "freshness": "REFERENCE", "resolution_m": 25, "quality": "gedi_l4a"},
@@ -118,10 +122,10 @@ class EarthEngineAdapter:
         return {"layer_id":layer_id,"value":val,"unit":cfg.get("unit"),"band":cfg["band"],"dataset":cfg["dataset"],"resolution_m":scale,"freshness":cfg["freshness"],"quality_mask":cfg.get("quality_label"),"source":"Google Earth Engine Data Catalog"}
 
     def timeseries(self, layer_id: str, lat: float, lon: float, start_date: str, end_date: str):
-        """Extract a quality-masked NASA MODIS point-buffer time series from Earth Engine."""
+        """Extract a real NASA mission/model time series from Google Earth Engine."""
         cfg = EE_LAYERS.get(layer_id)
-        if not cfg or cfg.get("kind") != "collection" or not cfg.get("qa_band"):
-            raise AdapterError(f"Layer {layer_id!r} has no validated time-series extraction configuration")
+        if not cfg or cfg.get("kind") != "collection":
+            raise AdapterError(f"Layer {layer_id!r} has no time-series extraction configuration")
         if not (-90 <= lat <= 90 and -180 <= lon <= 180):
             raise AdapterError("Coordinates must be valid WGS84 latitude/longitude")
         ee = self._ee()
@@ -131,11 +135,15 @@ class EarthEngineAdapter:
                 ee.ImageCollection(cfg["dataset"])
                 .filterBounds(region)
                 .filterDate(start_date, end_date)
-                .map(lambda image: self._apply_quality_mask(ee, image, cfg))
             )
+            if cfg.get("qa_band"):
+                collection = collection.map(lambda image: self._apply_quality_mask(ee, image, cfg))
 
-            def to_feature(image):
-                scaled = image.select(cfg["band"]).multiply(cfg.get("scale_factor", 1.0)).add(cfg.get("offset", 0.0))
+            def scale_image(image):
+                return image.multiply(cfg.get("scale_factor", 1.0)).add(cfg.get("offset", 0.0))
+
+            def reduce_image(image, date_value):
+                scaled = scale_image(image.select(cfg["band"]))
                 reduced = scaled.reduceRegion(
                     reducer=ee.Reducer.mean(),
                     geometry=region,
@@ -144,12 +152,33 @@ class EarthEngineAdapter:
                     maxPixels=1e7,
                 )
                 return ee.Feature(None, {
-                    "date": image.date().format("YYYY-MM-dd"),
+                    "date": date_value,
                     "value": reduced.get(cfg["band"]),
                 })
 
-            image_list = collection.toList(collection.size())
-            feature_list = image_list.map(lambda image: to_feature(ee.Image(image)))
+            if cfg.get("aggregation") == "monthly_mean":
+                start = ee.Date(start_date)
+                end = ee.Date(end_date)
+                month_count = end.difference(start, "month").ceil()
+                month_indices = ee.List.sequence(0, month_count.subtract(1))
+
+                def to_month_feature(index):
+                    month_start = start.advance(ee.Number(index), "month")
+                    month_end = month_start.advance(1, "month")
+                    month_collection = collection.filterDate(month_start, month_end)
+                    monthly_image = month_collection.select(cfg["band"]).mean()
+                    return reduce_image(monthly_image, month_start.format("YYYY-MM"))
+
+                feature_list = month_indices.map(to_month_feature)
+            else:
+                image_list = collection.toList(collection.size())
+
+                def to_image_feature(image):
+                    image = ee.Image(image)
+                    return reduce_image(image, image.date().format("YYYY-MM-dd"))
+
+                feature_list = image_list.map(to_image_feature)
+
             features = ee.FeatureCollection(feature_list).filter(ee.Filter.notNull(["value"]))
             raw = features.getInfo().get("features", [])
             observations = []
@@ -172,15 +201,20 @@ class EarthEngineAdapter:
                 "unit": cfg.get("unit"),
                 "resolution_m": cfg["resolution_m"],
                 "quality_mask": cfg.get("quality_label"),
-                "source": "Google Earth Engine / NASA Terra MODIS",
+                "aggregation": cfg.get("aggregation", "per_observation"),
+                "source": cfg.get("source") or "Google Earth Engine / NASA dataset",
                 "observations": observations,
                 "sample_count": len(observations),
-                "period": {"start": start_date, "end": end_date},
+                "period": {
+                    "start": observations[0]["date"] if observations else None,
+                    "end": observations[-1]["date"] if observations else None,
+                },
             }
         except AdapterError:
             raise
         except Exception as exc:
-            raise AdapterError(f"NASA MODIS time-series extraction failed: {exc}") from exc
+            raise AdapterError(f"NASA Earth Engine time-series extraction failed: {exc}") from exc
+
 
     def tile(self, layer_id: str, lat: float | None = None, lon: float | None = None, days: int = 30):
         cfg = EE_LAYERS.get(layer_id)
