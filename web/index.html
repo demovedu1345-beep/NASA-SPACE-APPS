@@ -117,12 +117,12 @@
   <section class="panel globe-panel" id="globePanel">
    <div class="panel-top"><div class="eyebrow-mini"><span class="green-dot"></span> PLANETARY VIEW <i>/</i> 3D OBSERVATORY</div><div class="globe-buttons"><button class="glass-btn active" id="autoRotate"><i data-lucide="rotate-3d"></i> ORBIT</button><button class="glass-btn" id="resetGlobe" title="Reset view"><i data-lucide="crosshair"></i></button><button class="glass-btn" data-page="observatory" title="Open observatory"><i data-lucide="maximize-2"></i></button></div></div>
    <div class="globe-stage" id="globeStage">
-    <canvas id="earthCanvas" aria-label="Interactive three-dimensional Earth model"></canvas>
+    <canvas id="earthCanvas" aria-label="Interactive three-dimensional Earth model. Click any visible point to inspect it." tabindex="0"></canvas>
     <div class="globe-shade"></div><div class="scan-lines"></div>
     <div class="coord coord-left"><small>LATITUDE</small><b id="latRead">12.3375° N</b></div><div class="coord coord-right"><small>LONGITUDE</small><b id="lonRead">75.8069° E</b></div>
     <div class="globe-crosshair"></div>
     <div class="focus-tag"><span></span><b id="focusName">KODAGU FOREST REGION</b><small>ACTIVE STUDY AREA</small></div>
-    <div class="globe-hints"><span><i data-lucide="mouse"></i> DRAG TO ROTATE</span><span><i data-lucide="mouse-pointer-2"></i> SCROLL TO ZOOM</span><span id="textureStatus">LOADING EARTH TEXTURES</span></div>
+    <div class="globe-hints"><span><i data-lucide="mouse"></i> DRAG TO ROTATE</span><span><i data-lucide="mouse-pointer-2"></i> SCROLL TO ZOOM</span><span>CLICK TO INSPECT</span><span id="textureStatus">LOADING EARTH TEXTURES</span></div>
    </div>
    <div class="panel-bottom"><span><i></i> EARTH OBSERVATION NETWORK <small>GEOGRAPHIC VIEW · NOT LIVE VIDEO</small></span><button class="link-btn" data-page="observatory">OPEN OBSERVATORY <i data-lucide="arrow-up-right"></i></button></div>
   </section>
@@ -140,6 +140,44 @@
    </section>
   </aside>
  </div>
+ <section class="panel earth-detail-panel" id="earthDetailPanel" aria-live="polite" hidden>
+  <header class="earth-detail-head">
+   <div><small>EARTH POINT INSPECTOR / MULTI-SOURCE PROFILE</small><h2 id="earthDetailTitle">Select any point on the globe</h2><p id="earthDetailCoords">Click the 3D Earth to retrieve location-specific observations and context.</p></div>
+   <div class="earth-detail-actions"><span id="earthDetailStatus">AWAITING SELECTION</span><button class="icon-btn" id="closeEarthDetail" type="button" aria-label="Close Earth point details"><i data-lucide="x"></i></button></div>
+  </header>
+  <div class="earth-detail-grid">
+   <section class="earth-detail-block">
+    <div class="earth-detail-label"><i data-lucide="map-pin"></i> GEOGRAPHIC REFERENCE</div>
+    <div class="earth-detail-feature"><small>ADMINISTRATIVE AREA</small><b id="earthDetailAdmin">—</b></div>
+    <div class="earth-detail-feature"><small>COUNTRY</small><b id="earthDetailCountry">—</b></div>
+    <div class="earth-detail-pair"><div><small>ELEVATION</small><b id="earthDetailElevation">—</b></div><div><small>SLOPE</small><b id="earthDetailSlope">—</b></div></div>
+    <div class="earth-detail-feature"><small>ASPECT</small><b id="earthDetailAspect">—</b></div>
+   </section>
+   <section class="earth-detail-block">
+    <div class="earth-detail-label"><i data-lucide="cloud-sun"></i> LOCAL CONDITIONS</div>
+    <div class="earth-detail-metrics">
+     <div><b id="earthDetailTemp">—</b><small>TEMPERATURE</small></div>
+     <div><b id="earthDetailHumidity">—</b><small>RELATIVE HUMIDITY</small></div>
+     <div><b id="earthDetailWind">—</b><small>WIND SPEED</small></div>
+     <div><b id="earthDetailRain">—</b><small>PRECIPITATION</small></div>
+     <div><b id="earthDetailCloud">—</b><small>CLOUD COVER</small></div>
+    </div>
+   </section>
+   <section class="earth-detail-block">
+    <div class="earth-detail-label"><i data-lucide="trees"></i> FOREST & HUMAN PRESSURE</div>
+    <div class="earth-detail-pair"><div><small>TREE PROBABILITY</small><b id="earthDetailTrees">—</b></div><div><small>GEDI BIOMASS</small><b id="earthDetailBiomass">—</b></div></div>
+    <div class="earth-detail-feature"><small>CARBON DENSITY REFERENCE</small><b id="earthDetailCarbon">—</b></div>
+    <div class="earth-detail-pair"><div><small>MAPPED HUMAN FEATURES</small><b id="earthDetailPressure">—</b></div><div><small>POPULATION REFERENCE</small><b id="earthDetailPopulation">—</b></div></div>
+   </section>
+   <section class="earth-detail-block earth-detail-observations">
+    <div class="earth-detail-label"><i data-lucide="satellite"></i> SATELLITE & EVENT CONTEXT</div>
+    <div class="earth-detail-feature"><small>SENTINEL-2 CATALOGUE</small><b id="earthDetailSatellite">—</b><em id="earthDetailSceneDate">—</em></div>
+    <div class="earth-detail-pair"><div><small>FIRE DETECTIONS</small><b id="earthDetailFire">—</b></div><div><small>NASA EONET EVENTS</small><b id="earthDetailEvents">—</b></div></div>
+    <div class="earth-detail-feature"><small>PROTECTED-AREA REFERENCE</small><b id="earthDetailConservation">—</b></div>
+   </section>
+  </div>
+  <div class="earth-event-context"><div><small>RECENT REGIONAL EVENTS</small><div id="earthEventList"><span class="earth-event-empty">Select a point to load regional events.</span></div></div><div class="earth-detail-footer"><span id="earthDetailSources">Observed and derived values remain tied to provider availability.</span><button class="link-btn" type="button" data-page="forest">OPEN FULL INVESTIGATION <i data-lucide="arrow-up-right"></i></button></div></div>
+ </section>
  <div class="signal-row">
   <div class="signal-intro"><small>SYSTEM SNAPSHOT</small><b>Planetary signals</b><span>Values load from connected providers.</span></div>
   <div class="signal"><i data-lucide="flame"></i><div><small>Fire observations</small><b id="fireValue">—</b><em id="fireMeta">Provider pending</em></div></div>
