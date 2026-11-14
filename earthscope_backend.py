@@ -798,10 +798,10 @@ async def query_gpm_v07b_cmr(page_size: int = 5) -> Dict[str, Any]:
         "sort_key": "-start_date"
     })
     url = f"https://cmr.earthdata.nasa.gov/search/granules.json?{params}"
-    req = urllib.request.Request(url, headers={
-        "Authorization": f"Bearer {EARTHDATA_BEARER_TOKEN}",
-        "User-Agent": USER_AGENT
-    })
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    if EARTHDATA_BEARER_TOKEN:
+        headers["Authorization"] = f"Bearer {EARTHDATA_BEARER_TOKEN}"
+    req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode("utf-8"))
@@ -830,11 +830,10 @@ async def query_nasa_cmr(keyword: str, page_size: int = 8) -> Dict[str, Any]:
         "sort_key": "-usage_score"
     })
     url = f"https://cmr.earthdata.nasa.gov/search/collections.json?{params}"
-    req = urllib.request.Request(url, headers={
-        "Authorization": f"Bearer {EARTHDATA_BEARER_TOKEN}",
-        "User-Agent": USER_AGENT,
-        "Accept": "application/json"
-    })
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    if EARTHDATA_BEARER_TOKEN:
+        headers["Authorization"] = f"Bearer {EARTHDATA_BEARER_TOKEN}"
+    req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=12) as resp:
             data = json.loads(resp.read().decode("utf-8"))
@@ -887,14 +886,14 @@ async def fetch_nasa_power_monthly(lat: float, lon: float, start_year: int = 201
                     dt_str = f"{key[:4]}-{key[4:6]}"
                     val_t2m = t2m_raw[key]
                     val_max = t2m_max_raw.get(key, val_t2m)
-                    val_p = prec_raw.get(key, 0.0)
+                    val_p = prec_raw.get(key)
 
                     # Filter invalid NASA fill values (-999)
                     if val_t2m > -900:
                         series_t2m.append({"date": dt_str, "value": round(val_t2m, 2)})
                     if val_max > -900:
                         series_t2m_max.append({"date": dt_str, "value": round(val_max, 2)})
-                    if val_p > -900:
+                    if val_p is not None and val_p > -900:
                         series_prec.append({"date": dt_str, "value": round(val_p, 2)})
 
             return {
