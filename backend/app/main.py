@@ -2353,8 +2353,8 @@ _EARTH_TREND_VARIABLES = {
         "dataset": "NASA/GPM_L3/IMERG_MONTHLY_V07",
         "source": "Google Earth Engine / NASA GPM IMERG Monthly V07",
         "resolution": "0.1° (~11.1 km)",
-        "data_class": "NASA_DIRECT_OBSERVATION",
-        "method": "Monthly GPM IMERG merged satellite-gauge precipitation rate; AOI mean; monthly product ends in 2025.",
+        "data_class": "NASA_SATELLITE_GAUGE_MERGED_PRODUCT",
+        "method": "Monthly GPM IMERG merged satellite-gauge precipitation rate; AOI mean; monthly product currently ends in 2025-09; precipitationQualityIndex is not yet used as a rejection mask.",
     },
     "merra2_t2m": {
         "name": "MERRA-2 2 m Air Temperature",
