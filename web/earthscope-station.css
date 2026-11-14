@@ -1,0 +1,453 @@
+/* ==============================================================================
+   EARTHSCOPE — NASA Earth System Trend Detective Console Stylesheet
+   Adheres to "The Race to Save Space" Design Tokens:
+   Base: #050507 | Mint Accent: #78D6A9 | Hairline Borders: rgba(255,255,255,0.08)
+   Typography: Roboto, Roboto Mono, Roboto Serif
+   ============================================================================== */
+
+:root {
+  --es-bg: #050507;
+  --es-surface: #0c0c14;
+  --es-card: #12121e;
+  --es-card-hover: #171726;
+  --es-border: rgba(255, 255, 255, 0.08);
+  --es-border-active: rgba(120, 214, 169, 0.4);
+  --es-mint: #78D6A9;
+  --es-mint-glow: rgba(120, 214, 169, 0.15);
+  --es-p1-cyan: #38bdf8;
+  --es-p2-purple: #c084fc;
+  --es-text: #F2F2F7;
+  --es-text-muted: #8E8E93;
+  --es-text-subtle: #636366;
+  --es-font-sans: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+  --es-font-serif: 'Roboto Serif', Georgia, serif;
+  --es-font-mono: 'Roboto Mono', monospace;
+  --es-radius: 8px;
+}
+
+/* Floating Launch Badge on Sputnik Hero */
+.earthscope-launcher-pill {
+  position: fixed;
+  top: 24px;
+  right: 28px;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(5, 5, 7, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--es-border-active);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 16px var(--es-mint-glow);
+  padding: 8px 16px;
+  border-radius: 9999px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.earthscope-launcher-pill:hover {
+  transform: translateY(-2px);
+  border-color: var(--es-mint);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.8), 0 0 24px rgba(120, 214, 169, 0.3);
+}
+.earthscope-launcher-pill:active {
+  transform: scale(0.96);
+}
+.pulse-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--es-mint);
+  box-shadow: 0 0 8px var(--es-mint);
+  animation: es-pulse 2s infinite ease-in-out;
+}
+@keyframes es-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+/* Station Container */
+.earthscope-station {
+  position: relative;
+  background: var(--es-bg);
+  color: var(--es-text);
+  font-family: var(--es-font-sans);
+  min-height: 100vh;
+  padding: 40px 24px 60px 24px;
+  border-top: 1px solid var(--es-border);
+  box-sizing: border-box;
+}
+.station-max-width {
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+/* Station Masthead */
+.station-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--es-border);
+  margin-bottom: 24px;
+}
+.station-title-group h2 {
+  font-family: var(--es-font-serif);
+  font-size: 28px;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin: 6px 0 4px 0;
+  letter-spacing: -0.5px;
+}
+.station-title-group h2 span {
+  color: var(--es-mint);
+  font-style: italic;
+}
+.station-title-group p {
+  font-size: 13.5px;
+  color: var(--es-text-muted);
+  margin: 0;
+  max-width: 600px;
+  line-height: 1.5;
+}
+.badge-challenge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--es-font-mono);
+  font-size: 11px;
+  color: var(--es-mint);
+  background: var(--es-mint-glow);
+  border: 1px solid rgba(120, 214, 169, 0.3);
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Header Controls & Actions */
+.station-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.btn-primary {
+  background: var(--es-mint);
+  color: #050507;
+  font-weight: 700;
+  border: none;
+  border-radius: 6px;
+  padding: 9px 18px;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(120, 214, 169, 0.3);
+}
+.btn-primary:active { transform: scale(0.96); }
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  border: 1px solid var(--es-border);
+  border-radius: 6px;
+  padding: 9px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.btn-secondary:active { transform: scale(0.96); }
+
+/* Global Benchmark Ecosystem Bar */
+.ecosystem-nav-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 0 16px 0;
+  margin-bottom: 20px;
+  scrollbar-width: none;
+}
+.ecosystem-nav-strip::-webkit-scrollbar { display: none; }
+.eco-pill {
+  background: var(--es-surface);
+  border: 1px solid var(--es-border);
+  color: #D1D1D6;
+  font-size: 12.5px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+.eco-pill:hover {
+  border-color: rgba(120, 214, 169, 0.4);
+  color: #fff;
+}
+.eco-pill.active {
+  background: var(--es-mint-glow);
+  border-color: var(--es-mint);
+  color: var(--es-mint);
+  font-weight: 600;
+}
+
+/* Search Bar Shell */
+.station-search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--es-surface);
+  border: 1px solid var(--es-border);
+  border-radius: 8px;
+  padding: 6px 14px;
+  margin-bottom: 24px;
+  transition: border-color 0.2s;
+}
+.station-search-box:focus-within {
+  border-color: var(--es-mint);
+  box-shadow: 0 0 12px var(--es-mint-glow);
+}
+.station-search-box input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 13.5px;
+  font-family: var(--es-font-sans);
+}
+.station-search-box input::placeholder { color: var(--es-text-subtle); }
+
+/* Workspace Grid: Left (Visualizers) + Right (Inspector) */
+.workspace-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+@media (max-width: 1100px) {
+  .workspace-grid { grid-template-columns: 1fr; }
+}
+
+/* Left Stack: Map + ECharts */
+.visualizer-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.view-card {
+  background: var(--es-surface);
+  border: 1px solid var(--es-border);
+  border-radius: var(--es-radius);
+  padding: 16px;
+  overflow: hidden;
+}
+.view-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.view-card-title {
+  font-family: var(--es-font-serif);
+  font-size: 15px;
+  color: #fff;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.map-canvas-container {
+  width: 100%;
+  height: 340px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #08080c;
+  position: relative;
+}
+.echarts-canvas-container {
+  width: 100%;
+  height: 340px;
+  border-radius: 6px;
+}
+
+/* Right Stack: Scientific Inspector */
+.inspector-card {
+  background: var(--es-surface);
+  border: 1px solid var(--es-border);
+  border-radius: var(--es-radius);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+}
+.inspector-nav-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--es-border);
+  padding-bottom: 10px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.inspector-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--es-text-muted);
+  font-family: var(--es-font-mono);
+  font-size: 11.5px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+.inspector-tab-btn:hover { color: #fff; background: rgba(255,255,255,0.04); }
+.inspector-tab-btn.active {
+  background: var(--es-mint-glow);
+  color: var(--es-mint);
+  font-weight: 700;
+  border: 1px solid rgba(120, 214, 169, 0.3);
+}
+
+/* Priority Filter Strip */
+.priority-filter-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.prio-btn {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--es-border);
+  color: #AEAEB2;
+  font-size: 11px;
+  font-family: var(--es-font-mono);
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.prio-btn.active {
+  background: rgba(120,214,169,0.15);
+  color: var(--es-mint);
+  border-color: var(--es-mint);
+  font-weight: 700;
+}
+
+/* Variable Selector Pills */
+.variable-pills-wrap {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.var-pill {
+  background: var(--es-card);
+  border: 1px solid var(--es-border);
+  color: #D1D1D6;
+  font-size: 11.5px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.var-pill:hover { border-color: rgba(255,255,255,0.25); color: #fff; }
+.var-pill.active {
+  background: var(--es-mint-glow);
+  border-color: var(--es-mint);
+  color: var(--es-mint);
+  font-weight: 600;
+}
+.var-pill .tier-tag {
+  font-family: var(--es-font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+.tier-p0 { color: var(--es-mint); background: rgba(120,214,169,0.15); }
+.tier-p1 { color: var(--es-p1-cyan); background: rgba(56,189,248,0.15); }
+.tier-p2 { color: var(--es-p2-purple); background: rgba(192,132,252,0.15); }
+
+/* Fingerprint Result Cards */
+.fingerprint-card {
+  background: var(--es-card);
+  border: 1px solid var(--es-border);
+  border-radius: 6px;
+  padding: 14px;
+  margin-bottom: 12px;
+  transition: border-color 0.2s ease;
+}
+.fingerprint-card:hover { border-color: rgba(255,255,255,0.18); }
+.fp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+.fp-title-group h4 {
+  font-family: var(--es-font-serif);
+  font-size: 14.5px;
+  color: #fff;
+  margin: 3px 0 0 0;
+}
+.fp-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  background: rgba(0,0,0,0.3);
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+@media (max-width: 600px) {
+  .fp-metrics-grid { grid-template-columns: repeat(2, 1fr); }
+}
+.fp-cell small {
+  font-family: var(--es-font-mono);
+  font-size: 9.5px;
+  color: var(--es-text-muted);
+  display: block;
+}
+.fp-cell strong {
+  font-family: var(--es-font-mono);
+  font-size: 13px;
+  color: #fff;
+}
+.fp-cell span {
+  font-size: 9px;
+  color: var(--es-text-subtle);
+}
+
+/* Empty States */
+.station-empty-state {
+  padding: 36px 20px;
+  text-align: center;
+  color: var(--es-text-muted);
+  font-size: 12.5px;
+  border: 1px dashed var(--es-border);
+  border-radius: 6px;
+  margin: 12px 0;
+}

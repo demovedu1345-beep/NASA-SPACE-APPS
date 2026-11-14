@@ -693,6 +693,123 @@ def compute_monthly_climatology_anomalies(monthly_series: List[Dict[str, Any]]) 
         })
     return out
 
+def compute_autocorrelation_diagnostics(values: List[float], alpha: float = 0.05) -> Dict[str, Any]:
+    """
+    Computes lag-1 autocorrelation (r_1), effective sample size (n*),
+    and performs Yue-Pilon pre-whitening if serial correlation is significant.
+    Reference: Yue, S., Pilon, P., Phinney, B., & Cavadias, G. (2002).
+    """
+    n = len(values)
+    if n < 4:
+        return {"r_1": 0.0, "is_autocorrelated": False, "effective_n": n, "prewhitened": False}
+    
+    mean_val = sum(values) / n
+    var_denom = sum((v - mean_val) ** 2 for v in values)
+    if var_denom == 0:
+        return {"r_1": 0.0, "is_autocorrelated": False, "effective_n": n, "prewhitened": False}
+    
+    num = sum((values[t] - mean_val) * (values[t + 1] - mean_val) for t in range(n - 1))
+    r_1 = num / var_denom
+
+    # Critical bounds at alpha=0.05: (-1 ± 1.96 * sqrt(n - 2)) / (n - 1)
+    crit_lower = (-1.0 - 1.95996 * math.sqrt(max(1, n - 2))) / float(n - 1)
+    crit_upper = (-1.0 + 1.95996 * math.sqrt(max(1, n - 2))) / float(n - 1)
+    is_sig = r_1 < crit_lower or r_1 > crit_upper
+
+    # Effective sample size n* = n * (1 - |r1|) / (1 + |r1|)
+    effective_n = max(3, int(round(n * (1.0 - abs(r_1)) / (1.0 + abs(r_1))))) if abs(r_1) < 0.99 else 3
+
+    # Yue-Pilon pre-whitening
+    prewhitened_values = values[:]
+    prewhitened = False
+    if is_sig and abs(r_1) > 0.1:
+        raw_mk = mann_kendall_test(values)
+        slope_res = sens_slope_estimator(values, raw_mk.get("var_s", 1.0))
+        b = slope_res["slope"]
+        
+        # Detrend: y_t = x_t - b * t
+        detrended = [values[t] - b * t for t in range(n)]
+        m_det = sum(detrended) / n
+        v_det = sum((d - m_det) ** 2 for d in detrended)
+        if v_det > 0:
+            r1_det = sum((detrended[t] - m_det) * (detrended[t+1] - m_det) for t in range(n-1)) / v_det
+            pw = [detrended[0] + b * 0]
+            for t in range(1, n):
+                pw.append((detrended[t] - r1_det * detrended[t - 1]) + b * t)
+            prewhitened_values = pw
+            prewhitened = True
+
+    return {
+        "r_1": round(r_1, 4),
+        "critical_bounds": [round(crit_lower, 4), round(crit_upper, 4)],
+        "is_autocorrelated": is_sig,
+        "effective_n": effective_n,
+        "prewhitened": prewhitened,
+        "prewhitened_values": prewhitened_values
+    }
+
+def apply_benjamini_hochberg(p_values: Dict[str, float], alpha: float = 0.05) -> Dict[str, Any]:
+    """
+    Applies Benjamini-Hochberg False Discovery Rate (FDR) procedure
+    to control family-wise false discoveries across multiple simultaneous environmental variables.
+    """
+    m = len(p_values)
+    if m == 0:
+        return {}
+    
+    sorted_pairs = sorted(p_values.items(), key=lambda x: x[1])
+    q_values = {}
+    fdr_significant = {}
+    
+    cum_min = 1.0
+    for k in range(m, 0, -1):
+        var_id, p_val = sorted_pairs[k - 1]
+        raw_q = min(1.0, (p_val * m) / float(k))
+        cum_min = min(cum_min, raw_q)
+        q_values[var_id] = round(cum_min, 6)
+        fdr_significant[var_id] = cum_min < alpha
+
+    return {
+        "m_tests": m,
+        "fdr_alpha": alpha,
+        "q_values": q_values,
+        "fdr_significant": fdr_significant
+    }
+
+async def query_gpm_v07b_cmr(page_size: int = 5) -> Dict[str, Any]:
+    """
+    Queries NASA Earthdata CMR specifically for GPM IMERG Final Run V07B granules.
+    Verifies granule availability and latest release timestamp.
+    """
+    params = urllib.parse.urlencode({
+        "short_name": "GPM_3IMERGM",
+        "version": "07B",
+        "page_size": page_size,
+        "sort_key": "-start_date"
+    })
+    url = f"https://cmr.earthdata.nasa.gov/search/granules.json?{params}"
+    req = urllib.request.Request(url, headers={
+        "Authorization": f"Bearer {EARTHDATA_BEARER_TOKEN}",
+        "User-Agent": USER_AGENT
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            granules = data.get("feed", {}).get("entry", [])
+            records = []
+            for g in granules:
+                records.append({
+                    "id": g.get("id"),
+                    "title": g.get("title"),
+                    "time_start": g.get("time_start"),
+                    "time_end": g.get("time_end"),
+                    "granule_size_mb": round(float(g.get("granule_size", 0.0)), 2),
+                    "download_url": g.get("links", [{}])[0].get("href", "")
+                })
+            return {"ok": True, "count": len(records), "version": "07B", "granules": records}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "version": "07B", "granules": []}
+
 # --- LIVE NASA DATA PROVIDERS ---
 
 async def query_nasa_cmr(keyword: str, page_size: int = 8) -> Dict[str, Any]:
@@ -983,12 +1100,18 @@ async def run_earthscope_investigation(
         values = [item["value"] for item in series]
         time_series_by_var[v_id] = values
 
-        # Step 2: Statistical Tests
+        # Step 2: Statistical Tests & Diagnostics
         mk_res = mann_kendall_test(values, alpha=alpha)
         sens_res = sens_slope_estimator(values, mk_res.get("var_s", 1.0), alpha=alpha)
         ols_res = linear_regression(values)
         smk_res = seasonal_mann_kendall(series, alpha=alpha)
         anomalies = compute_monthly_climatology_anomalies(series)
+        autocorr = compute_autocorrelation_diagnostics(values, alpha=alpha)
+        
+        # Pre-whitened Mann-Kendall if serial correlation detected
+        pw_mk = None
+        if autocorr.get("prewhitened"):
+            pw_mk = mann_kendall_test(autocorr["prewhitened_values"], alpha=alpha)
 
         # Annualized slope calculation
         observations_per_year = 12.0
@@ -1023,6 +1146,14 @@ async def run_earthscope_investigation(
                     "slope_unit": f"{v_meta['unit']} / year",
                     "ci_95_per_year": annual_ci_95
                 },
+                "autocorrelation_diagnostics": {
+                    "lag1_r1": autocorr["r_1"],
+                    "critical_bounds": autocorr["critical_bounds"],
+                    "is_autocorrelated": autocorr["is_autocorrelated"],
+                    "effective_sample_size": autocorr["effective_n"],
+                    "prewhitened_applied": autocorr["prewhitened"],
+                    "prewhitened_mann_kendall": pw_mk
+                },
                 "linear_regression": ols_res,
                 "seasonal_mann_kendall": {
                     "seasonal_s": smk_res["total_s"],
@@ -1037,12 +1168,29 @@ async def run_earthscope_investigation(
             "provenance": {
                 "source_mission": v_meta["mission"],
                 "product_identifier": v_meta["product_id"],
+                "best_access_method": v_meta.get("best_access_method", "NASA Earthdata"),
+                "priority_tier": v_meta.get("priority", "P0"),
                 "data_class": v_meta["data_type"],
                 "doi": v_meta.get("doi", "N/A"),
                 "quality_controlled": True,
                 "retrieved_at": datetime.now(timezone.utc).isoformat()
             }
         }
+
+    # Step 2B: Multiple-Testing False Discovery Rate (FDR) Control (Benjamini-Hochberg)
+    p_values_dict = {v: res["statistics"]["mann_kendall"]["p_value"] for v, res in variable_results.items()}
+    fdr_results = apply_benjamini_hochberg(p_values_dict, alpha=alpha)
+    for v_id, res in variable_results.items():
+        if v_id in fdr_results.get("q_values", {}):
+            res["statistics"]["multiple_testing_fdr"] = {
+                "benjamini_hochberg_q": fdr_results["q_values"][v_id],
+                "fdr_significant": fdr_results["fdr_significant"][v_id],
+                "nominal_p": p_values_dict[v_id],
+                "fdr_alpha": alpha
+            }
+
+    # Step 2C: NASA CMR GPM V07B Collection Verification
+    gpm_v07b_granules = await query_gpm_v07b_cmr(page_size=2)
 
     # Step 3: Multi-Variable Correlation Matrix
     correlations = {}
@@ -1100,9 +1248,11 @@ async def run_earthscope_investigation(
         "variables_evaluated": list(variable_results.keys()),
         "results": variable_results,
         "correlation_matrix": correlations,
+        "multiple_testing_fdr": fdr_results,
+        "gpm_v07b_verification": gpm_v07b_granules,
         "ai_research_analyst": {
             "grounded_interpretation": ai_interpretation,
-            "reproducibility": "All equations, sample counts, p-values and confidence intervals are computed deterministically per NASA Challenge 2 standards.",
+            "reproducibility": "All equations, sample counts, p-values, autocorrelation corrections and confidence intervals are computed deterministically per NASA Challenge 2 standards.",
             "limitations": [
                 "Cloud contamination in optical bands (MOD13Q1) filtered via DetailedQA, resulting in occasional missing composite intervals.",
                 "MERRA-2 near-surface temperature and precipitation represent regional atmospheric reanalysis grids (0.5°), not micro-climatic understory thermometers.",
