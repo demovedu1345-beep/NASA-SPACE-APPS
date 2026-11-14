@@ -2314,20 +2314,20 @@ _EARTH_TREND_VARIABLES = {
     "t2m": {
         "name": "2 m Air Temperature",
         "unit": "°C",
-        "dataset": "Open-Meteo Historical / NASA POWER",
-        "source": "Open-Meteo Archive with NASA POWER fallback",
+        "dataset": "NASA POWER Daily Point API (NASA model/reanalysis product)",
+        "source": "NASA POWER T2M daily observations aggregated to monthly means",
         "resolution": "Provider grid",
-        "data_class": "OBSERVED_OR_REANALYSIS",
-        "method": "Monthly means calculated from provider daily observations.",
+        "data_class": "NASA_MODEL_OUTPUT",
+        "method": "Monthly means calculated from NASA POWER daily T2M values; provider provenance is retained.",
     },
     "precipitation": {
         "name": "Precipitation",
         "unit": "mm/month",
-        "dataset": "Open-Meteo Historical / NASA POWER",
-        "source": "Open-Meteo Archive with NASA POWER fallback",
+        "dataset": "NASA POWER Daily Point API (NASA model/reanalysis product)",
+        "source": "NASA POWER PRECTOTCORR daily values aggregated to monthly totals",
         "resolution": "Provider grid",
-        "data_class": "OBSERVED_OR_REANALYSIS",
-        "method": "Monthly sums calculated from provider daily precipitation.",
+        "data_class": "NASA_MODEL_OUTPUT",
+        "method": "Monthly totals calculated from NASA POWER daily PRECTOTCORR values; provider provenance is retained.",
     },
 }
 
@@ -2509,9 +2509,12 @@ async def _earth_trend_analysis(
     climate_variables = {"t2m", "precipitation"}.intersection(requested)
     if climate_variables:
         try:
-            history, climate_source, provider_trace = await historical_climate_daily_real(
-                lat, lon, start_text, end_text,
-            )
+            # Challenge 02 requires NASA mission/model variables. Use NASA POWER
+            # as the primary trend source; do not silently substitute a non-NASA
+            # weather archive into the scientific trend calculation.
+            history = await power.historical_daily(lat, lon, start_text, end_text)
+            climate_source = "NASA POWER Daily Point API"
+            provider_trace = []
             daily = history.get("daily") or {}
             dates = daily.get("time") or []
             temps = daily.get("temperature_2m_mean") or []
