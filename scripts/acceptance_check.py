@@ -62,6 +62,7 @@ for render in sorted(render_types):
 # fail backend acceptance because a different product's DOM IDs are absent.
 html=(ROOT/"web/index.html").read_text(encoding="utf-8")
 is_vanrakshak_ui="vanrakshak" in html.lower() and "earthscope" not in html.lower()
+buttons=[]
 if is_vanrakshak_ui:
     buttons=re.findall(r'<button[^>]*id="([^"]+)"',html)
     for button_id in buttons:
