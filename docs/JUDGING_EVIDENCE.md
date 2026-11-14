@@ -163,45 +163,57 @@ No. It is the newest available provider observation with real timestamps and fre
 No. Probable drivers are evidence-ranked hypotheses for patrol verification. Field evidence and competent authority review are required for a factual/legal determination.
 
 
-## NASA Space Apps Challenge 2026 — Challenge 02: Earth System Trend Detective
+## NASA Space Apps Challenge 2026 — Challenge 02: Be An Earth System Trend Detective
 
-The active Mission Control sidebar now includes a first-class NASA Trend Detective (CH.02) workspace. It is a separate scientific workflow from forest-loss screening: it evaluates the direction, magnitude and statistical evidence of environmental time-series change.
+The challenge is not simply a satellite-map viewer. The core workflow is: choose Earth-system variables measured by NASA missions or produced by NASA models, retrieve a sufficiently long time series for a selected region, visualize it, estimate the direction and magnitude of change, and test whether the trend is statistically significant.
 
-### Validated trend variables
+### Current source matrix
 
-- **NDVI:** Sentinel-2 L2A red/NIR reflectance summaries, SCL cloud/shadow masked, 1.5 km AOI radius. The time-series value is an AOI-derived metric from 10 m inputs, not a point-level ground measurement.
-- **2 m air temperature:** Open-Meteo historical daily data with NASA POWER daily fallback, aggregated to monthly means.
-- **Precipitation:** Open-Meteo historical daily data with NASA POWER daily fallback, aggregated to monthly totals.
+| Variable / product | NASA source | Extraction and temporal treatment | Runtime gate |
+|---|---|---|---|
+| 2 m air temperature | NASA POWER / GMAO | Daily T2M → monthly mean; 80% valid-day threshold | Public API; no key |
+| Precipitation | NASA POWER / GMAO | Daily PRECTOTCORR → monthly total; 80% valid-day threshold | Public API; no key |
+| MODIS NDVI | Terra MOD13Q1.061 | 16-day composite; SummaryQA ≤ 1; scale 0.0001; buffered AOI mean | Earth Engine project + credentials |
+| MODIS daytime LST | Terra MOD11A2.061 | 8-day composite; QC_Day mandatory bits == 0; scale 0.02; Kelvin → °C | Earth Engine project + credentials |
+| GPM IMERG | GPM Monthly V07 | Monthly merged satellite-gauge precipitation rate (mm/hr); current collection ends 2025-09 | Earth Engine project + credentials |
+| MERRA-2 T2M | NASA GMAO M2T1NXSLV | Hourly reanalysis → monthly mean; Kelvin → °C | Earth Engine project + credentials |
+| GLDAS soil moisture | GLDAS-2.1 Noah | 3-hourly 0–10 cm soil moisture → monthly mean | Earth Engine project + credentials |
+| Total column ozone | NASA TOMS/OMI Merged V4 | Daily merged record → monthly mean; historical TOMS and OMI/Aura-era values with interpolated gaps | Earth Engine project + credentials |
+| Sentinel-2 NDVI | ESA Copernicus | Cloud/shadow-masked 10 m NDVI; complementary evidence only | Public scene catalogue path |
+| AIRS | Aqua AIRS | Catalogue reference only; no validated trend extraction adapter | Not connected |
 
-### Live API contract
+A product is not considered live merely because it appears in the catalogue. The API must return real observations, provider provenance, valid timestamps and the expected units. Earth Engine products remain unavailable when credentials are missing; the dashboard must show that state rather than fabricate data.
 
-| Method | Route | Purpose |
-|---|---|---|
-| GET | /api/earth/variables | Catalogue of validated trend variables |
-| GET / POST | /api/earth/trends/analyze | Coordinate and date-range trend analysis |
-| GET | /api/earth/investigate | Compatibility route for the research station |
-| POST | /api/earth/trends/compare | Multi-region comparison |
-| GET | /api/earth/cmr/search | NASA CMR catalogue discovery |
-| GET | /api/earth/geocode | Research workspace geocoding |
-| GET | /api/earth/coverage | Request-time satellite and weather availability |
-| GET | /api/climate/forecast | Provider-backed 7-day forecast and 10-year monthly reference climatology |
-| GET | /api/climate/states | Indian regional coordinate reference catalogue, not live state weather |
+### Statistical contract
 
-### Statistical interpretation
+- Mann–Kendall tests monotonic trend direction; report statistic, tau, z-score, p-value and sample count.
+- Sen's slope reports the rate of change using actual elapsed time between observations, including irregular MODIS/Sentinel sampling.
+- The 95% interval is an interval for the slope estimate, not a confidence band around every chart point.
+- Seasonal Mann–Kendall is reported when repeated seasonal samples exist.
+- Benjamini–Hochberg q-values are reported for multi-variable requests; show nominal p and adjusted q separately.
+- Lag-1 autocorrelation is currently a diagnostic only. Yue–Pilon pre-whitening is not applied by the active trend route, so nominal p-values must be interpreted cautiously where serial dependence is present.
+- Correlation is descriptive and does not prove causation.
+- Missing values, fill values and low-coverage months are excluded; missing months are not filled with zero.
+- NASA POWER is a gridded NASA model/reanalysis product, not a local weather-station measurement.
+- GPM IMERG is a merged satellite-gauge estimate; its monthly rate is not a monthly accumulation.
+- TOMS/OMI is a merged historical record, not an OMI-only series over its full time span.
 
-The returned analysis contains observation count and dates, provider trace, Mann–Kendall S/tau/z/p-value, Sen's slope per year, a rank-based slope interval, a month-grouped seasonal diagnostic, lag-1 autocorrelation metadata and Benjamini–Hochberg q-values. Only variables with a validated runtime time-series path are selectable. Missing variables and insufficient samples remain unavailable rather than being filled with generated values.
+### Active API workflow
 
-Important limitations: irregular/cloud-masked Sentinel acquisitions affect NDVI trend sampling; the seasonal diagnostic is month-grouped and must not be described as a complete 12-month seasonal test when coverage is sparse; autocorrelation is reported as a diagnostic but a pre-whitened final p-value is not claimed; Sen interval is a rank-based approximation; correlation is not causation; a significant NDVI decline is not proof of deforestation or illegality.
+- `GET /api/earth/variables` — variable catalogue with source metadata and credential notes.
+- `GET /api/earth/investigate` — single-variable regional time-series and trend analysis.
+- `GET /api/earth/trends/analyze` — multi-variable analysis with FDR correction.
+- `POST /api/earth/trends/analyze` — multi-variable analysis request.
+- `POST /api/earth/trends/compare` — region comparison.
+- `GET /api/source-health` — provider configuration/health; this is not proof that a specific product has been extracted.
+- `GET /api/earth/cmr/search` — NASA CMR discovery; catalogue discovery is not data extraction.
 
-### Judge demonstration sequence
+### Release blockers
 
-1. Open NASA Trend Detective from Mission Control.
-2. Select Kodagu / Western Ghats (12.3375, 75.8069) and a period with sufficient Sentinel-2 scenes.
-3. Run NDVI analysis; show scene dates, provider, sample count and cloud-masked context before discussing the trend.
-4. Read MK p-value and Sen's slope together; distinguish statistical evidence from ecological effect size.
-5. Switch to temperature and precipitation; explain their coarser gridded climate products and aggregation.
-6. Compare regions only where enough observations are available; export the returned series.
+1. Confirm the Render backend is healthy and the Vercel API proxy reaches it.
+2. Verify NASA POWER at a real location in production.
+3. Run authenticated Earth Engine extraction tests for MODIS, GPM, MERRA-2, GLDAS and TOMS/OMI.
+4. Verify output timestamps, units, source metadata, QA masking and sample counts against provider documentation.
+5. Keep AIRS marked catalogue-only until its own NASA data retrieval path is implemented and tested.
+6. Capture a complete browser smoke test and a reproducible end-to-end demo before claiming production readiness.
 
-### Current readiness caveat
-
-The configured Render backend returned HTTP 503 during this integration check, so a hosted live demo still requires backend recovery and source-health verification. The current branch also has not been promoted to Vercel production because the deployment API quota returned HTTP 402. The 3D Earth uses remote NASA imagery and public texture fallbacks; the repository currently does not contain the five local /static/textures/earth_*.jpg/png files listed in the supplied inventory.
