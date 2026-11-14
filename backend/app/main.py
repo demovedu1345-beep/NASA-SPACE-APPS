@@ -2744,7 +2744,7 @@ async def earth_trends_compare(request: EarthTrendCompareRequest):
 @app.get("/api/earth/variables")
 def earth_variables_catalog():
     return {"ok": True, "count": len(_EARTH_TREND_VARIABLES), "variables": _EARTH_TREND_VARIABLES,
-            "note": "Only variables with a validated live observation path are enabled for statistical trend computation."}
+            "note": "Catalogue entries include public and credential-gated extraction paths. Runtime source health and each extraction response determine availability; metadata alone never marks a product available."}
 
 @app.get("/api/earth/cmr/search")
 async def earth_cmr_search(keyword: str = Query("MODIS", min_length=2, max_length=120), page_size: int = Query(8, ge=1, le=25)):
