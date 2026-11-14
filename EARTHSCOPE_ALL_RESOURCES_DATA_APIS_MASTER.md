@@ -387,7 +387,7 @@ For any target calendar day of year $\tau \in [1, 365]$, aggregate 30+ historica
 
 # 1. NASA FIRMS (Fire Information for Resource Management System)
 # Pixel-level active fire anomalies from MODIS (1km) & VIIRS (375m)
-FIRMS_MAP_KEY=5838d5821e01327a8b8c24fe055a0955
+FIRMS_MAP_KEY=[REDACTED — configure FIRMS_MAP_KEY in deployment secrets]
 
 # 2. NASA Earthdata Login (EDL)
 # Common Metadata Repository (CMR), LP DAAC, and cloud archive access
