@@ -1526,7 +1526,9 @@
           if (node) node.innerText = value == null || value === '' ? 'Unavailable' : String(value);
         };
         put('drawerPlaceName', 'Resolving selected location…');
-        put('drawerCoords', lat.toFixed(4) + '°N, ' + lng.toFixed(4) + '°E');
+        const coordinateLabel = Math.abs(lat).toFixed(4) + '°' + (lat >= 0 ? 'N' : 'S') + ', ' + Math.abs(lng).toFixed(4) + '°' + (lng >= 0 ? 'E' : 'W');
+        put('drawerCoords', coordinateLabel);
+        put('mapSelectedCoordinate', coordinateLabel);
         put('drawerTemp', 'Loading provider data…');
         put('drawerRain', 'Loading provider data…');
         put('drawerTrend', 'Run the scientific trend analysis to calculate this');
@@ -1565,7 +1567,7 @@
     }
 
     function loadDrawerLocationToStudio() {
-      if (S.tempLat && S.tempLon) {
+      if (S.tempLat != null && S.tempLon != null) {
         updateLocation(S.tempLat, S.tempLon, S.tempPlace || "Selected Location");
         document.getElementById('mapTelemetryDrawer').style.display = 'none';
         switchOptionView('forecast');
@@ -1713,7 +1715,7 @@
       };
       document.getElementById('modalLocTitle').innerText = place;
       document.getElementById('modalLocCoords').innerText =
-        'Coordinates: ' + lat.toFixed(4) + '°N, ' + lon.toFixed(4) + '°E | Retrieving provider forecast…';
+        'Coordinates: ' + Math.abs(lat).toFixed(4) + '°' + (lat >= 0 ? 'N' : 'S') + ', ' + Math.abs(lon).toFixed(4) + '°' + (lon >= 0 ? 'E' : 'W') + ' | Retrieving provider forecast…';
       const tbody = document.getElementById('modalPredictionsTableBody');
       tbody.innerHTML = '<tr><td colspan="6">Retrieving a seven-day forecast for the selected map point…</td></tr>';
       modal.style.display = 'flex';
@@ -1735,7 +1737,7 @@
         put('modalWindMeta', wind.length ? 'Maximum: ' + Math.max(...wind).toFixed(1) + ' km/h' : null);
         put('modalSource', payload.source || null);
         document.getElementById('modalLocCoords').innerText =
-          'Coordinates: ' + lat.toFixed(4) + '°N, ' + lon.toFixed(4) + '°E | Provider window: ' +
+          'Coordinates: ' + Math.abs(lat).toFixed(4) + '°' + (lat >= 0 ? 'N' : 'S') + ', ' + Math.abs(lon).toFixed(4) + '°' + (lon >= 0 ? 'E' : 'W') + ' | Provider window: ' +
           (forecast.length ? forecast[0].date + ' → ' + forecast[forecast.length - 1].date : 'no dates returned');
         if (!forecast.length) {
           tbody.innerHTML = '<tr><td colspan="6">No daily observations were returned for this coordinate.</td></tr>';
@@ -1753,7 +1755,7 @@
         put('modalTemp', null);put('modalTempRange', null);put('modalRain', null);put('modalRainMeta', null);
         put('modalWind', null);put('modalWindMeta', null);put('modalSource', 'Unavailable');
         document.getElementById('modalLocCoords').innerText =
-          'Coordinates: ' + lat.toFixed(4) + '°N, ' + lon.toFixed(4) + '°E | Forecast unavailable';
+          'Coordinates: ' + Math.abs(lat).toFixed(4) + '°' + (lat >= 0 ? 'N' : 'S') + ', ' + Math.abs(lon).toFixed(4) + '°' + (lon >= 0 ? 'E' : 'W') + ' | Forecast unavailable';
         tbody.innerHTML = '<tr><td colspan="6">' + String(error.message || error) + '</td></tr>';
       }
     }
