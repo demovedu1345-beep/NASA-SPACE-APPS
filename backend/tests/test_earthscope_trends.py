@@ -158,9 +158,10 @@ def test_trend_climate_variables_use_nasa_power_as_primary_source(monkeypatch):
         rain = []
         for year in range(2017, 2025):
             for month in range(1, 13):
-                dates.append(f"{year}-{month:02d}-15")
-                temps.append(24.0 + (year - 2017) * 0.04 + month * 0.01)
-                rain.append(80.0 + month * 2.0 - (year - 2017) * 0.5)
+                for day in range(1, 29):
+                    dates.append(f"{year}-{month:02d}-{day:02d}")
+                    temps.append(24.0 + (year - 2017) * 0.04 + month * 0.01)
+                    rain.append(2.5 + month * 0.02 - (year - 2017) * 0.01)
         return {
             "daily": {
                 "time": dates,
