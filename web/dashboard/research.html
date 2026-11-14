@@ -648,7 +648,7 @@
 
       <div class="system-status-indicator">
         <div class="status-pulse-dot"></div>
-        <span id="telemetryStatusText">8 CONSTELLATIONS · 11 SERVICES ONLINE · NASA POWER LIVE</span>
+        <span id="telemetryStatusText">8 MISSION CATALOGUE ENTRIES · PROVIDER HEALTH CHECK PENDING</span>
       </div>
 
       <div class="nav-actions">
@@ -999,58 +999,42 @@
             </div>
             <div style="font-family:var(--font-mono); font-size:11px; color:var(--mint);" id="drawerCoords">12.3375°N, 75.8069°E</div>
             <div style="font-size:12px; color:var(--text-muted); border-top:1px solid var(--border); padding-top:6px;">
-              <div>Average Temp: <strong style="color:#fff;" id="drawerTemp">24.8°C</strong></div>
-              <div>Rainfall Index: <strong style="color:#fff;" id="drawerRain">1,842 mm</strong></div>
-              <div>Trend Signal: <strong style="color:var(--mint);" id="drawerTrend">Significant Greenness Gain</strong></div>
+              <div>Average Temp: <strong style="color:#fff;" id="drawerTemp">—</strong></div>
+              <div>Rainfall Index: <strong style="color:#fff;" id="drawerRain">—</strong></div>
+              <div>Trend Signal: <strong style="color:var(--mint);" id="drawerTrend">Trend not calculated</strong></div>
             </div>
             <div style="display:flex; gap:6px; margin-top:4px;">
-              <button class="btn btn-mint" style="flex:1; justify-content:center;" onclick="openMapWeatherPredictionModal()">30-Day Outlook</button>
+              <button class="btn btn-mint" style="flex:1; justify-content:center;" onclick="openMapWeatherPredictionModal()">7-Day Provider Outlook</button>
               <button class="btn" style="flex:1; justify-content:center;" onclick="loadDrawerLocationToStudio()">Investigate</button>
             </div>
           </div>
 
-          <!-- 30-Day Weather Outlook Modal Overlay (AstroKites Reference) -->
+          <!-- Provider-backed seven-day forecast detail. No synthetic long-range extension. -->
           <div id="mapOutlookModal" style="display:none; position:absolute; inset:20px; background:rgba(11,13,20,0.96); backdrop-filter:blur(24px); border:1px solid var(--border-accent); border-radius:14px; z-index:20; flex-direction:column; padding:20px; gap:16px; box-shadow:0 24px 60px rgba(0,0,0,0.8); overflow-y:auto;">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:12px;">
               <div>
                 <h3 style="color:#fff; font-size:18px; font-family:var(--font-display); display:flex; align-items:center; gap:8px;">
                   <span>📍 <span id="modalLocTitle">Kodagu Forest Region</span></span>
-                  <span class="brand-badge" style="background:rgba(120,214,169,0.15); border-color:var(--mint); color:var(--mint);">30-DAY OUTLOOK</span>
+                  <span class="brand-badge" style="background:rgba(120,214,169,0.15); border-color:var(--mint); color:var(--mint);">7-DAY PROVIDER WINDOW</span>
                 </h3>
                 <p style="font-size:12px; color:var(--text-muted); margin-top:4px;" id="modalLocCoords">Coordinates: 12.3375°N, 75.8069°E | Period: 2026-11-16 → 2026-12-15 (30 Days)</p>
               </div>
               <button onclick="document.getElementById('mapOutlookModal').style.display='none'" style="background:rgba(255,255,255,0.08); border:1px solid var(--border); border-radius:6px; color:#fff; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px;">✕</button>
             </div>
 
-            <!-- 4 Summary Metrics Cards -->
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
-              <div class="insight-card">
-                <div class="insight-label">🌡️ Temperature</div>
-                <div class="insight-value" style="font-size:22px;">26.2°C</div>
-                <div class="insight-details">Range: 19.3°C – 30.8°C</div>
-              </div>
-              <div class="insight-card">
-                <div class="insight-label">💧 Rainfall</div>
-                <div class="insight-value" style="font-size:22px;">0.14 mm/d</div>
-                <div class="insight-details">Total: 4.1 mm (0 rainy days)</div>
-              </div>
-              <div class="insight-card">
-                <div class="insight-label">💨 Wind Speed</div>
-                <div class="insight-value" style="font-size:22px;">4.13 m/s</div>
-                <div class="insight-details">Max Speed: 4.5 m/s (16.2 km/h)</div>
-              </div>
-              <div class="insight-card" style="border-color:rgba(56,189,248,0.4);">
-                <div class="insight-label" style="color:var(--cyan);">🎯 Outlook Score</div>
-                <div class="insight-value" style="font-size:22px; color:var(--cyan);">95%</div>
-                <div class="insight-details">NASA POWER Climatology Model</div>
-              </div>
+            <!-- Provider-backed forecast summary; values are populated only from returned observations. -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+              <div class="insight-card"><div class="insight-label">🌡️ Temperature</div><div class="insight-value" style="font-size:22px;" id="modalTemp">—</div><div class="insight-details" id="modalTempRange">Provider values unavailable</div></div>
+              <div class="insight-card"><div class="insight-label">💧 Precipitation</div><div class="insight-value" style="font-size:22px;" id="modalRain">—</div><div class="insight-details" id="modalRainMeta">Provider values unavailable</div></div>
+              <div class="insight-card"><div class="insight-label">💨 Wind</div><div class="insight-value" style="font-size:22px;" id="modalWind">—</div><div class="insight-details" id="modalWindMeta">Provider values unavailable</div></div>
+              <div class="insight-card"><div class="insight-label">SOURCE / FRESHNESS</div><div class="insight-value" style="font-size:15px;" id="modalSource">—</div><div class="insight-details">Forecast product, not a climate probability score</div></div>
             </div>
 
-            <!-- Granular 30-Day Daily Predictions Table -->
+            <!-- Provider-returned daily forecast observations -->
             <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
               <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h4 style="font-size:13px; font-weight:600; color:#fff;">📅 Granular Daily Predictions (30 Days)</h4>
-                <span style="font-size:11px; font-family:var(--font-mono); color:var(--text-subtle);">Computed from 30-Year Empirical Probabilities</span>
+                <h4 style="font-size:13px; font-weight:600; color:#fff;">📅 Daily Provider Forecast (up to 7 days)</h4>
+                <span style="font-size:11px; font-family:var(--font-mono); color:var(--text-subtle);">Source: Open-Meteo provider forecast</span>
               </div>
               <div class="events-table-wrapper" style="max-height:300px;">
                 <table class="events-table">
@@ -1061,7 +1045,7 @@
                       <th>Rain (mm)</th>
                       <th>Rain Chance</th>
                       <th>Wind (m/s)</th>
-                      <th>Confidence</th>
+                      <th>Data source</th>
                     </tr>
                   </thead>
                   <tbody id="modalPredictionsTableBody">
@@ -1081,9 +1065,9 @@
         <div class="card-header-row">
           <div>
             <h2 class="card-title"><span>🛰️ Active Earth Observation Constellations & Sensors</span></h2>
-            <p class="card-subtitle">8 mission architectures powering EARTHSCOPE remote-sensing discovery</p>
+            <p class="card-subtitle">Mission catalogue metadata; scene availability and freshness are checked separately</p>
           </div>
-          <span class="brand-badge">8 MISSIONS ACTIVE</span>
+          <span class="brand-badge">8 MISSION RECORDS</span>
         </div>
         <div class="fleet-grid" id="fleetGrid">
           <!-- Populated from catalog -->
@@ -1097,9 +1081,9 @@
         <div class="card-header-row">
           <div>
             <h2 class="card-title"><span>🔌 Connected Scientific APIs & Services Matrix</span></h2>
-            <p class="card-subtitle">11 verified Earth observation and AI services with active credentials</p>
+            <p class="card-subtitle">Provider health is probed at runtime; optional credentials and public fallbacks are reported separately</p>
           </div>
-          <span class="brand-badge" style="background:rgba(56,189,248,0.15); border-color:var(--cyan); color:var(--cyan);">11 ONLINE</span>
+          <span class="brand-badge" style="background:rgba(56,189,248,0.15); border-color:var(--cyan); color:var(--cyan);">RUNTIME CHECK</span>
         </div>
         <div class="services-grid" id="servicesGrid">
           <!-- Populated from catalog -->
@@ -1113,9 +1097,9 @@
         <div class="card-header-row">
           <div>
             <h2 class="card-title"><span>🇮🇳 All-India States & Union Territories Rapid Scan</span></h2>
-            <p class="card-subtitle">Click any state to immediately load its hyper-local climate forecast and decadal trends</p>
+            <p class="card-subtitle">Select a coordinate baseline to request live provider weather and a separate satellite/climate trend analysis</p>
           </div>
-          <span class="brand-badge">29 STATES & UTS</span>
+          <span class="brand-badge">REFERENCE COORDINATES</span>
         </div>
         <div class="states-grid" id="allStatesGrid">
           <!-- Populated from state catalog -->
