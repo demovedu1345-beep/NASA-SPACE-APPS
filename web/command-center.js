@@ -11,7 +11,9 @@ const n=(v,d=1)=>v==null||!Number.isFinite(Number(v))?"—":Number(v).toFixed(d)
 const iso=d=>d.toISOString().slice(0,10);
 async function api(path,init={}){
  const headers={Accept:"application/json",...(init.headers||{})};
- const r=await fetch(API_BASE+path,{...init,headers});
+ const separator=path.includes("?")?"&":"?";
+ const requestUrl=API_BASE+path+separator+"_ts="+Date.now();
+ const r=await fetch(requestUrl,{...init,headers,cache:"no-store"});
  const t=await r.text();let data;try{data=t?JSON.parse(t):{}}catch{throw new Error("Non-JSON provider response")}
  if(!r.ok)throw new Error(typeof data.detail==="string"?data.detail:`HTTP ${r.status}`);
  return data;
