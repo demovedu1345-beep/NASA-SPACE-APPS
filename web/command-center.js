@@ -126,7 +126,7 @@ async function loadEarthDetails(lat,lon){
   showInspectorValue("earthDetailCarbon",prettyNumber(forest.carbon_density_t_per_ha_reference,1," t/ha"));
   showInspectorValue("earthDetailSatellite",sat.available_scenes==null?"Unavailable":String(sat.available_scenes)+" scenes · "+(sat.resolution_m||"—")+" m");
   showInspectorValue("earthDetailSceneDate",sat.latest_scene_time?new Date(sat.latest_scene_time).toLocaleString():"No scene returned in the current search window");
-  showInspectorValue("earthDetailFire",fire.detections_in_window==null?"Unavailable":String(fire.detections_in_window));
+  showInspectorValue("earthDetailFire",!fire.configured||fire.detections_in_window==null?"Unavailable":String(fire.detections_in_window));
   showInspectorValue("earthDetailPressure",pressure.mapped_features==null?"Unavailable":String(pressure.mapped_features));
   showInspectorValue("earthDetailPopulation",prettyNumber(pressure.population_reference,0));
   const conservation=profile.conservation,conservationData=conservation?.data??conservation;
