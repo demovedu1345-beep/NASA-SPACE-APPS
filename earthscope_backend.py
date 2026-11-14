@@ -856,60 +856,84 @@ async def query_nasa_cmr(keyword: str, page_size: int = 8) -> Dict[str, Any]:
         return {"ok": False, "error": str(exc), "keyword": keyword, "collections": []}
 
 async def fetch_nasa_power_monthly(lat: float, lon: float, start_year: int = 2014, end_year: int = 2023) -> Dict[str, Any]:
-    """Fetches real monthly NASA POWER climatological time series for T2M and PRECTOTCORR."""
+    """
+    Fetch real NASA POWER daily T2M and PRECTOTCORR values, then aggregate
+    to calendar months. PRECTOTCORR is a daily rate/amount (mm/day); monthly
+    precipitation is the sum of valid daily values, never the raw monthly
+    average mislabeled as mm/month.
+    """
+    import calendar
     params = urllib.parse.urlencode({
         "parameters": "T2M,T2M_MAX,T2M_MIN,PRECTOTCORR",
         "community": "AG",
         "longitude": round(lon, 4),
         "latitude": round(lat, 4),
-        "start": str(start_year),
-        "end": str(end_year),
+        "start": f"{start_year}0101",
+        "end": f"{end_year}1231",
         "format": "JSON"
     })
-    url = f"https://power.larc.nasa.gov/api/temporal/monthly/point?{params}"
+    url = f"https://power.larc.nasa.gov/api/temporal/daily/point?{params}"
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
-        with urllib.request.urlopen(req, timeout=20) as resp:
+        with urllib.request.urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-            params_data = data.get("properties", {}).get("parameter", {})
-            t2m_raw = params_data.get("T2M", {})
-            t2m_max_raw = params_data.get("T2M_MAX", {})
-            prec_raw = params_data.get("PRECTOTCORR", {})
+        params_data = data.get("properties", {}).get("parameter", {})
+        t2m_raw = params_data.get("T2M", {})
+        t2m_max_raw = params_data.get("T2M_MAX", {})
+        prec_raw = params_data.get("PRECTOTCORR", {})
+        by_month: Dict[str, Dict[str, list]] = {}
+        for month_key in sorted(set(t2m_raw) | set(prec_raw)):
+            if len(month_key) != 8:
+                continue
+            key = month_key[:6]
+            bucket = by_month.setdefault(key, {"t2m": [], "t2m_max": [], "precipitation": []})
+            def valid(value):
+                try:
+                    number = float(value)
+                    return number if math.isfinite(number) and number > -900 else None
+                except (TypeError, ValueError):
+                    return None
+            temp = valid(t2m_raw.get(month_key))
+            temp_max = valid(t2m_max_raw.get(month_key))
+            rain = valid(prec_raw.get(month_key))
+            if temp is not None:
+                bucket["t2m"].append(temp)
+            if temp_max is not None:
+                bucket["t2m_max"].append(temp_max)
+            if rain is not None:
+                bucket["precipitation"].append(rain)
 
-            # Filter valid YYYYMM keys (skip 13th annual summary key e.g. '202013')
-            series_t2m = []
-            series_t2m_max = []
-            series_prec = []
+        series_t2m = []
+        series_t2m_max = []
+        series_prec = []
+        for month_key, bucket in sorted(by_month.items()):
+            year, month = int(month_key[:4]), int(month_key[4:6])
+            expected_days = calendar.monthrange(year, month)[1]
+            min_valid_days = math.ceil(expected_days * 0.8)
+            date_text = f"{year:04d}-{month:02d}"
+            if len(bucket["t2m"]) >= min_valid_days:
+                series_t2m.append({"date": date_text, "value": round(sum(bucket["t2m"]) / len(bucket["t2m"]), 2)})
+            if len(bucket["t2m_max"]) >= min_valid_days:
+                series_t2m_max.append({"date": date_text, "value": round(sum(bucket["t2m_max"]) / len(bucket["t2m_max"]), 2)})
+            if len(bucket["precipitation"]) >= min_valid_days:
+                series_prec.append({"date": date_text, "value": round(sum(bucket["precipitation"]), 2)})
 
-            for key in sorted(t2m_raw.keys()):
-                if len(key) == 6 and not key.endswith("13"):
-                    dt_str = f"{key[:4]}-{key[4:6]}"
-                    val_t2m = t2m_raw[key]
-                    val_max = t2m_max_raw.get(key, val_t2m)
-                    val_p = prec_raw.get(key)
-
-                    # Filter invalid NASA fill values (-999)
-                    if val_t2m > -900:
-                        series_t2m.append({"date": dt_str, "value": round(val_t2m, 2)})
-                    if val_max > -900:
-                        series_t2m_max.append({"date": dt_str, "value": round(val_max, 2)})
-                    if val_p is not None and val_p > -900:
-                        series_prec.append({"date": dt_str, "value": round(val_p, 2)})
-
-            return {
-                "ok": True,
-                "t2m": series_t2m,
-                "t2m_max": series_t2m_max,
-                "precipitation": series_prec,
-                "meta": {
-                    "source": "NASA POWER / MERRA-2 (GMAO)",
-                    "lat": lat, "lon": lon,
-                    "resolution": "0.5° × 0.625°",
-                    "provenance": "NASA Langley Research Center"
-                }
+        return {
+            "ok": bool(series_t2m or series_prec),
+            "t2m": series_t2m,
+            "t2m_max": series_t2m_max,
+            "precipitation": series_prec,
+            "meta": {
+                "source": "NASA POWER Daily Point API",
+                "lat": lat, "lon": lon,
+                "resolution": "0.5° × 0.625°",
+                "provenance": "NASA Langley Research Center",
+                "aggregation": "T2M daily mean; PRECTOTCORR daily values summed to monthly total",
+                "minimum_valid_days_per_month": "80%",
             }
+        }
     except Exception as exc:
-        return {"ok": False, "error": str(exc)}
+        return {"ok": False, "error": str(exc), "t2m": [], "t2m_max": [], "precipitation": []}
 
 def generate_modis_ndvi_series(lat: float, lon: float, start_year: int, end_year: int) -> List[Dict[str, Any]]:
     """
