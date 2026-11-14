@@ -726,9 +726,9 @@
 
         <div class="selector-item">
           <span>Period:</span>
-          <input type="date" class="selector-input" id="startDateInput" value="2025-11-14">
+          <input type="date" class="selector-input" id="startDateInput" value="2016-11-15">
           <span style="color:var(--text-subtle);">to</span>
-          <input type="date" class="selector-input" id="endDateInput" value="2026-11-14">
+          <input type="date" class="selector-input" id="endDateInput" value="2026-11-15">
         </div>
       </div>
 
@@ -748,7 +748,7 @@
       <div class="insights-grid">
         <div class="insight-card">
           <div class="insight-label">
-            <span>Average Temperature</span>
+            <span>7-Day Mean Daily High</span>
             <span style="font-size:16px;">🌡️</span>
           </div>
           <div class="insight-value" id="insightAvgTemp">—</div>
@@ -760,13 +760,13 @@
 
         <div class="insight-card">
           <div class="insight-label">
-            <span>Annual Precipitation</span>
+            <span>Mean Daily Precipitation</span>
             <span style="font-size:16px;">🌧️</span>
           </div>
           <div class="insight-value" id="insightTotalPrecip">—</div>
           <div class="insight-details">
-            <span>Peak Storm: <strong id="insightMaxPrecip">—</strong></span>
-            <span>Rainy Days: <strong id="insightRainyDays">—</strong></span>
+            <span>Peak Daily Rain: <strong id="insightMaxPrecip">—</strong></span>
+            <span>Rain Days (7d): <strong id="insightRainyDays">—</strong></span>
           </div>
         </div>
 
@@ -777,7 +777,7 @@
           </div>
           <div class="insight-value" id="insightAvgWind">—</div>
           <div class="insight-details">
-            <span>Peak Gusts: <strong id="insightMaxWind">—</strong></span>
+            <span>Forecast Max: <strong id="insightMaxWind">—</strong></span>
             <span>Atm Pressure: <strong id="insightPressure">—</strong></span>
           </div>
         </div>
@@ -801,7 +801,7 @@
             <h2 class="card-title">
               <span>🔮 7-Day Day-of-Year (DOY) Probability Forecast</span>
             </h2>
-            <p class="card-subtitle">Empirical weather probabilities derived from 30+ years of NASA POWER daily observations</p>
+            <p class="card-subtitle">Daily forecast values returned by the weather provider. This is not a 30-year probability or confidence product.</p>
           </div>
           <span class="brand-badge" style="background:var(--cyan-subtle); border-color:var(--cyan); color:var(--cyan);">PROVIDER FORECAST · 7 DAYS</span>
         </div>
@@ -817,12 +817,12 @@
             <h2 class="card-title">
               <span>📊 Historical Climatology Explorer (12-Month Profile)</span>
             </h2>
-            <p class="card-subtitle">Monthly temperature curve (°C), precipitation accumulation (mm), and wind velocity</p>
+            <p class="card-subtitle">10-year monthly climate reference from Open-Meteo Archive / NASA POWER fallback</p>
           </div>
           <div style="display:flex; gap:8px;">
             <button class="btn active" style="font-size:11px; padding:4px 10px;" id="btnToggleTemp" onclick="toggleClimatologyParam('T2M')">Temp (°C)</button>
             <button class="btn" style="font-size:11px; padding:4px 10px;" id="btnTogglePrecip" onclick="toggleClimatologyParam('PRECTOT')">Precip (mm)</button>
-            <button class="btn" style="font-size:11px; padding:4px 10px;" id="btnToggleWind" onclick="toggleClimatologyParam('WS2M')">Wind (km/h)</button>
+            <button class="btn" style="font-size:11px; padding:4px 10px;" id="btnToggleWind" disabled title="A historical wind series is not currently connected">Wind (not connected)</button>
           </div>
         </div>
         <div id="climatologyChart" class="chart-container-large"></div>
@@ -878,34 +878,33 @@
       <div class="insights-grid">
         <div class="insight-card">
           <div class="insight-label">Mann-Kendall Z-Statistic</div>
-          <div class="insight-value" id="trendZStat">+2.48</div>
+          <div class="insight-value" id="trendZStat">—</div>
           <div class="insight-details">
-            <span>p-value: <strong id="trendPVal">0.013</strong></span>
-            <span class="insight-trend-badge" style="background:rgba(120,214,169,0.2); color:var(--mint);">p &lt; 0.05 (Significant)</span>
+            <span>p-value: <strong id="trendPVal">—</strong></span>
           </div>
         </div>
 
         <div class="insight-card">
           <div class="insight-label">Sen's Slope Rate (β)</div>
-          <div class="insight-value" id="trendSensSlope">+0.018 yr⁻¹</div>
+          <div class="insight-value" id="trendSensSlope">—</div>
           <div class="insight-details">
-            <span>95% CI: <strong id="trendSlopeCI">[+0.007, +0.029]</strong></span>
+            <span>95% CI: <strong id="trendSlopeCI">—</strong></span>
           </div>
         </div>
 
         <div class="insight-card">
           <div class="insight-label">Seasonal Mann-Kendall</div>
-          <div class="insight-value" id="trendSeasonalZ">+2.15</div>
+          <div class="insight-value" id="trendSeasonalZ">—</div>
           <div class="insight-details">
-            <span>Seasonality Deseasonalized: <strong>True</strong></span>
+            <span>Repeated months: <strong id="trendSeasonalMonths">—</strong></span>
           </div>
         </div>
 
         <div class="insight-card">
           <div class="insight-label">FDR Benjamini-Hochberg</div>
-          <div class="insight-value" style="color:var(--cyan);" id="trendFdrStatus">CONFIRMED</div>
+          <div class="insight-value" style="color:var(--cyan);" id="trendFdrStatus">—</div>
           <div class="insight-details">
-            <span>False Discovery Rate: <strong>q* = 0.041</strong></span>
+            <span>False Discovery Rate: <strong>q* = <span id="trendFdrQVal">—</span></strong></span>
           </div>
         </div>
       </div>
@@ -915,11 +914,11 @@
         <div class="card-header-row">
           <div>
             <h2 class="card-title">
-              <span>📈 120-Month Continuous Decadal Time-Series (2015 – 2024)</span>
+              <span>📈 Provider-Returned Observation Time Series</span>
             </h2>
             <p class="card-subtitle">Monthly observations, Sen's median slope line, 95% confidence interval shaded band, and 12-month rolling SMA</p>
           </div>
-          <span class="brand-badge" id="activeVariableBadge">VARIABLE: NDVI (250m MODIS/Sentinel-2)</span>
+          <span class="brand-badge" id="activeVariableBadge">VARIABLE: NDVI · SENTINEL-2 L2A</span>
         </div>
         <div id="decadalChart" class="chart-container-large" style="height:440px;"></div>
       </div>
@@ -928,12 +927,12 @@
       <div class="glass-card" style="border-color: rgba(56, 189, 248, 0.35);">
         <div class="card-header-row">
           <h2 class="card-title" style="color:var(--cyan);">
-            <span>🤖 Grounded AI Research Analyst (Verified Empirical Synthesis)</span>
+            <span>🤖 Earth Query Interpreter (API-Backed Parsing)</span>
           </h2>
-          <span class="brand-badge" style="background:var(--cyan-subtle); border-color:var(--cyan); color:var(--cyan);">ZERO HALLUCINATIONS</span>
+          <span class="brand-badge" style="background:var(--cyan-subtle); border-color:var(--cyan); color:var(--cyan);">QUERY PARSER · EVIDENCE WORKFLOW SEPARATE</span>
         </div>
         <p style="font-size:13px; line-height:1.6; color:#d1d5db;" id="aiAnalystText">
-          Synthesizing decadal observations from NASA POWER, MOD13Q1, and GPM IMERG... Across the Western Ghats (Kodagu), canopy greenness demonstrates statistically significant upward recovery (Mann-Kendall Z = +2.48, p = 0.013 &lt; 0.05). Sen's slope indicates an annual increase of +0.018 NDVI units/year with a 95% confidence interval of [+0.007, +0.029]. Interannual monsoonal precipitation remains stable with expected wet-season variance.
+          No trend conclusion is displayed until provider observations have been returned and statistical tests have run for the selected period.
         </p>
         <div style="display:flex; gap:10px; margin-top:8px;">
           <input type="text" class="selector-input" style="flex:1; padding:8px 12px;" placeholder="Ask the AI Analyst about trend drivers, anomalies, or satellite provenance..." id="aiCustomPrompt">
@@ -948,7 +947,7 @@
         <div style="padding:16px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-bottom:1px solid var(--border);">
           <div>
             <h2 class="card-title"><span>🗺️ Interactive Geographic Map & Climatology Studio</span></h2>
-            <p class="card-subtitle">Click anywhere to drop a coordinate pin, reverse geocode, and inspect 30-day weather predictions</p>
+            <p class="card-subtitle">Click anywhere to set a study location, retrieve provider-backed weather context, and inspect the available 7-day forecast</p>
           </div>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="btn" onclick="jumpToLocation(12.3375, 75.8069, 'Kodagu / Western Ghats')">Western Ghats</button>
