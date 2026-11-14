@@ -13,6 +13,11 @@ The tool must let a user select Earth-science variables measured by NASA mission
 | Sentinel-2 MSI L2A NDVI | ESA Copernicus satellite-derived vegetation index | **Connected as complementary non-NASA evidence** — must not be described as a NASA mission variable |
 | NASA Terra MODIS MOD13Q1 NDVI/EVI | NASA satellite vegetation-index product | **Earth Engine adapter wired; credential-gated** — count as live only after authenticated regional extraction returns quality-filtered observations |
 | NASA Terra MODIS MOD11A2 LST | NASA satellite land-surface temperature | **Earth Engine adapter wired; credential-gated** — QC_Day filtering and scale conversion are implemented; production extraction remains unverified |
+| NASA/JAXA GPM IMERG Monthly V07 | Merged satellite-gauge precipitation rate | **Earth Engine adapter wired; credential-gated** — monthly precipitation rate in mm/hr; product coverage currently ends 2025-09; quality-index rejection is not yet applied |
+| NASA MERRA-2 M2T1NXSLV | NASA atmospheric reanalysis | **Earth Engine adapter wired; credential-gated** — hourly T2M aggregated to monthly means and converted K→°C |
+| NASA GLDAS-2.1 Noah | NASA land data-assimilation model | **Earth Engine adapter wired; credential-gated** — 3-hourly 0–10 cm soil moisture aggregated to monthly means |
+| NASA TOMS/OMI Merged V4 | Merged NASA total-column ozone record | **Earth Engine adapter wired; credential-gated** — daily ozone aggregated to monthly means; record includes TOMS history, OMI/Aura-era data, and interpolated gaps |
+| NASA AIRS/Aqua | NASA atmospheric sounding mission | **Catalogue only** — no validated trend extraction adapter connected yet |
 | NASA/JAXA GPM IMERG | Satellite precipitation retrieval | **Catalogue / extraction pending** — CMR discovery is not a retrieved time series |
 | NASA MERRA-2 / GLDAS | NASA model/reanalysis land and atmospheric variables | **Catalogue / extraction pending** — must be fetched as real regional values before trend calculation |
 | NASA AIRS / Aura OMI | NASA atmospheric composition/sounding observations | **Catalogue / extraction pending** — no synthetic substitute is allowed |
@@ -47,7 +52,7 @@ For each variable that has a real time series:
 
 - NASA POWER: public API; no key required for the current product path.
 - NASA Earthdata / AppEEARS: requires an Earthdata Login account/token for authenticated task submission and retrieval.
-- Google Earth Engine: requires an enabled Google Cloud project and valid Earth Engine credentials. MOD13Q1 and MOD11A2 adapters are implemented, but must pass a real authenticated extraction before being presented as live.
+- Google Earth Engine: requires an enabled Google Cloud project and valid Earth Engine credentials. MOD13Q1, MOD11A2, GPM IMERG, MERRA-2, GLDAS and TOMS/OMI adapters are implemented, but each must pass a real authenticated extraction before being presented as live.
 - NASA FIRMS: requires a valid MAP key for the full fire-detection API.
 - Missing credentials must produce a precise unavailable/credential-required state, never sample data or fabricated measurements.
 
