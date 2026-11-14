@@ -76,6 +76,16 @@
       "source": "/system",
       "destination": "/?page=systems",
       "permanent": false
+    },
+    {
+      "source": "/earthscope",
+      "destination": "/dashboard/research.html",
+      "permanent": false
+    },
+    {
+      "source": "/earthscope/",
+      "destination": "/dashboard/research.html",
+      "permanent": false
     }
   ]
 }
