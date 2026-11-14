@@ -46,7 +46,7 @@
 
   function drawStars(time) {
     if (document.hidden || !ctx) return;
-    rafId = requestAnimationFrame(drawStars);
+    if (!reduced) rafId = requestAnimationFrame(drawStars);
     if (time - lastFrame < 38) return; // ~26 fps is enough for distant stars.
     lastFrame = time;
     ctx.clearRect(0, 0, width, height);
