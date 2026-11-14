@@ -122,7 +122,7 @@
       return;
     }
     try {
-      await loadScript("https://cdn.jsdelivr.net/npm/hls.js@1.7.4/dist/hls.min.js", "earthscope-hlsjs");
+      await loadScript("https://cdn.jsdelivr.net/npm/hls.js@1.7.4/dist/hls.light.min.js", "earthscope-hlsjs");
       if (window.Hls && window.Hls.isSupported()) {
         const hls = new window.Hls({
           enableWorker: true,
@@ -295,6 +295,8 @@
     const run = () => {
       const active = $(".page-view.active", root);
       if (!active) return;
+      const pageKey = active.dataset.view;
+      $(".portfolio-nav [data-page]").forEach((button) => button.classList.toggle("active", button.dataset.page === pageKey));
       animatePageHeading(active);
       setupScrollReveals(active);
       if (ScrollTrigger) ScrollTrigger.refresh();
