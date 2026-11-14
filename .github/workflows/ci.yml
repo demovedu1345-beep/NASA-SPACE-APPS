@@ -13,10 +13,23 @@ jobs:
           cache: 'pip'
       - run: pip install -r backend/requirements.txt
       - run: python scripts/check_secrets.py
-      - run: PYTHONPATH=backend python -m compileall -q backend/app
+      - run: PYTHONPATH=backend python -m compileall -q backend server_earthscope.py earthscope_backend.py
       - run: PYTHONPATH=backend pytest -q backend/tests
       - run: PYTHONPATH=backend python scripts/acceptance_check.py
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - run: node --check web/app.js
+      - run: node --check web/earthscope-station.js
+      - name: Extract and syntax-check research dashboard inline JavaScript
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          html = Path('web/dashboard/research.html').read_text(encoding='utf-8')
+          scripts = re.findall(r'<script\\b(?![^>]*\\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I | re.S)
+          if not scripts:
+              raise SystemExit('No inline JavaScript found in research dashboard')
+          Path('/tmp/earthscope-research-inline.js').write_text('\\n'.join(scripts), encoding='utf-8')
+          PY
+          node --check /tmp/earthscope-research-inline.js
