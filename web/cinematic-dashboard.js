@@ -7,6 +7,7 @@
   const finePointer = window.matchMedia("(hover:hover) and (pointer:fine)").matches;
   const gsap = window.gsap;
   const ScrollTrigger = window.ScrollTrigger;
+  if (gsap && ScrollTrigger) gsap.registerPlugin(ScrollTrigger);
   const scrollArea = $("#scrollArea");
   const video = $("#ambientVideo");
   const sidebar = $("#sidebar");
@@ -272,8 +273,7 @@
         last = now;
         const x = (event.clientX / Math.max(1, innerWidth) - .5);
         const y = (event.clientY / Math.max(1, innerHeight) - .5);
-        const glow = $(".ambient::before");
-        const mark = $(".portfolio-mark");
+            const mark = $(".portfolio-mark");
         if (mark) mark.style.setProperty("--pointer-angle", (x * 16).toFixed(2) + "deg");
         document.documentElement.style.setProperty("--film-x", (x * 5).toFixed(1) + "px");
         document.documentElement.style.setProperty("--film-y", (y * 4).toFixed(1) + "px");
