@@ -451,3 +451,168 @@
   border-radius: 6px;
   margin: 12px 0;
 }
+
+/* Dashboard Overview Cards */
+.dashboard-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.dashboard-card {
+  background: var(--es-surface-raised);
+  border: 1px solid var(--es-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.dashboard-card:hover {
+  border-color: rgba(120, 214, 169, 0.35);
+  transform: translateY(-2px);
+}
+.dashboard-card-label {
+  font-family: var(--es-font-mono);
+  font-size: 10px;
+  color: var(--es-mint);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.dashboard-card-title {
+  font-family: var(--es-font-serif);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+}
+.dashboard-card-desc {
+  font-size: 11.5px;
+  color: var(--es-text-muted);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+.dashboard-card-meta {
+  font-family: var(--es-font-mono);
+  font-size: 11px;
+  color: var(--es-mint);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Workflow Progress Steps Strip */
+.workflow-progress-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 10px 0 14px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 16px;
+}
+.workflow-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--es-font-mono);
+  font-size: 11px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--es-border);
+  color: var(--es-text-muted);
+  white-space: nowrap;
+}
+.workflow-step.active {
+  background: rgba(120, 214, 169, 0.12);
+  border-color: var(--es-mint);
+  color: #fff;
+  font-weight: 600;
+}
+.workflow-step-num {
+  color: var(--es-mint);
+  font-weight: 700;
+}
+
+/* Chart Toggles Strip */
+.chart-toggles-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.chart-toggle-btn {
+  font-family: var(--es-font-mono);
+  font-size: 10.5px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--es-border);
+  color: var(--es-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.chart-toggle-btn.active, .chart-toggle-btn:hover {
+  background: rgba(120, 214, 169, 0.12);
+  border-color: rgba(120, 214, 169, 0.4);
+  color: #fff;
+}
+
+/* Scientific Methodology Grid */
+.methodology-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.methodology-card {
+  background: var(--es-surface-raised);
+  border: 1px solid var(--es-border);
+  border-radius: 6px;
+  padding: 14px;
+}
+.methodology-card h4 {
+  font-family: var(--es-font-serif);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 6px 0;
+}
+.methodology-card p {
+  font-size: 12px;
+  color: var(--es-text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Scientific Trust & Transparency Statement */
+.scientific-trust-banner {
+  background: linear-gradient(180deg, rgba(120, 214, 169, 0.04), rgba(5, 5, 7, 0.8));
+  border: 1px solid rgba(120, 214, 169, 0.25);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-top: 32px;
+}
+.scientific-trust-title {
+  font-family: var(--es-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--es-mint);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.scientific-trust-content {
+  font-size: 12px;
+  color: #b0b4ba;
+  line-height: 1.6;
+}
+
