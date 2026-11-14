@@ -867,9 +867,7 @@
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="btn active" onclick="switchVariable('ndvi', this)">🌿 NDVI (Canopy Greenness)</button>
             <button class="btn" onclick="switchVariable('t2m', this)">🌡️ T2M (2m Air Temp)</button>
-            <button class="btn" onclick="switchVariable('precipitation', this)">🌧️ Precipitation (GPM IMERG)</button>
-            <button class="btn" onclick="switchVariable('lst_day', this)">☀️ Land Surface Temp (MODIS)</button>
-            <button class="btn" onclick="switchVariable('biomass', this)">🌳 Biomass Density (GEDI L4A)</button>
+            <button class="btn" onclick="switchVariable('precipitation', this)">🌧️ Precipitation (Open-Meteo / NASA POWER)</button>
           </div>
         </div>
       </div>
@@ -909,14 +907,14 @@
         </div>
       </div>
 
-      <!-- 120-Month Continuous Decadal Time-Series Chart -->
+      <!-- Provider-returned time-series chart -->
       <div class="glass-card">
         <div class="card-header-row">
           <div>
             <h2 class="card-title">
               <span>📈 Provider-Returned Observation Time Series</span>
             </h2>
-            <p class="card-subtitle">Monthly observations, Sen's median slope line, 95% confidence interval shaded band, and 12-month rolling SMA</p>
+            <p class="card-subtitle">Available provider samples, Sen's slope fit where estimable, and a 12-sample rolling mean</p>
           </div>
           <span class="brand-badge" id="activeVariableBadge">VARIABLE: NDVI · SENTINEL-2 L2A</span>
         </div>
@@ -1394,7 +1392,7 @@
     async function runDecadalInvestigation() {
       const params = new URLSearchParams({
         lat: S.lat, lon: S.lon, variable: S.variable, region_name: S.place,
-        start_year: '2015', end_year: String(new Date().getFullYear())
+        start_year: String((document.getElementById('startDateInput')?.value || '2016-01-01').slice(0,4)), end_year: String((document.getElementById('endDateInput')?.value || new Date().toISOString().slice(0,10)).slice(0,4))
       });
       const cardsContainer = document.getElementById('trendCardsContainer');
       try {
@@ -1417,7 +1415,7 @@
       S.variable = v;
       document.querySelectorAll('#pane-trends .btn').forEach(b => b.classList.remove('active'));
       if (btn) btn.classList.add('active');
-      document.getElementById('activeVariableBadge').innerText = `VARIABLE: ${v.toUpperCase()}`;
+      document.getElementById('activeVariableBadge').innerText = `VARIABLE: ${v.toUpperCase()} · LOADING PROVIDER SERIES`;
       runDecadalInvestigation();
     }
 
@@ -1437,6 +1435,10 @@
       const analyst = document.getElementById('aiAnalystText');
       if (analyst) analyst.innerText = summary || 'No provider-backed trend interpretation is available.';
       const unavailable = data && data.unavailable_variables ? data.unavailable_variables[S.variable] : null;
+      put('trendSeasonalMonths', trend.seasonal_months_with_repeated_samples == null ? '—' : trend.seasonal_months_with_repeated_samples);
+      put('trendFdrQVal', trend.fdr_q_value == null ? '—' : Number(trend.fdr_q_value).toFixed(5));
+      const metadata = data && data.metadata ? data.metadata[S.variable] : null;
+      put('activeVariableBadge', metadata ? ('VARIABLE: ' + (metadata.name || S.variable) + ' · ' + (metadata.resolution || metadata.dataset || 'provider data')) : ('VARIABLE: ' + S.variable.toUpperCase()));
       const status = document.getElementById('telemetryStatusText');
       if (status && unavailable) status.textContent = unavailable;
     }
