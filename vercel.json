@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://vanrakshak-ai-scu6.onrender.com/api/:path*"
+      "destination": "/api/proxy?__proxy_path=:path*"
     }
   ],
   "redirects": [
@@ -87,5 +87,10 @@
       "destination": "/dashboard/research.html",
       "permanent": false
     }
-  ]
+  ],
+  "functions": {
+    "api/proxy.js": {
+      "maxDuration": 60
+    }
+  }
 }
