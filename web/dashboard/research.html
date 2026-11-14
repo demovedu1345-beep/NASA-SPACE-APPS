@@ -866,8 +866,8 @@
           <span style="font-size:13px; font-weight:600; color:#fff;">Select Earth System Variable:</span>
           <p class="card-subtitle" style="margin:8px 0 10px;">NASA mission data: Terra MODIS NDVI/LST, GPM IMERG, and TOMS/OMI merged ozone. NASA model data: POWER, MERRA-2, and GLDAS. Earth Engine credentials are required for MODIS/GPM/MERRA-2/GLDAS/OMI. Sentinel-2 NDVI is ESA Copernicus complementary evidence; AIRS remains catalogue-only until its own extraction path is verified.</p>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button class="btn active" onclick="switchVariable('ndvi', this)">🌿 Sentinel-2 NDVI (ESA)</button>
-            <button class="btn" onclick="switchVariable('t2m', this)">🌡️ NASA POWER T2M</button>
+            <button class="btn" onclick="switchVariable('ndvi', this)">🌿 Sentinel-2 NDVI (ESA)</button>
+            <button class="btn active" onclick="switchVariable('t2m', this)">🌡️ NASA POWER T2M</button>
             <button class="btn" onclick="switchVariable('precipitation', this)">🌧️ NASA POWER Precipitation</button>
             <button class="btn" onclick="switchVariable('modis_ndvi', this)">🛰️ NASA Terra MODIS NDVI</button>
             <button class="btn" onclick="switchVariable('modis_lst_day', this)">🌡️ NASA Terra MODIS LST</button>
@@ -923,7 +923,7 @@
             </h2>
             <p class="card-subtitle">Available provider samples, Sen's slope fit where estimable, and a 12-sample rolling mean</p>
           </div>
-          <span class="brand-badge" id="activeVariableBadge">VARIABLE: NDVI · SENTINEL-2 L2A</span>
+          <span class="brand-badge" id="activeVariableBadge">VARIABLE: NASA POWER T2M</span>
         </div>
         <div id="decadalChart" class="chart-container-large" style="height:440px;"></div>
       </div>
