@@ -256,6 +256,7 @@ body{color:var(--text);background:radial-gradient(ellipse at 70% 0%,#17143b 0%,t
   box-shadow:0 0 48px rgba(98,84,255,.1);pointer-events:none;z-index:0;
 }
 .cosmic-reveal{will-change:transform,opacity}
+.cosmic-scroll-progress{position:absolute;left:0;right:0;bottom:-1px;height:2px;transform:scaleX(0);transform-origin:left center;background:linear-gradient(90deg,#8e74ff,#6abfff,#7cecff);box-shadow:0 0 12px rgba(117,231,255,.38);pointer-events:none;z-index:4}
 .lenis.lenis-smooth{scroll-behavior:auto!important}
 .lenis.lenis-smooth [data-lenis-prevent]{overscroll-behavior:contain}
 @keyframes cosmic-nebula-breathe{0%{transform:translate3d(-1%,0,0) scale(1)}100%{transform:translate3d(2%,-1.5%,0) scale(1.08)}}
