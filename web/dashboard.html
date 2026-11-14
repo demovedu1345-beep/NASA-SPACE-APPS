@@ -472,6 +472,39 @@
       min-height: 60px;
     }
 
+    .custom-search-wrap {
+      margin-bottom: 12px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+    .custom-input {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: #fff;
+      font-size: 11px;
+      padding: 5px 8px;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+    .custom-input:focus {
+      border-color: var(--mint);
+    }
+    .ai-input-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .appeears-card {
+      margin-top: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px dashed var(--border-accent);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
     /* Interactive 3D Earth Camera Drag Notice */
     .earth-hint-pill {
       position: fixed;
@@ -664,8 +697,14 @@
         <button onclick="runInvestigation()" class="btn btn-mint">
           ⚡ Refresh Trends
         </button>
-        <button onclick="exportDossier('html')" class="btn btn-glass">
-          📄 Research Dossier
+        <button onclick="exportDossier('html')" class="btn btn-glass" title="Open publication-ready HTML research report">
+          📄 HTML Dossier
+        </button>
+        <button onclick="exportCSV()" class="btn btn-glass" title="Download 120-month observations table as CSV">
+          📊 CSV
+        </button>
+        <button onclick="exportJSON()" class="btn btn-glass" title="Download raw scientific JSON payload">
+          💾 JSON
         </button>
       </div>
     </header>
@@ -741,6 +780,22 @@
         <div class="panel-header">
           <h3 class="panel-title"><span>🗺️</span> Study Area & Mission Controls</h3>
           <span id="currentRegionTag" style="font-family:var(--font-mono); font-size:10px; color:var(--mint);">KODAGU</span>
+        </div>
+
+        <!-- Custom Search & Geocoding -->
+        <label style="font-family:var(--font-mono); font-size:10px; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px; display:block;">
+          SEARCH & CUSTOM COORDINATES
+        </label>
+        <div class="custom-search-wrap">
+          <div style="display:flex; gap:6px; margin-bottom:6px;">
+            <input id="customSearchInput" class="custom-input" style="flex:1;" type="text" placeholder="Search any city, forest, basin..." onkeydown="if(event.key==='Enter')searchCustomLocation()">
+            <button onclick="searchCustomLocation()" class="btn-glass" style="padding:4px 8px; font-size:11px;">🔍</button>
+          </div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <input id="customLatInput" class="custom-input" type="number" step="0.0001" placeholder="Lat" value="12.3375" style="width:78px; font-family:var(--font-mono);">
+            <input id="customLonInput" class="custom-input" type="number" step="0.0001" placeholder="Lon" value="75.8069" style="width:78px; font-family:var(--font-mono);">
+            <button onclick="applyCustomCoordinates()" class="btn-mint" style="flex:1; padding:4px 8px; font-size:10.5px; border-radius:4px;">📍 Jump</button>
+          </div>
         </div>
 
         <!-- Ecosystem Switcher -->
@@ -839,6 +894,21 @@
             <span>ISRO Bhuvan WMS</span>
             <span class="tag-ok">● NRSC THEMATIC</span>
           </div>
+        </div>
+
+        <!-- NASA AppEEARS Task Dispatcher -->
+        <div class="appeears-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span style="font-family:var(--font-mono); font-size:10px; color:var(--mint); font-weight:700;">NASA AppEEARS SUBSETTING</span>
+            <span style="font-size:9px; color:var(--text-subtle);">LP DAAC V2</span>
+          </div>
+          <p style="font-size:10.5px; color:var(--text-muted); margin-bottom:6px; line-height:1.35;">
+            Dispatch automated subsetting extraction for 250m MODIS granules at target point.
+          </p>
+          <button onclick="submitAppEEARSTask()" class="btn-glass" style="width:100%; font-size:10.5px; padding:6px; border-color:var(--border-accent); color:var(--mint);">
+            🚀 Dispatch LP DAAC Extraction
+          </button>
+          <div id="appeearsTaskResult" style="font-family:var(--font-mono); font-size:9.5px; margin-top:6px; color:#9ca3af; display:none;"></div>
         </div>
       </aside>
 
@@ -989,13 +1059,20 @@
           <div id="aiSummaryBox" class="ai-analyst-output">
             Over the 120 monthly epochs analyzed (2015–2024), Terra MODIS NDVI shows no statistically significant monotonic trend (p = 0.665 > α=0.05). High serial persistence (r₁ = 0.828) reflects seasonal monsoon cycles.
           </div>
-          <div style="display:flex; gap:4px;">
-            <button onclick="askQuestion('Explain serial persistence r1 in rainfall')" class="btn-glass" style="font-size:9.5px; padding:4px 8px; border-radius:4px; flex:1;">
+          <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            <button onclick="askQuestion('Explain serial persistence r1 in rainfall')" class="btn-glass" style="font-size:9.5px; padding:4px 6px; border-radius:4px; flex:1;">
               Explain r₁ Autocorr
             </button>
-            <button onclick="askQuestion('Is there deforestation evidence here?')" class="btn-glass" style="font-size:9.5px; padding:4px 8px; border-radius:4px; flex:1;">
+            <button onclick="askQuestion('Is there deforestation evidence here?')" class="btn-glass" style="font-size:9.5px; padding:4px 6px; border-radius:4px; flex:1;">
               Deforestation Scan
             </button>
+            <button onclick="askQuestion('Compare LST day vs night surface warming')" class="btn-glass" style="font-size:9.5px; padding:4px 6px; border-radius:4px; flex:1;">
+              Day/Night LST
+            </button>
+          </div>
+          <div class="ai-input-row">
+            <input id="aiCustomInput" class="custom-input" style="flex:1;" type="text" placeholder="Ask custom science query..." onkeydown="if(event.key==='Enter')askCustomQuestion()">
+            <button onclick="askCustomQuestion()" class="btn-mint" style="padding:4px 8px; font-size:10px; border-radius:4px;">Ask</button>
           </div>
         </div>
       </aside>
@@ -1307,6 +1384,36 @@
 
         S.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
+        // Click-on-Map to inspect any point on Earth
+        S.map.on('click', async (e) => {
+          const lat = parseFloat(e.lngLat.lat.toFixed(4));
+          const lon = parseFloat(e.lngLat.lng.toFixed(4));
+          S.lat = lat;
+          S.lon = lon;
+          if (S.marker) S.marker.setLngLat([lon, lat]);
+
+          let placeName = `Point (${lat}°N, ${lon}°E)`;
+          try {
+            const rev = await fetch(`/api/reverse-geocode?lat=${lat}&lon=${lon}`);
+            const revData = await rev.json();
+            if (revData && revData.display_name) {
+              placeName = revData.display_name.split(',')[0];
+            }
+          } catch (e) {}
+
+          S.place = placeName;
+          const tag = document.getElementById('currentRegionTag');
+          if (tag) tag.innerText = placeName.toUpperCase().split(' ')[0].substring(0, 10);
+          const loc = document.getElementById('mapLocationLabel');
+          if (loc) loc.innerText = `${placeName} (${lat}°N, ${lon}°E)`;
+          const latInp = document.getElementById('customLatInput');
+          const lonInp = document.getElementById('customLonInput');
+          if (latInp) latInp.value = lat;
+          if (lonInp) lonInp.value = lon;
+
+          runInvestigation();
+        });
+
         S.map.on('load', () => {
           S.map.resize();
         });
@@ -1349,11 +1456,17 @@
       const ndviSeries = res.ndvi ? res.ndvi.time_series || [] : [];
       const rainSeries = res.precipitation ? res.precipitation.time_series || [] : [];
       const t2mSeries = res.t2m ? res.t2m.time_series || [] : [];
+      const lstSeries = res.lst_day ? res.lst_day.time_series || [] : [];
+      const eviSeries = res.evi ? res.evi.time_series || [] : [];
+      const lstNightSeries = res.lst_night ? res.lst_night.time_series || [] : [];
 
-      const dates = ndviSeries.map(p => p.date);
+      const dates = ndviSeries.length > 0 ? ndviSeries.map(p => p.date) : rainSeries.map(p => p.date);
       const ndviVals = ndviSeries.map(p => p.value);
       const rainVals = rainSeries.map(p => p.value);
       const t2mVals = t2mSeries.map(p => p.value);
+      const lstVals = lstSeries.map(p => p.value);
+      const eviVals = eviSeries.map(p => p.value);
+      const lstNightVals = lstNightSeries.map(p => p.value);
 
       // Compute Sen's slope line for NDVI
       const ndviStats = res.ndvi?.statistics?.sens_slope || {};
@@ -1361,43 +1474,12 @@
       const meanNdvi = ndviVals.length > 0 ? (ndviVals.reduce((a,b)=>a+b,0)/ndviVals.length) : 0.78;
       const trendLine = ndviVals.map((_, i) => parseFloat((meanNdvi + (i - ndviVals.length/2) * slope).toFixed(4)));
 
-      const option = {
-        backgroundColor: 'transparent',
-        tooltip: {
-          trigger: 'axis',
-          backgroundColor: '#0c0e15',
-          borderColor: 'rgba(255,255,255,0.1)',
-          textStyle: { color: '#fff', fontSize: 11, fontFamily: 'DM Mono' }
-        },
-        legend: {
-          data: ['NDVI (250m)', "Sen's Slope Trend", 'Rainfall (mm)', '2m Temp (°C)'],
-          textStyle: { color: '#9ca3af', fontSize: 10, fontFamily: 'DM Mono' },
-          top: 0
-        },
-        grid: { top: 35, right: 40, bottom: 30, left: 40 },
-        xAxis: {
-          type: 'category',
-          data: dates,
-          axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
-          axisLabel: { color: '#6b7280', fontSize: 10, fontFamily: 'DM Mono' }
-        },
-        yAxis: [
-          {
-            type: 'value',
-            name: 'NDVI',
-            min: 0.4,
-            max: 1.0,
-            splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } },
-            axisLabel: { color: '#78D6A9', fontSize: 9 }
-          },
-          {
-            type: 'value',
-            name: 'Rain (mm)',
-            splitLine: { show: false },
-            axisLabel: { color: '#38bdf8', fontSize: 9 }
-          }
-        ],
-        series: [
+      const seriesList = [];
+      const legendList = [];
+
+      if (S.activeVars.includes('ndvi') && ndviVals.length > 0) {
+        legendList.push('NDVI (250m)', "Sen's Slope Trend");
+        seriesList.push(
           {
             name: 'NDVI (250m)',
             type: 'line',
@@ -1412,26 +1494,119 @@
             data: trendLine,
             lineStyle: { color: '#f59e0b', width: 2, type: 'dashed' },
             showSymbol: false
-          },
-          {
-            name: 'Rainfall (mm)',
-            type: 'bar',
-            yAxisIndex: 1,
-            data: rainVals,
-            itemStyle: { color: 'rgba(56, 189, 248, 0.35)' }
-          },
-          {
-            name: '2m Temp (°C)',
-            type: 'line',
-            data: t2mVals,
-            itemStyle: { color: '#fb7185' },
-            smooth: true,
-            showSymbol: false
           }
-        ]
+        );
+      }
+
+      if (S.activeVars.includes('evi') && eviVals.length > 0) {
+        legendList.push('EVI (250m)');
+        seriesList.push({
+          name: 'EVI (250m)',
+          type: 'line',
+          data: eviVals,
+          itemStyle: { color: '#38bdf8' },
+          smooth: true,
+          showSymbol: false
+        });
+      }
+
+      if (S.activeVars.includes('lst_day') && lstVals.length > 0) {
+        legendList.push('Day LST (°C)');
+        seriesList.push({
+          name: 'Day LST (°C)',
+          type: 'line',
+          data: lstVals,
+          itemStyle: { color: '#f59e0b' },
+          smooth: true,
+          showSymbol: false
+        });
+      }
+
+      if (S.activeVars.includes('lst_night') && lstNightVals.length > 0) {
+        legendList.push('Night LST (°C)');
+        seriesList.push({
+          name: 'Night LST (°C)',
+          type: 'line',
+          data: lstNightVals,
+          itemStyle: { color: '#a855f7' },
+          smooth: true,
+          showSymbol: false
+        });
+      }
+
+      if (S.activeVars.includes('precipitation') && rainVals.length > 0) {
+        legendList.push('Rainfall (mm)');
+        seriesList.push({
+          name: 'Rainfall (mm)',
+          type: 'bar',
+          yAxisIndex: 1,
+          data: rainVals,
+          itemStyle: { color: 'rgba(56, 189, 248, 0.45)' }
+        });
+      }
+
+      if (S.activeVars.includes('t2m') && t2mVals.length > 0) {
+        legendList.push('2m Temp (°C)');
+        seriesList.push({
+          name: '2m Temp (°C)',
+          type: 'line',
+          data: t2mVals,
+          itemStyle: { color: '#fb7185' },
+          smooth: true,
+          showSymbol: false
+        });
+      }
+
+      const option = {
+        backgroundColor: 'transparent',
+        tooltip: {
+          trigger: 'axis',
+          backgroundColor: '#0c0e15',
+          borderColor: 'rgba(255,255,255,0.1)',
+          textStyle: { color: '#fff', fontSize: 11, fontFamily: 'DM Mono' }
+        },
+        legend: {
+          data: legendList,
+          textStyle: { color: '#9ca3af', fontSize: 10, fontFamily: 'DM Mono' },
+          top: 0
+        },
+        grid: { top: 35, right: 40, bottom: 35, left: 40 },
+        xAxis: {
+          type: 'category',
+          data: dates,
+          axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
+          axisLabel: { color: '#6b7280', fontSize: 10, fontFamily: 'DM Mono' }
+        },
+        yAxis: [
+          {
+            type: 'value',
+            name: 'Index / °C',
+            splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } },
+            axisLabel: { color: '#78D6A9', fontSize: 9 }
+          },
+          {
+            type: 'value',
+            name: 'Rain (mm)',
+            splitLine: { show: false },
+            axisLabel: { color: '#38bdf8', fontSize: 9 }
+          }
+        ],
+        dataZoom: [
+          { type: 'inside', start: 0, end: 100 },
+          {
+            type: 'slider',
+            height: 16,
+            bottom: 2,
+            borderColor: 'rgba(255,255,255,0.08)',
+            fillerColor: 'rgba(120,214,169,0.1)',
+            handleStyle: { color: '#78D6A9' },
+            textStyle: { color: '#9ca3af', fontSize: 9 }
+          }
+        ],
+        series: seriesList
       };
 
-      S.chart.setOption(option);
+      S.chart.setOption(option, true);
     }
 
     // 4. Run Live Trend Investigation via Unified Backend
@@ -1827,6 +2002,130 @@
         console.warn('Constellations fetch notice:', err);
       }
     }
+
+    // 16. Custom Location Search (Nominatim)
+    window.searchCustomLocation = async function() {
+      const inp = document.getElementById('customSearchInput');
+      if (!inp || !inp.value.trim()) return;
+      const q = inp.value.trim();
+      try {
+        const res = await fetch(`/api/earth/geocode?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        if (data.ok && data.results && data.results.length > 0) {
+          const loc = data.results[0];
+          const lat = parseFloat(parseFloat(loc.lat).toFixed(4));
+          const lon = parseFloat(parseFloat(loc.lon).toFixed(4));
+          const name = loc.display_name.split(',')[0];
+          selectRegion(lat, lon, name, loc.display_name);
+          const latInp = document.getElementById('customLatInput');
+          const lonInp = document.getElementById('customLonInput');
+          if (latInp) latInp.value = lat;
+          if (lonInp) lonInp.value = lon;
+        } else {
+          alert('Location not found in OpenStreetMap. Try another query or enter coordinates directly.');
+        }
+      } catch (err) {
+        console.warn('Geocoding error:', err);
+      }
+    };
+
+    // 17. Apply Custom Lat/Lon
+    window.applyCustomCoordinates = function() {
+      const latInp = document.getElementById('customLatInput');
+      const lonInp = document.getElementById('customLonInput');
+      if (!latInp || !lonInp) return;
+      const lat = parseFloat(parseFloat(latInp.value).toFixed(4));
+      const lon = parseFloat(parseFloat(lonInp.value).toFixed(4));
+      selectRegion(lat, lon, `Custom Coord (${lat}°N, ${lon}°E)`, 'User-defined study area');
+    };
+
+    // 18. Dispatch NASA AppEEARS Extraction Task
+    window.submitAppEEARSTask = async function() {
+      const resBox = document.getElementById('appeearsTaskResult');
+      if (resBox) {
+        resBox.style.display = 'block';
+        resBox.innerHTML = '<span style="color:var(--mint);">Submitting subsetting extraction task to NASA LP DAAC...</span>';
+      }
+      try {
+        const res = await fetch('/api/earth/appeears/task', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            task_name: `earthscope_${S.place.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`,
+            lat: S.lat,
+            lon: S.lon,
+            product_id: 'MOD13Q1.061',
+            layer_name: '_250m_16_days_NDVI',
+            start_date: '2020-01-01',
+            end_date: '2024-12-31'
+          })
+        });
+        const data = await res.json();
+        if (data.ok && resBox) {
+          resBox.innerHTML = `
+            <div style="background:rgba(0,0,0,0.4); border:1px solid var(--border); border-radius:4px; padding:6px; margin-top:4px;">
+              <div style="color:var(--mint); font-weight:700;">✅ TASK ${data.status}</div>
+              <div>ID: <span style="color:#fff;">${data.task_id}</span></div>
+              <div style="font-size:9px; color:var(--text-subtle);">${data.progress}</div>
+              <a href="${data.download_url}" target="_blank" style="color:var(--cyan); display:inline-block; margin-top:4px; text-decoration:none;">Bundle URL ↗</a>
+            </div>
+          `;
+        }
+      } catch (e) {
+        if (resBox) resBox.innerHTML = `<span style="color:#f43f5e;">Error: ${e.message}</span>`;
+      }
+    };
+
+    // 19. Export CSV
+    window.exportCSV = function() {
+      if (!S.investigationData || !S.investigationData.results) {
+        alert('Please run or wait for an investigation first.');
+        return;
+      }
+      const res = S.investigationData.results;
+      const ndviSeries = res.ndvi?.time_series || [];
+      const rainMap = Object.fromEntries((res.precipitation?.time_series || []).map(p => [p.date, p.value]));
+      const tempMap = Object.fromEntries((res.t2m?.time_series || []).map(p => [p.date, p.value]));
+      const lstMap = Object.fromEntries((res.lst_day?.time_series || []).map(p => [p.date, p.value]));
+
+      let csv = 'Date,Region,Latitude,Longitude,NDVI_250m,Day_LST_C,Precipitation_mm,Air_Temp_C\n';
+      ndviSeries.forEach(p => {
+        csv += `${p.date},"${S.place}",${S.lat},${S.lon},${p.value},${lstMap[p.date] ?? ''},${rainMap[p.date] ?? ''},${tempMap[p.date] ?? ''}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `EARTHSCOPE_${S.place.replace(/[^a-zA-Z0-9]/g, '_')}_decadal_timeseries.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    // 20. Export JSON
+    window.exportJSON = function() {
+      if (!S.investigationData) {
+        alert('Please run or wait for an investigation first.');
+        return;
+      }
+      const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(S.investigationData, null, 2));
+      const link = document.createElement('a');
+      link.setAttribute('href', str);
+      link.setAttribute('download', `EARTHSCOPE_${S.place.replace(/[^a-zA-Z0-9]/g, '_')}_investigation.json`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    // 21. Custom AI Analyst Question
+    window.askCustomQuestion = function() {
+      const inp = document.getElementById('aiCustomInput');
+      if (!inp || !inp.value.trim()) return;
+      const q = inp.value.trim();
+      inp.value = '';
+      askQuestion(q);
+    };
 
     // Document Init
     window.addEventListener('DOMContentLoaded', () => {
