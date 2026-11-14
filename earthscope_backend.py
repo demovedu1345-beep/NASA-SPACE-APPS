@@ -1062,228 +1062,186 @@ async def run_earthscope_investigation(
     alpha: float = 0.05
 ) -> Dict[str, Any]:
     """
-    Executes a complete, reproducible NASA Earth System Trend investigation:
-    1. Retrieves real NASA POWER meteorology & MODIS observations.
-    2. Constructs monthly climatology baselines and anomaly series.
-    3. Executes Mann-Kendall and Seasonal Mann-Kendall statistical tests.
-    4. Computes Sen's slope with 95% Confidence Intervals.
-    5. Calculates cross-variable correlation matrix.
-    6. Generates evidence-grounded scientific interpretation.
+    Fail-closed NASA trend workflow.
+
+    Only NASA POWER monthly observations are currently ingested in this legacy
+    engine. Other catalogued NASA products remain explicitly unavailable until
+    a real provider extraction path is configured. Synthetic coordinate-based
+    MODIS/MERRA-2/GLDAS/AIRS/OMI/GPM values are never emitted as observations.
     """
-    # Step 1: Fetch NASA POWER real data
+    if start_year > end_year:
+        raise ValueError("start_year must not exceed end_year")
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        raise ValueError("Coordinates must be valid WGS84 latitude/longitude")
     power_res = await fetch_nasa_power_monthly(lat, lon, start_year, end_year)
-    
-    variable_results = {}
-    time_series_by_var: Dict[str, List[float]] = {}
-    common_dates = []
+    variable_results: Dict[str, Any] = {}
+    unavailable: Dict[str, str] = {}
+    series_by_var: Dict[str, List[Dict[str, Any]]] = {}
 
-    for v_id in variables:
+    for v_id in dict.fromkeys(variables):
         if v_id not in NASA_VARIABLE_CATALOGUE:
+            unavailable[v_id] = "Unknown variable identifier."
             continue
-        v_meta = NASA_VARIABLE_CATALOGUE[v_id]
-        
-        # Select data series for P0, P1, and P2 datasets
-        if v_id == "t2m" and power_res.get("ok") and power_res.get("t2m"):
-            series = power_res["t2m"]
-        elif v_id == "precipitation" and power_res.get("ok") and power_res.get("precipitation"):
-            series = power_res["precipitation"]
-        elif v_id in ("ndvi", "evi"):
-            series = generate_modis_ndvi_series(lat, lon, start_year, end_year)
-        elif v_id in ("lst_day", "lst_night"):
-            series = generate_modis_lst_series(lat, lon, start_year, end_year)
-        elif v_id == "gpm_imerg":
-            series = generate_gpm_imerg_series(lat, lon, start_year, end_year, power_res.get("precipitation"))
-        elif v_id in ("merra2_t2m", "merra2_soilm", "merra2_evap"):
-            series = generate_merra2_series(lat, lon, start_year, end_year, v_id, power_res.get("t2m"))
-        elif v_id in ("gldas_sm", "gldas_runoff", "gldas_soiltemp"):
-            series = generate_gldas_series(lat, lon, start_year, end_year, v_id)
-        elif v_id in ("airs_temp", "airs_h2o"):
-            series = generate_airs_series(lat, lon, start_year, end_year, v_id)
-        elif v_id in ("omi_o3", "omi_no2"):
-            series = generate_omi_series(lat, lon, start_year, end_year, v_id)
+        if not power_res.get("ok"):
+            unavailable[v_id] = "NASA POWER request failed: " + str(power_res.get("error", "provider unavailable"))
+            continue
+        if v_id == "t2m":
+            series = power_res.get("t2m") or []
+        elif v_id == "precipitation":
+            series = power_res.get("precipitation") or []
         else:
-            series = generate_modis_ndvi_series(lat, lon, start_year, end_year)
-
-        if not common_dates and series:
-            common_dates = [item["date"] for item in series]
+            unavailable[v_id] = (
+                "Catalogued, but no validated live NASA extraction is connected for this variable in this runtime. "
+                "No synthetic or proxy series was substituted."
+            )
+            continue
+        series = [
+            {"date": str(item.get("date")), "value": float(item["value"])}
+            for item in series
+            if item.get("date") and item.get("value") is not None
+            and math.isfinite(float(item["value"]))
+        ]
+        if len(series) < 4:
+            unavailable[v_id] = "Fewer than four real NASA POWER observations were returned."
+            continue
 
         values = [item["value"] for item in series]
-        time_series_by_var[v_id] = values
-
-        # Step 2: Statistical Tests & Diagnostics
         mk_res = mann_kendall_test(values, alpha=alpha)
-        sens_res = sens_slope_estimator(values, mk_res.get("var_s", 1.0), alpha=alpha)
+        slope_res = sens_slope_estimator(values, mk_res.get("var_s", 1.0), alpha=alpha)
         ols_res = linear_regression(values)
         smk_res = seasonal_mann_kendall(series, alpha=alpha)
         anomalies = compute_monthly_climatology_anomalies(series)
         autocorr = compute_autocorrelation_diagnostics(values, alpha=alpha)
-        
-        # Pre-whitened Mann-Kendall if serial correlation detected
-        pw_mk = None
-        if autocorr.get("prewhitened"):
-            pw_mk = mann_kendall_test(autocorr["prewhitened_values"], alpha=alpha)
-
-        # Annualized slope calculation
-        observations_per_year = 12.0
-        annual_sens_slope = sens_res["slope"] * observations_per_year
-        annual_ci_95 = [round(c * observations_per_year, 5) for c in sens_res["ci_95"]]
-
-        # Scientific classification
-        sig = mk_res["significant"]
-        if sig and sens_res["slope"] > 0:
-            classification = "SIGNIFICANT INCREASING TREND"
-        elif sig and sens_res["slope"] < 0:
-            classification = "SIGNIFICANT DECREASING TREND"
-        else:
-            classification = "NO STATISTICALLY SIGNIFICANT TREND"
-
+        slope_month = slope_res["slope"]
+        slope_year = slope_month * 12.0
+        ci_year = [round(value * 12.0, 5) for value in slope_res["ci_95"]]
+        significant = bool(mk_res.get("significant"))
+        direction = "INCREASING" if slope_month > 0 else "DECREASING" if slope_month < 0 else "NO_DIRECTION"
+        classification = (
+            "SIGNIFICANT " + direction + " TREND"
+            if significant and direction != "NO_DIRECTION"
+            else "NO STATISTICALLY SIGNIFICANT TREND"
+        )
+        metadata = NASA_VARIABLE_CATALOGUE[v_id]
+        series_by_var[v_id] = series
         variable_results[v_id] = {
-            "metadata": v_meta,
+            "metadata": metadata,
             "observations_count": len(values),
             "period": {"start": series[0]["date"], "end": series[-1]["date"]},
             "statistics": {
                 "mann_kendall": {
-                    "s": mk_res["s"],
-                    "tau": mk_res["tau"],
-                    "z": mk_res["z"],
-                    "p_value": mk_res["p_value"],
-                    "alpha": alpha,
-                    "significant": sig
+                    "n": mk_res.get("n"), "s": mk_res.get("s"),
+                    "tau": mk_res.get("tau"), "z": mk_res.get("z"),
+                    "p_value": mk_res.get("p_value"), "alpha": alpha,
+                    "significant": significant,
                 },
                 "sens_slope": {
-                    "slope_per_observation": sens_res["slope"],
-                    "slope_per_month": sens_res["slope"],
-                    "slope_per_year": round(annual_sens_slope, 5),
-                    "slope_unit": f"{v_meta['unit']} / year",
-                    "confidence_interval_95": annual_ci_95,
-                    "ci_95_per_year": annual_ci_95,
-                    "change_per_decade": round(annual_sens_slope * 10.0, 5)
+                    "slope_per_observation": slope_month,
+                    "slope_per_month": slope_month,
+                    "slope_per_year": round(slope_year, 5),
+                    "slope_unit": metadata["unit"] + " / year",
+                    "confidence_interval_95": ci_year,
+                    "ci_95_per_year": ci_year,
+                    "change_per_decade": round(slope_year * 10.0, 5),
                 },
                 "autocorrelation": {
-                    "lag_1_autocorrelation": autocorr["r_1"],
-                    "lag1_r1": autocorr["r_1"],
-                    "critical_bounds": autocorr["critical_bounds"],
-                    "is_autocorrelated": autocorr["is_autocorrelated"],
-                    "effective_sample_size": autocorr["effective_n"],
-                    "prewhitened_applied": autocorr["prewhitened"],
-                    "prewhitened_mann_kendall": pw_mk
-                },
-                "autocorrelation_diagnostics": {
-                    "lag_1_autocorrelation": autocorr["r_1"],
-                    "lag1_r1": autocorr["r_1"],
-                    "critical_bounds": autocorr["critical_bounds"],
-                    "is_autocorrelated": autocorr["is_autocorrelated"],
-                    "effective_sample_size": autocorr["effective_n"],
-                    "prewhitened_applied": autocorr["prewhitened"],
-                    "prewhitened_mann_kendall": pw_mk
+                    "lag_1_autocorrelation": autocorr.get("r_1"),
+                    "is_autocorrelated": autocorr.get("is_autocorrelated"),
+                    "effective_sample_size": autocorr.get("effective_n"),
+                    "prewhitened_applied": autocorr.get("prewhitened"),
                 },
                 "linear_regression": ols_res,
                 "seasonal_mann_kendall": {
-                    "seasonal_s": smk_res["total_s"],
-                    "seasonal_z": smk_res["z"],
-                    "seasonal_p_value": smk_res["p_value"],
-                    "significant": smk_res["significant"]
+                    "seasonal_s": smk_res.get("total_s"),
+                    "seasonal_z": smk_res.get("z"),
+                    "seasonal_p_value": smk_res.get("p_value"),
+                    "significant": smk_res.get("significant"),
                 },
-                "classification": classification
+                "classification": classification,
             },
+            "series": series,
             "recent_series": series[-24:],
             "anomalies_sample": anomalies[-24:],
             "provenance": {
-                "source_mission": v_meta["mission"],
-                "product_identifier": v_meta["product_id"],
-                "best_access_method": v_meta.get("best_access_method", "NASA Earthdata"),
-                "priority_tier": v_meta.get("priority", "P0"),
-                "data_class": v_meta["data_type"],
-                "doi": v_meta.get("doi", "N/A"),
+                "source_mission": metadata["mission"],
+                "product_identifier": metadata["product_id"],
+                "best_access_method": metadata.get("best_access_method"),
+                "data_class": "NASA_MODEL_OUTPUT",
+                "source": "NASA POWER Monthly Point API",
+                "doi": metadata.get("doi"),
                 "quality_controlled": True,
-                "retrieved_at": datetime.now(timezone.utc).isoformat()
-            }
+                "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            },
         }
 
-    # Step 2B: Multiple-Testing False Discovery Rate (FDR) Control (Benjamini-Hochberg)
-    p_values_dict = {v: res["statistics"]["mann_kendall"]["p_value"] for v, res in variable_results.items()}
-    fdr_results = apply_benjamini_hochberg(p_values_dict, alpha=alpha)
-    for v_id, res in variable_results.items():
-        if v_id in fdr_results.get("q_values", {}):
-            res["statistics"]["multiple_testing_fdr"] = {
-                "benjamini_hochberg_q": fdr_results["q_values"][v_id],
-                "fdr_significant": fdr_results["fdr_significant"][v_id],
-                "nominal_p": p_values_dict[v_id],
-                "fdr_alpha": alpha
+    p_values = {
+        key: value["statistics"]["mann_kendall"]["p_value"]
+        for key, value in variable_results.items()
+    }
+    fdr_results = apply_benjamini_hochberg(p_values, alpha=alpha)
+    for key, value in variable_results.items():
+        value["statistics"]["multiple_testing_fdr"] = {
+            "benjamini_hochberg_q": fdr_results.get("q_values", {}).get(key),
+            "fdr_significant": fdr_results.get("fdr_significant", {}).get(key),
+            "nominal_p": p_values[key],
+            "fdr_alpha": alpha,
+        }
+
+    correlations = {}
+    keys = list(series_by_var)
+    for index, first in enumerate(keys):
+        for second in keys[index + 1:]:
+            first_by_date = {row["date"]: row["value"] for row in series_by_var[first]}
+            second_by_date = {row["date"]: row["value"] for row in series_by_var[second]}
+            shared = sorted(set(first_by_date).intersection(second_by_date))
+            if len(shared) < 5:
+                continue
+            a = [first_by_date[day] for day in shared]
+            b = [second_by_date[day] for day in shared]
+            ma, mb = sum(a) / len(a), sum(b) / len(b)
+            va = math.sqrt(sum((value - ma) ** 2 for value in a))
+            vb = math.sqrt(sum((value - mb) ** 2 for value in b))
+            r = sum((a[i] - ma) * (b[i] - mb) for i in range(len(shared))) / (va * vb) if va and vb else None
+            correlations[first + "_vs_" + second] = {
+                "variable_a": first, "variable_b": second,
+                "pearson_r": round(r, 4) if r is not None else None,
+                "n": len(shared), "shared_dates": shared,
+                "caveat": "Correlation does not establish causation.",
             }
 
-    # Step 2C: NASA CMR GPM V07B Collection Verification
-    gpm_v07b_granules = await query_gpm_v07b_cmr(page_size=2)
-
-    # Step 3: Multi-Variable Correlation Matrix
-    correlations = {}
-    var_keys = list(time_series_by_var.keys())
-    for i in range(len(var_keys)):
-        for j in range(i + 1, len(var_keys)):
-            v1, v2 = var_keys[i], var_keys[j]
-            s1, s2 = time_series_by_var[v1], time_series_by_var[v2]
-            min_len = min(len(s1), len(s2))
-            if min_len > 4:
-                # Pearson correlation
-                m1 = sum(s1[:min_len]) / min_len
-                m2 = sum(s2[:min_len]) / min_len
-                cov = sum((s1[k] - m1) * (s2[k] - m2) for k in range(min_len))
-                v_std1 = math.sqrt(sum((s1[k] - m1) ** 2 for k in range(min_len)))
-                v_std2 = math.sqrt(sum((s2[k] - m2) ** 2 for k in range(min_len)))
-                r = cov / (v_std1 * v_std2) if (v_std1 * v_std2) > 0 else 0.0
-                correlations[f"{v1}_vs_{v2}"] = {
-                    "variable_a": v1,
-                    "variable_b": v2,
-                    "pearson_r": round(r, 4),
-                    "relationship": "Strong positive" if r > 0.6 else "Moderate positive" if r > 0.3 else "Strong negative" if r < -0.6 else "Moderate negative" if r < -0.3 else "Weak / Neutral",
-                    "caveat": "Correlation does not establish causation. Mechanistic field studies are required."
-                }
-
-    # Step 4: AI Research Analyst Scientific Summary
-    summary_sentences = []
-    for v_id, res in variable_results.items():
-        st = res["statistics"]
-        slope_yr = st["sens_slope"]["slope_per_year"]
-        unit = res["metadata"]["unit"]
-        cls = st["classification"]
-        p_val = st["mann_kendall"]["p_value"]
-        summary_sentences.append(
-            f"{res['metadata']['name']}: {cls} (Sen's slope = {slope_yr:+.4f} {unit}/yr, p={p_val:.4f})."
+    summary = []
+    for key, value in variable_results.items():
+        stats = value["statistics"]
+        slope = stats["sens_slope"]["slope_per_year"]
+        p_value = stats["mann_kendall"]["p_value"]
+        summary.append(
+            f"{value['metadata']['name']}: {stats['classification']} "
+            f"(Sen's slope={slope:+.4f} {value['metadata']['unit']}/year, p={p_value:.4f})."
         )
 
-    ai_interpretation = (
-        f"Investigation for {region_name} (Coordinates {lat:.4f}, {lon:.4f}) covering {start_year} to {end_year}: "
-        + " ".join(summary_sentences)
-        + " Seasonality was addressed using 12-month Seasonal Mann-Kendall tests. "
-        + "Note that model-derived reanalysis fields (MERRA-2) represent ~50 km grid-box averages and must not be confused with fine-scale 250 m optical satellite pixels."
-    )
-
     return {
-        "ok": True,
-        "investigation_id": f"ESC-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
-        "region": {
-            "name": region_name,
-            "latitude": lat,
-            "longitude": lon,
-            "area_type": "Protected Forest / Watershed"
-        },
+        "ok": bool(variable_results),
+        "investigation_id": "ESC-" + datetime.now().strftime("%Y%m%d-%H%M%S"),
+        "region": {"name": region_name, "latitude": lat, "longitude": lon},
         "timeframe": {"start_year": start_year, "end_year": end_year},
-        "variables_evaluated": list(variable_results.keys()),
+        "variables_evaluated": list(variable_results),
+        "unavailable_variables": unavailable,
         "results": variable_results,
         "correlation_matrix": correlations,
         "multiple_testing_fdr": fdr_results,
-        "gpm_v07b_verification": gpm_v07b_granules,
         "ai_research_analyst": {
-            "grounded_interpretation": ai_interpretation,
-            "reproducibility": "All equations, sample counts, p-values, autocorrelation corrections and confidence intervals are computed deterministically per NASA Challenge 2 standards.",
+            "grounded_interpretation": " ".join(summary) if summary else "No validated NASA observations were returned; no trend conclusion is available.",
+            "reproducibility": "Statistics are computed from real NASA POWER observations returned for this request.",
             "limitations": [
-                "Cloud contamination in optical bands (MOD13Q1) filtered via DetailedQA, resulting in occasional missing composite intervals.",
-                "MERRA-2 near-surface temperature and precipitation represent regional atmospheric reanalysis grids (0.5°), not micro-climatic understory thermometers.",
-                "Statistical significance at alpha=0.05 demonstrates monotonic trajectory, but does not identify environmental drivers without physical process models."
-            ]
-        }
+                "Only NASA POWER temperature and precipitation are currently connected in this legacy engine.",
+                "MODIS, GPM, MERRA-2, GLDAS, AIRS and OMI remain unavailable here until real extraction adapters are connected.",
+                "No synthetic environmental series or substituted proxy measurements are emitted.",
+                "NASA POWER is a gridded model/reanalysis product, not a point sensor measurement.",
+                "Statistical significance does not establish environmental causation.",
+            ],
+        },
+        "retrieved_at": datetime.now(timezone.utc).isoformat(),
     }
-
 
 def generate_earthscope_report_html(inv: Dict[str, Any]) -> str:
     """
