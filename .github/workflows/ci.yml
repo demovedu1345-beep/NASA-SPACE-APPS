@@ -23,15 +23,22 @@ jobs:
       - run: node --input-type=module --check < web/earth-model.js
       - run: node --input-type=module --check < web/command-center.js
       - run: node --check web/earthscope-station.js
-      - name: Extract and syntax-check research dashboard inline JavaScript
+      - name: Extract and syntax-check research dashboard scripts
         run: |
           python - <<'PY'
           import re
           from pathlib import Path
           html = Path('web/dashboard/research.html').read_text(encoding='utf-8')
-          scripts = re.findall(r'<script\b(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I | re.S)
-          if not scripts:
+          matches = re.findall(r'<script\b([^>]*)>(.*?)</script>', html, flags=re.I | re.S)
+          inline = [(attrs, body) for attrs, body in matches if not re.search(r'\bsrc\s*=', attrs, flags=re.I)]
+          if not inline:
               raise SystemExit('No inline JavaScript found in research dashboard')
-          Path('/tmp/earthscope-research-inline.mjs').write_text('\n'.join(scripts), encoding='utf-8')
+          modules = [body for attrs, body in inline if re.search(r'\btype\s*=\s*["\']module["\']', attrs, flags=re.I)]
+          classic = [body for attrs, body in inline if not re.search(r'\btype\s*=\s*["\']module["\']', attrs, flags=re.I)]
+          if modules:
+              Path('/tmp/earthscope-research-module.mjs').write_text('\n'.join(modules), encoding='utf-8')
+          if classic:
+              Path('/tmp/earthscope-research-inline.js').write_text('\n'.join(classic), encoding='utf-8')
           PY
-          node --check /tmp/earthscope-research-inline.mjs
+          if [ -f /tmp/earthscope-research-module.mjs ]; then node --check /tmp/earthscope-research-module.mjs; fi
+          if [ -f /tmp/earthscope-research-inline.js ]; then node --check /tmp/earthscope-research-inline.js; fi
