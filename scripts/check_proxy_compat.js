@@ -194,7 +194,28 @@ async function main() {
   assert.equal(forecast.json.daily_forecast[0].temp_high, 25);
   assert.equal(forecast.json.source, "Test existing weather provider adapter");
 
-  console.log("EarthScope proxy compatibility checks passed: variable catalogue, 36 state/UT references, 60 NASA POWER monthly observations, 8 Sentinel-2 NDVI observations, and weather forecast aggregation.");
+  const selectedForecast = await harness.invoke("climate/forecast", {
+    lat: "12.3375",
+    lon: "75.8069",
+    place: "Kodagu",
+    start_date: "2026-11-16",
+    days: "1"
+  });
+  assert.equal(selectedForecast.status, 200);
+  assert.equal(selectedForecast.json.daily_forecast.length, 1);
+  assert.equal(selectedForecast.json.daily_forecast[0].date, "2026-11-16");
+  assert.equal(selectedForecast.json.daily_forecast[0].temp_high, 26);
+
+  const outOfWindowForecast = await harness.invoke("climate/forecast", {
+    lat: "12.3375",
+    lon: "75.8069",
+    place: "Kodagu",
+    start_date: "2026-11-20",
+    days: "1"
+  });
+  assert.equal(outOfWindowForecast.status, 422);
+
+  console.log("EarthScope proxy compatibility checks passed: variable catalogue, 36 state/UT references, 60 NASA POWER monthly observations, 8 Sentinel-2 NDVI observations, weather forecast aggregation, and selected forecast-window filtering.");
 }
 
 main().catch((error) => {
