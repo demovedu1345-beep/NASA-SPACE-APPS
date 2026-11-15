@@ -272,7 +272,15 @@ async function compatFetchBackend(path, params = {}) {
   return body;
 }
 
+const COMPAT_NASA_POWER_CACHE = new Map();
+const COMPAT_NASA_POWER_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
 async function compatFetchNasaPower(lat, lon, startYear, endYear) {
+  const cacheKey = [Number(lat).toFixed(4), Number(lon).toFixed(4), startYear, endYear].join(":");
+  const cached = COMPAT_NASA_POWER_CACHE.get(cacheKey);
+  if (cached && Date.now() - cached.cached_at < COMPAT_NASA_POWER_CACHE_TTL_MS) {
+    return { ...cached.value, cache_hit: true, cache_age_seconds: Math.round((Date.now() - cached.cached_at) / 1000) };
+  }
   const latestDate = new Date(Date.now() - 2 * 86400000);
   const endDate = new Date(Date.UTC(Number(endYear), 11, 31));
   const cutoff = latestDate < endDate ? latestDate : endDate;
@@ -316,15 +324,23 @@ async function compatFetchNasaPower(lat, lon, startYear, endYear) {
     if (bucket.temp.length >= minimum) temperature.push({ date, value: bucket.temp.reduce((a, b) => a + b, 0) / bucket.temp.length });
     if (bucket.rain.length >= minimum) precipitation.push({ date, value: bucket.rain.reduce((a, b) => a + b, 0) });
   }
-  return {
+  const result = {
     temperature,
     precipitation,
     source: "NASA POWER Daily Point API",
     product: "NASA GMAO POWER daily T2M and PRECTOTCORR",
     retrieved_at: new Date().toISOString(),
     first_available_day: dates[0] || null,
-    last_available_day: dates[dates.length - 1] || null
+    last_available_day: dates[dates.length - 1] || null,
+    cache_hit: false,
+    cache_age_seconds: 0
   };
+  if (COMPAT_NASA_POWER_CACHE.size >= 12) {
+    const oldestKey = COMPAT_NASA_POWER_CACHE.keys().next().value;
+    if (oldestKey !== undefined) COMPAT_NASA_POWER_CACHE.delete(oldestKey);
+  }
+  COMPAT_NASA_POWER_CACHE.set(cacheKey, { cached_at: Date.now(), value: result });
+  return result;
 }
 
 async function compatRunEarthTrend(input) {
