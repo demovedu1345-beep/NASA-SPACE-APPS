@@ -217,3 +217,27 @@ A product is not considered live merely because it appears in the catalogue. The
 5. Keep AIRS marked catalogue-only until its own NASA data retrieval path is implemented and tested.
 6. Capture a complete browser smoke test and a reproducible end-to-end demo before claiming production readiness.
 
+
+
+## 3D Earth model — visualization evidence and limits
+
+The Mission Control and Trend Detective workspaces share a WGS84-based 3D Earth implementation:
+
+- WGS84 oblate-ellipsoid geometry with geodetic coordinate conversion and surface normals.
+- NASA Blue Marble: Next Generation topography/bathymetry imagery as the global surface map.
+- NASA VIIRS Black Marble 2016 night-light composite, with the day/night terminator driven by an approximate solar position calculated from UTC.
+- Public AWS Terrain Tiles / Terrarium elevation mosaic sampled onto the globe mesh. The current zoom-3 world mosaic is 2,048 × 1,024 pixels; the display applies 5× vertical exaggeration to make relief visible.
+- Separate controls for terrain relief, static cloud texture, night lights and orbit/reset.
+- The cloud texture is static, not a real-time cloud observation. The NASA surface and night composites are reference imagery, not live satellite video.
+
+The global DEM source is a variable-resolution mosaic and is only a visualization base. Its mosaic scale is roughly 20 km per pixel at the equator; this is not a guarantee of source accuracy, a local survey-grade terrain model or a basis for the product's quantitative elevation analysis. The visual 5× relief is not physical scale. DEM displacement is applied only when browser tile loading and CORS pixel access succeed; otherwise the UI keeps the real surface imagery and disables the relief toggle rather than inventing elevation values.
+
+### Demo sequence
+
+1. Open Mission Control and allow the globe's NASA surface and DEM layers to load.
+2. Toggle relief off/on to contrast ellipsoid-only and terrain-displaced geometry.
+3. Toggle the night-light and static cloud overlays independently.
+4. Rotate/zoom and click a point; confirm that the selected coordinates and evidence inspector still respond.
+5. Open Trend Detective and verify that its globe uses the same Earth model.
+
+Do not present the global visual DEM as a high-resolution analytical terrain layer or the globe as continuously live imagery.
