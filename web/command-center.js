@@ -208,6 +208,9 @@ function initEarth(){
  }));group.add(atmosphere);
  const markers=new THREE.Group();group.add(markers);
  const selection=new THREE.Group();selection.visible=false;group.add(selection);
+ $("earthReliefToggle")?.setAttribute("disabled","");
+ $("earthCloudToggle")?.setAttribute("disabled","");
+ $("earthNightToggle")?.setAttribute("disabled","");
  const core=new THREE.Mesh(new THREE.SphereGeometry(.035,24,24),new THREE.MeshBasicMaterial({color:0xe8fbff}));
  const ringA=new THREE.Mesh(new THREE.TorusGeometry(.052,.006,8,56),new THREE.MeshBasicMaterial({color:0x8ce9ff,transparent:true,opacity:.95,depthWrite:false}));
  const ringB=new THREE.Mesh(new THREE.TorusGeometry(.052,.003,8,56),new THREE.MeshBasicMaterial({color:0xf4bf79,transparent:true,opacity:.75,depthWrite:false}));
@@ -245,8 +248,8 @@ function initEarth(){
   if(surface){earthMat.map=surface;earthMat.color.set(0xffffff);earthMat.needsUpdate=true}
   if(topology){earthMat.bumpMap=topology;earthMat.bumpScale=.026;earthMat.needsUpdate=true}
   if(water){earthMat.specularMap=water;earthMat.specular.set(0x667f98);earthMat.shininess=24;earthMat.needsUpdate=true}
-  if(night){nightMat.uniforms.nightMap.value=night;nightMat.needsUpdate=true;nightLayer.visible=true}else{$("earthNightToggle")?.setAttribute("disabled","")}
-  if(cloud){cloudMat.map=cloud;cloudMat.needsUpdate=true;clouds.visible=true}else{$("earthCloudToggle")?.setAttribute("disabled","")}
+  if(night){nightMat.uniforms.nightMap.value=night;nightMat.needsUpdate=true;nightLayer.visible=true;$("earthNightToggle")?.removeAttribute("disabled")}
+  if(cloud){cloudMat.map=cloud;cloudMat.needsUpdate=true;clouds.visible=true;$("earthCloudToggle")?.removeAttribute("disabled")}
   $("textureStatus").textContent=terrainState.ready?"WGS84 · NASA BLUE MARBLE · GLOBAL DEM · 5× RELIEF":(terrainState.failed?"NASA SURFACE · DEM UNAVAILABLE":(surface?(day&&night?"NASA BLUE MARBLE · NASA VIIRS NIGHT":"EARTH SURFACE · PARTIAL LAYERS"):"SURFACE TEXTURE FALLBACK"));
  });
  state.earth={scene,camera,renderer,controls,group,markers,earth,clouds,nightLayer,selection,selectionToken:0,terrain:terrainState};
