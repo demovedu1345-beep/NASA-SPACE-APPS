@@ -20,6 +20,8 @@ jobs:
         with:
           node-version: '22'
       - run: node --check web/app.js
+      - run: node --input-type=module --check < web/earth-model.js
+      - run: node --input-type=module --check < web/command-center.js
       - run: node --check web/earthscope-station.js
       - name: Extract and syntax-check research dashboard inline JavaScript
         run: |
@@ -30,6 +32,6 @@ jobs:
           scripts = re.findall(r'<script\b(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I | re.S)
           if not scripts:
               raise SystemExit('No inline JavaScript found in research dashboard')
-          Path('/tmp/earthscope-research-inline.js').write_text('\n'.join(scripts), encoding='utf-8')
+          Path('/tmp/earthscope-research-inline.mjs').write_text('\n'.join(scripts), encoding='utf-8')
           PY
-          node --check /tmp/earthscope-research-inline.js
+          node --check /tmp/earthscope-research-inline.mjs
