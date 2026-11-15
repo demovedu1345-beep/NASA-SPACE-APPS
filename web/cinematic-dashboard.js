@@ -176,12 +176,15 @@
 
   function setWorkspaceDrawer(open) {
     if (!sidebar) return;
-    sidebar.classList.toggle("open", open);
-    document.body.classList.toggle("workspaces-open", open);
-    const trigger = $('[data-open-workspaces]');
-    if (trigger) trigger.setAttribute("aria-expanded", String(open));
-    const mobileToggle = $(".portfolio-mobile-menu");
-    if (mobileToggle) mobileToggle.setAttribute("aria-expanded", String(open));
+    const isOpen = Boolean(open);
+    sidebar.classList.toggle("open", isOpen);
+    document.body.classList.toggle("workspaces-open", isOpen);
+    sidebar.setAttribute("aria-hidden", String(!isOpen));
+    sidebar.toggleAttribute("inert", !isOpen);
+    $("[data-open-workspaces]").forEach((trigger) => {
+      trigger.setAttribute("aria-expanded", String(isOpen));
+    });
+    if (scrim) scrim.setAttribute("aria-hidden", String(!isOpen));
   }
   document.addEventListener("click", (event) => {
     const open = event.target.closest("[data-open-workspaces]");
