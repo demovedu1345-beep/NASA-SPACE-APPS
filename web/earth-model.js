@@ -7,7 +7,7 @@ export const WGS84 = Object.freeze({
   equatorialRadiusM: 6378137,
   eccentricitySquared: 0.0066943799901413165,
   polarRatio: 0.9966471893352525,
-  terrainZoom: 2,
+  terrainZoom: 3,
   reliefExaggeration: 5
 });
 
@@ -56,7 +56,7 @@ export function applyWgs84Ellipsoid(THREE, geometry, radius = 2) {
 export async function loadGlobalTerrariumDEM({
   zoom = WGS84.terrainZoom,
   timeoutMs = 9000,
-  minimumTiles = 8
+  minimumTiles = 32
 } = {}) {
   if (typeof document === "undefined" || typeof Image === "undefined") return null;
   const tileCount = 2 ** zoom;
