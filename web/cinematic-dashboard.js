@@ -181,7 +181,7 @@
     document.body.classList.toggle("workspaces-open", isOpen);
     sidebar.setAttribute("aria-hidden", String(!isOpen));
     sidebar.toggleAttribute("inert", !isOpen);
-    $("[data-open-workspaces]").forEach((trigger) => {
+    $$("[data-open-workspaces]").forEach((trigger) => {
       trigger.setAttribute("aria-expanded", String(isOpen));
     });
     if (scrim) scrim.setAttribute("aria-hidden", String(!isOpen));
@@ -362,7 +362,7 @@
       const active = $(".page-view.active", root);
       if (!active) return;
       const pageKey = active.dataset.view;
-      $(".portfolio-nav [data-page]").forEach((button) => button.classList.toggle("active", button.dataset.page === pageKey));
+      $$(".portfolio-nav [data-page]").forEach((button) => button.classList.toggle("active", button.dataset.page === pageKey));
       animatePageHeading(active);
       setupScrollReveals(active);
       if (pageKey === "overview") initCoverMotion(active);

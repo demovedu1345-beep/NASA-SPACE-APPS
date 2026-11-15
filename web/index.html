@@ -204,7 +204,7 @@
  <div class="page-head"><div><div class="eyebrow"><span></span> GLOBAL SPATIAL INTELLIGENCE</div><h1>Earth <b>Observatory.</b></h1><p>Navigate the planet and inspect geographical observations.</p></div><div class="head-meta"><div class="utc">WGS84 · GLOBAL VIEW</div><small>DRAG · ZOOM · SELECT</small></div></div>
  <div class="map-layout">
   <section class="panel map-panel"><div class="panel-top"><div class="eyebrow-mini">GEOGRAPHIC OBSERVATION MAP</div><button class="glass-btn" id="mapReload"><i data-lucide="refresh-cw"></i> REFRESH</button></div><div id="worldMap" class="map-canvas"></div><div class="map-footer"><span id="mapCoordinateReadout">12.3375° N · 75.8069° E</span><span>OpenStreetMap base · Provider overlays</span></div></section>
-  <aside class="panel map-tools"><small>OBSERVATORY CONTROLS</small><h2>Navigate Earth</h2><label>Place or region</label><div class="input-row"><input id="placeSearch" value="Kodagu, Karnataka, India"><button id="placeSearchBtn"><i data-lucide="search"></i></button></div><div class="two-fields"><div><label>Latitude</label><input id="mapLat" type="number" value="12.3375" step=".0001"></div><div><label>Longitude</label><input id="mapLon" type="number" value="75.8069" step=".0001"></div></div><button class="btn-primary wide" id="applyMapCoords">FLY TO COORDINATES</button><div class="tool-divider"></div><small>QUICK SATELLITE MODES</small><div class="mode-list"><button data-mode="true_color">True colour</button><button data-mode="false_color">False colour</button><button data-mode="ndvi">NDVI</button><button data-mode="ndmi">NDMI</button><button data-mode="nbr">NBR</button><button data-mode="ndwi">NDWI</button></div><p class="hint">Only available imagery and analytical layers are shown. Satellite tracks require a separate verified orbit source.</p></aside>
+  <aside class="panel map-tools"><small>OBSERVATORY CONTROLS</small><h2>Navigate Earth</h2><label>Place or region</label><div class="input-row"><input id="placeSearch" value="Kodagu, Karnataka, India"><button id="placeSearchBtn"><i data-lucide="search"></i></button></div><div class="two-fields"><div><label>Latitude</label><input id="mapLat" type="number" value="12.3375" step=".0001"></div><div><label>Longitude</label><input id="mapLon" type="number" value="75.8069" step=".0001"></div></div><button class="btn-primary wide" id="applyMapCoords">FLY TO COORDINATES</button><div class="tool-divider"></div><small>QUICK SATELLITE MODES</small><div class="mode-list"><button data-mode="true_color">True colour</button><button data-mode="false_color">False colour</button><button data-mode="ndvi">NDVI</button><button data-mode="ndmi">NDMI</button><button data-mode="nbr">NBR</button><button data-mode="ndwi">NDWI</button></div><div class="tool-divider"></div><small>EARTH OBSERVATION LAB</small><div class="mode-list" style="margin-top:8px;"><button id="openCompareBtn" class="action-trigger"><i data-lucide="split"></i> COMPARE SCENES</button><button id="openTime" class="action-trigger"><i data-lucide="clock"></i> TIME MACHINE</button></div><p class="hint">Only available imagery and analytical layers are shown. Satellite tracks require a separate verified orbit source.</p></aside>
  </div>
 </section>
 
@@ -246,6 +246,18 @@
  <div class="page-head"><div><div class="eyebrow"><span></span> EARTH SYSTEM CONTEXT</div><h1>Climate & <b>Environment.</b></h1><p>Explore weather, climatology and environmental context for the selected study area.</p></div><div class="head-meta"><div class="utc">MODELS & OBSERVATIONS</div><small>SOURCE TYPE SHOWN PER RESULT</small></div></div>
  <div class="stats-grid four"><div class="stat-card"><small>2 m air temperature</small><b id="climateTemp">—</b><em>Provider reading</em></div><div class="stat-card"><small>Relative humidity</small><b id="climateHumidity">—</b><em>Provider reading</em></div><div class="stat-card"><small>Precipitation</small><b id="climateRain">—</b><em>Provider reading</em></div><div class="stat-card"><small>Wind speed</small><b id="climateWind">—</b><em>Provider reading</em></div></div>
  <section class="panel result-panel"><div class="section-title"><div><small>ENVIRONMENTAL RESPONSE</small><h2>Provider observations</h2></div><button class="btn-secondary" id="refreshClimate">REFRESH</button></div><div id="climateResult" class="result"><div class="empty">Weather and climate data will appear when the provider responds.</div></div></section>
+ <section class="panel simulator-panel" style="margin-top:14px;">
+  <div class="section-title"><div><small>HYDROLOGICAL SCENARIO LAB · NASA SMAP & GPM CONTEXT</small><h2>Water System & Hydrological Scenario Simulator</h2></div><span class="state-tag ok">PHYSICAL-CONSERVATION MODEL</span></div>
+  <p class="compare-hint">Simulate watershed water balance, drought stress index, and runoff risks under calibrated meteorological and canopy anomalies.</p>
+  <div class="simulator-controls" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:12px;">
+   <div><label style="display:block;margin-bottom:4px;color:#718a94;font:7px var(--mono);letter-spacing:.12em;">RAINFALL ANOMALY (%)</label><input id="simRainfall" type="range" min="-60" max="60" value="-15" step="5"><div style="display:flex;justify-content:space-between;font:8px var(--mono);color:var(--mint);margin-top:2px;"><span>-60%</span><span id="simRainVal">-15%</span><span>+60%</span></div></div>
+   <div><label style="display:block;margin-bottom:4px;color:#718a94;font:7px var(--mono);letter-spacing:.12em;">TEMP ANOMALY (°C)</label><input id="simTemp" type="range" min="-2" max="6" value="1.5" step="0.5"><div style="display:flex;justify-content:space-between;font:8px var(--mono);color:var(--amber);margin-top:2px;"><span>-2°C</span><span id="simTempVal">+1.5°C</span><span>+6°C</span></div></div>
+   <div><label style="display:block;margin-bottom:4px;color:#718a94;font:7px var(--mono);letter-spacing:.12em;">CANOPY LOSS (%)</label><input id="simCanopy" type="range" min="0" max="50" value="10" step="5"><div style="display:flex;justify-content:space-between;font:8px var(--mono);color:var(--red);margin-top:2px;"><span>0%</span><span id="simCanopyVal">-10%</span><span>-50%</span></div></div>
+   <div><label style="display:block;margin-bottom:4px;color:#718a94;font:7px var(--mono);letter-spacing:.12em;">SOIL MOISTURE DRIFT (%)</label><input id="simSoil" type="range" min="-40" max="40" value="-10" step="5"><div style="display:flex;justify-content:space-between;font:8px var(--mono);color:var(--cyan);margin-top:2px;"><span>-40%</span><span id="simSoilVal">-10%</span><span>+40%</span></div></div>
+   <div style="display:flex;align-items:flex-end;"><button class="btn-primary wide" id="runWaterSim" style="margin-top:0;height:34px;"><i data-lucide="waves"></i> RUN WATER SIMULATION</button></div>
+  </div>
+  <div id="waterSimResult" class="result" style="margin-top:8px;"><div class="empty">Adjust climate and canopy parameters and click Run Water Simulation to compute hydrological shifts.</div></div>
+ </section>
 </section>
 
 <section class="page-view" data-view="intelligence">
@@ -257,6 +269,17 @@
   <button data-action="what-if"><i data-lucide="workflow"></i><b>What-if Simulation</b><small>Explore scenario estimates and assumptions</small></button>
  </div>
  <section class="panel result-panel"><div class="section-title"><div><small>ANALYSIS OUTPUT</small><h2>Intelligence result</h2></div><span class="state-tag" id="intelligenceStatus">READY</span></div><div id="intelligenceResult" class="result"><div class="empty">Choose an intelligence module above.</div></div></section>
+ <section class="panel predictor-panel" style="margin-top:14px;">
+  <div class="section-title"><div><small>EARTH SYSTEM PREDICTION ENGINE · TIME-SERIES FORECASTING</small><h2>AI Environmental Predictor & Forecaster</h2></div><span class="state-tag ok">TIME-SERIES ML · UNCERTAINTY BOUNDS</span></div>
+  <p class="compare-hint">Forecast Earth-system variables (NDVI, soil moisture, rainfall, temperature) using autoregressive holdout models with 95% confidence intervals.</p>
+  <div class="predictor-controls" style="display:grid;grid-template-columns:1.5fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:12px;">
+   <div><label style="display:block;margin-bottom:4px;color:#718a94;font:7px var(--mono);letter-spacing:.12em;">HISTORICAL TIME SERIES VALUES (CSV OR SPACE-SEPARATED)</label><input id="predictionValues" value="0.74, 0.71, 0.69, 0.68, 0.66, 0.65, 0.63, 0.61, 0.59" placeholder="e.g. 0.72, 0.68, 0.65..."></div>
+   <div><label style="display:block;margin-bottom:4px;color:#718a94;font:7px var(--mono);letter-spacing:.12em;">TARGET VARIABLE</label><select id="predictionVariable"><option value="ndvi">NDVI (Canopy Vigor)</option><option value="soil_moisture">SMAP Soil Moisture</option><option value="temperature">NASA POWER Temp (°C)</option><option value="rainfall">GPM Rainfall (mm)</option></select></div>
+   <div><label style="display:block;margin-bottom:4px;color:#718a94;font:7px var(--mono);letter-spacing:.12em;">HORIZON (PERIODS)</label><input id="predictionHorizon" type="number" min="1" max="12" value="3"></div>
+   <div><button class="btn-primary" id="runPrediction" style="height:34px;"><i data-lucide="trending-up"></i> RUN FORECAST</button></div>
+  </div>
+  <div id="predictionResult" class="result"><div class="empty">Enter or keep historical sequence and click Run Forecast to compute autoregressive projections and prediction intervals.</div></div>
+ </section>
 </section>
 
 <section class="page-view" data-view="analytics">
@@ -310,6 +333,42 @@
 </div>
 
 <div id="toastStack" class="toast-stack"></div>
+<dialog id="compareModal" class="dialog compare-dialog">
+ <div class="dialog-inner">
+  <div class="dialog-head"><div><small>EARTH OBSERVATION LAB · SATELLITE COMPARISON</small><h2>Before ↔ After Satellite Observation</h2></div><button class="icon-btn" id="closeCompare" type="button"><i data-lucide="x"></i></button></div>
+  <div class="compare-controls">
+   <div><label>BEFORE DATE</label><input id="beforeDate" type="date"></div>
+   <div><label>AFTER DATE</label><input id="afterDate" type="date"></div>
+   <div><label>SPECTRAL MODE</label><select id="compareMode"><option value="true_color">True colour (RGB)</option><option value="false_color">False colour (NIR/Red/Green)</option><option value="ndvi">NDVI (Vegetation Index)</option><option value="ndmi">NDMI (Moisture Index)</option><option value="nbr">NBR (Burn Ratio)</option><option value="ndwi">NDWI (Water Index)</option></select></div>
+   <div><label>MAX CLOUD %</label><input id="compareCloud" type="number" min="5" max="100" value="50"></div>
+   <button id="loadCompare" class="btn-primary" type="button"><i data-lucide="layers"></i> LOAD SCENES</button>
+   <button id="loadInlineCompare" style="display:none;" type="button"></button>
+  </div>
+  <div id="compareShell" class="compare-shell">
+   <div id="compareBefore" class="compare-map"></div>
+   <div id="compareAfterWrap" class="compare-after-wrap"><div id="compareAfter" class="compare-map"></div></div>
+   <input id="compareSlider" class="compare-slider" type="range" min="0" max="100" value="50">
+  </div>
+  <div class="compare-footer-bar">
+   <div id="compareMeta" class="compare-meta">Choose two observation dates to retrieve verified Landsat / Sentinel-2 scenes.</div>
+   <div class="split-readout"><span id="splitValue">SPLIT 50%</span></div>
+  </div>
+ </div>
+</dialog>
+<dialog id="timeModal" class="dialog time-dialog">
+ <div class="dialog-inner">
+  <div class="dialog-head"><div><small>EARTH SYSTEM CHRONOLOGY · SATELLITE ARCHIVE</small><h2>Earth Observation Time Machine</h2></div><button class="icon-btn" id="closeTime" type="button"><i data-lucide="x"></i></button></div>
+  <div class="compare-controls">
+   <div><label>HISTORICAL START</label><input id="timeStart" type="date"></div>
+   <div><label>HISTORICAL END</label><input id="timeEnd" type="date"></div>
+   <button id="loadTime" class="btn-primary" type="button"><i data-lucide="calendar"></i> LOAD TIMELINE</button>
+   <button id="playTime" class="btn-secondary" type="button"><i data-lucide="play"></i> ▶ Play</button>
+  </div>
+  <div id="timeMap" class="time-map"></div>
+  <div id="timeCaption" class="compare-meta">Select a historical observation below to inspect that scene.</div>
+  <div id="timeline" class="timeline-bar">Select a location and load a timeline first.</div>
+ </div>
+</dialog>
 <dialog id="regionDialog" class="dialog"><form method="dialog"><div class="dialog-head"><div><small>STUDY AREA</small><h2>Observation centre</h2></div><button class="icon-btn" value="cancel"><i data-lucide="x"></i></button></div><label>Region name</label><input id="regionInputName" value="Kodagu Forest Region"><div class="two-fields"><div><label>Latitude</label><input id="regionInputLat" type="number" step=".0001" value="12.3375"></div><div><label>Longitude</label><input id="regionInputLon" type="number" step=".0001" value="75.8069"></div></div><button class="btn-primary wide" id="saveRegion" value="default">APPLY STUDY AREA</button></form></dialog>
 <dialog id="aboutDialog" class="dialog"><form method="dialog"><div class="dialog-head"><div><small>PLATFORM IDENTITY</small><h2>Earth intelligence, with evidence.</h2></div><button class="icon-btn" value="cancel"><i data-lucide="x"></i></button></div><p>EARTHSCOPE and VanRakshak AI is an independent Earth-observation and forest-intelligence platform. It uses third-party datasets and APIs. Satellite imagery is not continuous live video; observations, model outputs, derived metrics and AI interpretations must remain distinct.</p><p>This project is not an official NASA product and does not imply endorsement by NASA, ESA, USGS or ISRO.</p><button class="btn-primary wide" value="cancel">UNDERSTOOD</button></form></dialog>
 <script src="./cinematic-dashboard.js" defer></script>

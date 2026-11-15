@@ -1,5 +1,16 @@
 from __future__ import annotations
 import asyncio, json, os, math
+
+if not hasattr(asyncio, "timeout"):
+    from contextlib import asynccontextmanager
+    @asynccontextmanager
+    async def _async_timeout(delay):
+        try:
+            yield
+        except Exception:
+            raise
+    asyncio.timeout = _async_timeout
+
 import httpx
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -3025,3 +3036,8 @@ def climate_states_catalog():
             for name, lat, lon, zone, hotspot in _EARTHSCOPE_STATE_REFERENCE
         ],
     }
+
+
+# Mount web directory at root for all assets (CSS, JS, textures, iframe)
+if WEB.exists():
+    app.mount("/", StaticFiles(directory=str(WEB), html=True), name="web_root")

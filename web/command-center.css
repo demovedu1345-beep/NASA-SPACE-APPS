@@ -57,3 +57,167 @@
 .compare-fields label{display:block;margin:0 0 5px;color:#718a94;font:7px var(--mono);letter-spacing:.12em}
 .compare-fields input{width:100%;min-width:0;height:34px;padding:0 9px;border:1px solid var(--line);border-radius:7px;background:#071521;color:#dce9e6;outline:0;font-size:9px}
 @media(max-width:700px){.compare-fields{grid-template-columns:1fr 1fr}.compare-fields>div:first-child,.compare-fields button{grid-column:1/-1}}
+
+
+/* --- EARTH OBSERVATION LAB: COMPARE & TIME MACHINE EXTENSIONS --- */
+.dialog.compare-dialog, .dialog.time-dialog {
+  width: min(980px, calc(100vw - 24px));
+  max-width: 980px;
+}
+.dialog-inner {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.compare-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  background: rgba(7, 21, 33, 0.7);
+  border: 1px solid var(--line);
+  padding: 12px;
+  border-radius: 9px;
+}
+.compare-controls > div {
+  flex: 1;
+  min-width: 140px;
+}
+.compare-controls label {
+  display: block;
+  margin-bottom: 5px;
+  color: #718a94;
+  font: 7px var(--mono);
+  letter-spacing: .12em;
+}
+.compare-controls input, .compare-controls select {
+  width: 100%;
+  height: 34px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #071521;
+  color: #dce9e6;
+  outline: 0;
+  font-size: 9px;
+}
+.compare-shell {
+  position: relative;
+  width: 100%;
+  height: 480px;
+  min-height: 400px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #091723;
+  --split: 50%;
+}
+.compare-map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.compare-after-wrap {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  overflow: hidden;
+  border-right: 2px solid var(--mint);
+  box-shadow: 2px 0 14px rgba(126, 224, 182, 0.4);
+  z-index: 10;
+}
+.compare-after-wrap .compare-map {
+  width: 100%;
+  height: 100%;
+  min-width: 100%;
+}
+.compare-slider {
+  position: absolute;
+  z-index: 30;
+  left: 8%;
+  right: 8%;
+  bottom: 16px;
+  width: 84%;
+  accent-color: var(--mint);
+  cursor: ew-resize;
+}
+.compare-footer-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font: 8px var(--mono);
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+.compare-meta {
+  color: #9eb5bd;
+  font-size: 9px;
+}
+.split-readout {
+  color: var(--mint);
+  font: 8px var(--mono);
+  font-weight: 600;
+}
+.time-map {
+  width: 100%;
+  height: 420px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #091723;
+}
+.timeline-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 2px;
+  scrollbar-width: thin;
+}
+.timeline-item {
+  flex: 0 0 135px;
+  border: 1px solid var(--line);
+  background: rgba(11, 27, 37, 0.85);
+  color: var(--text);
+  border-radius: 7px;
+  padding: 8px 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: all .18s var(--ease);
+}
+.timeline-item:hover, .timeline-item.active {
+  border-color: var(--mint);
+  background: rgba(126, 224, 182, 0.12);
+}
+.timeline-item b {
+  display: block;
+  font: 9px var(--mono);
+  color: var(--text);
+}
+.timeline-item small {
+  display: block;
+  font: 8px var(--mono);
+  color: var(--muted);
+}
+.action-trigger {
+  padding: 8px;
+  border: 1px solid var(--line2) !important;
+  border-radius: 7px;
+  background: rgba(126, 224, 182, 0.06) !important;
+  color: var(--mint) !important;
+  font: 8px var(--mono);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all .2s var(--ease);
+}
+.action-trigger:hover {
+  background: rgba(126, 224, 182, 0.15) !important;
+  box-shadow: 0 0 15px rgba(126, 224, 182, 0.2);
+}

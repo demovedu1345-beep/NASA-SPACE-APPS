@@ -1,1 +1,376 @@
-<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/"><meta name="robots" content="noindex"><title>Opening Mission Control</title></head><body><script>location.replace("/");</script><p><a href="/">Open EARTHSCOPE Mission Control</a></p></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a0a0a">
+<title>EARTHSCOPE × VanRakshak AI | Planetary Mission Control</title>
+<meta name="description" content="A planetary forest intelligence and Earth observation command centre.">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.css">
+<link rel="stylesheet" href="./command-center.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lenis@1.3.27/dist/lenis.css">
+<link rel="stylesheet" href="./cinematic-dashboard.css">
+<link rel="stylesheet" href="./editorial-premium.css">
+<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+<script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.27/dist/lenis.min.js" defer></script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js"}}</script>
+</head>
+<body>
+<div class="ambient">
+<video id="ambientVideo" autoplay muted loop playsinline preload="none" aria-hidden="true"></video><div class="ambient-glow g1"></div><div class="ambient-glow g2"></div><div class="grid-fade"></div><div class="grain"></div></div>
+
+<nav class="portfolio-nav" aria-label="Primary navigation">
+  <div class="portfolio-identity">
+    <button class="portfolio-mark" data-page="overview" aria-label="EARTHSCOPE home">E</button>
+    <span class="portfolio-brand-copy"><b>EARTHSCOPE</b><small>PLANETARY INTELLIGENCE</small></span>
+  </div>
+  <span class="portfolio-divider" aria-hidden="true"></span>
+  <div class="portfolio-links">
+    <button class="portfolio-link active" data-page="overview">Overview</button>
+    <button class="portfolio-link" data-page="observatory">Observatory</button>
+    <a class="portfolio-link trend-detective-link" href="/earthscope" aria-label="Open NASA Earth System Trend Detective">Trend Detective ↗</a>
+    <button class="portfolio-link" data-page="forest" data-secondary="true">Forests</button>
+    <button class="portfolio-link" data-page="intelligence" data-secondary="true">Intelligence</button>
+    <button class="portfolio-link" data-page="reports" data-secondary="true">Evidence</button>
+  </div>
+  <span class="portfolio-divider" aria-hidden="true"></span>
+  <div class="portfolio-tools">
+    <button class="portfolio-link" data-open-workspaces aria-expanded="false">Workspaces <span>+</span></button>
+    <div class="search-wrap"><i data-lucide="search"></i><input id="globalSearch" placeholder="Search the planet…" autocomplete="off"><kbd>⌘ K</kbd><div id="searchResults" class="search-results"></div></div>
+    <div class="api-chip" id="apiChip"><span></span> CONNECTING</div>
+    <button class="icon-btn" id="aboutBtn" title="About EARTHSCOPE" aria-label="About EARTHSCOPE"><i data-lucide="info"></i></button>
+    <button class="portfolio-cta" data-page="forest">Investigate ↗</button>
+    <button class="portfolio-mobile-menu" data-open-workspaces aria-label="Open workspaces" aria-expanded="false">
+      <i data-lucide="menu" class="menu-icon"></i><i data-lucide="x" class="close-icon"></i>
+    </button>
+  </div>
+  <span id="crumb" class="visually-hidden">Mission Control</span>
+  <button class="mobile-menu" id="mobileMenu" aria-label="Open workspaces"></button>
+</nav>
+<div class="app">
+<div class="workspace-scrim" id="workspaceScrim" aria-hidden="true"></div>
+<aside class="sidebar" id="sidebar" aria-hidden="true" inert>
+  <a class="brand" href="/"><span class="brand-logo"><img src="./favicon.svg" alt=""></span><span><b>EARTHSCOPE</b><small>VANRAKSHAK AI</small></span></a>
+  <nav id="mainNav">
+    <button class="nav-btn active" data-page="overview"><i data-lucide="orbit"></i><span>Mission Control</span><em>01</em></button>
+    <div class="nav-label nav-group-label">01 / EXPLORE THE PLANET</div>
+    <button class="nav-btn" data-page="observatory"><i data-lucide="globe-2"></i><span>Earth Observatory</span><em>02</em></button>
+    <button class="nav-btn" data-page="satellites"><i data-lucide="satellite"></i><span>Satellites & Missions</span><em>03</em></button>
+    <button class="nav-btn" data-page="layers"><i data-lucide="layers-3"></i><span>Earth Data Layers</span><em>04</em></button>
+    <div class="nav-separator"></div><div class="nav-label nav-group-label">02 / FOREST & ENVIRONMENT</div>
+    <button class="nav-btn" data-page="forest"><i data-lucide="trees"></i><span>Forest Intelligence</span><em>05</em></button>
+    <button class="nav-btn" data-page="fire"><i data-lucide="flame"></i><span>Fire & Hazards</span><em>06</em></button>
+    <button class="nav-btn" data-page="climate"><i data-lucide="cloud-sun"></i><span>Climate & Environment</span><em>07</em></button>
+    <div class="nav-separator"></div><div class="nav-label nav-group-label">03 / SCIENCE & DECISIONS</div>
+    <button class="nav-btn" data-page="analytics"><i data-lucide="chart-no-axes-combined"></i><span>Change Analytics</span></button>
+    <button class="nav-btn" data-page="trend-detective"><i data-lucide="chart-spline"></i><span>NASA Trend Detective</span><em>CH.02</em></button>
+    <button class="nav-btn" data-page="intelligence"><i data-lucide="brain-circuit"></i><span>AI Intelligence</span></button>
+    <div class="nav-separator"></div><div class="nav-label nav-group-label">04 / RESPONSE & EVIDENCE</div>
+    <button class="nav-btn" data-page="operations"><i data-lucide="route"></i><span>Field Operations</span></button>
+    <button class="nav-btn" data-page="reports"><i data-lucide="file-chart-line"></i><span>Reports & Evidence</span></button>
+  </nav>
+  <div class="sidebar-bottom">
+    <button class="nav-btn" data-page="systems"><i data-lucide="activity"></i><span>System Integrations</span></button>
+    <div class="side-health"><span id="healthOrb" class="health-orb"></span><span><b id="healthText">Checking API</b><small>Provider health</small></span><button class="icon-btn" id="refreshHealth"><i data-lucide="refresh-cw"></i></button></div>
+    <div class="sidebar-note">INDEPENDENT EARTH INTELLIGENCE<br>NASA · ESA · USGS · ISRO DATA</div>
+  </div>
+</aside>
+
+<main class="main">
+
+
+<div class="scroll-area" id="scrollArea">
+<div class="page-wrap" id="page">
+<section class="page-view active" data-view="overview">
+ <section class="overview-cover" id="overviewCover" aria-label="Earthscope introduction">
+  <div class="cover-aura" aria-hidden="true"></div><div class="cover-orbit" aria-hidden="true"></div>
+  <div class="cover-copy">
+   <div class="cover-eyebrow">EARTHSCOPE / PLANETARY INTELLIGENCE</div>
+   <h1 class="cover-title"><span>See the planet.</span><em>Understand its change.</em></h1>
+   <p class="cover-description">Satellite observations, environmental signals and forest intelligence — brought together in one evidence-first workspace.</p>
+   <div class="cover-actions">
+    <button class="cover-button primary" data-page="observatory">Explore the observatory <i data-lucide="arrow-up-right"></i></button>
+    <button class="cover-button secondary" data-page="forest">Begin an investigation <i data-lucide="arrow-right"></i></button>
+   </div>
+  </div>
+  <div class="cover-bottom">
+   <div class="cover-data">
+    <div class="cover-data-item"><small>PLATFORM</small><b>EARTH OBSERVATION</b></div>
+    <span class="cover-data-divider"></span>
+    <div class="cover-data-item"><small>METHOD</small><b>MULTI-SOURCE EVIDENCE</b></div>
+    <span class="cover-data-divider"></span>
+    <div class="cover-data-item"><small>FOCUS</small><b>FOREST & CLIMATE</b></div>
+   </div>
+   <div class="cover-coordinates"><small>ACTIVE STUDY AREA</small><b>12.3375° N &nbsp; 75.8069° E</b></div>
+  </div>
+  <div class="cover-scroll"><span>SCROLL TO EXPLORE</span><i aria-hidden="true"></i></div>
+ </section>
+ <div class="overview-section-heading">
+  <div><small>01 / GLOBAL OBSERVATORY</small><h2>Earth, <em>in perspective.</em></h2></div>
+  <p>Start with the global view, then move into regional signals, satellite evidence and environmental context.</p>
+ </div>
+ <div class="page-head">
+  <div><div class="eyebrow"><span></span> PLANETARY FOREST INTELLIGENCE</div><h1>Mission <b>Control.</b></h1><p>Observe the planet. Investigate change. Turn Earth data into evidence.</p></div>
+  <div class="head-meta"><div class="utc"><span></span><b id="utcClock">--:--:-- UTC</b></div><small id="localDate">GLOBAL MONITORING NETWORK</small></div>
+ </div>
+ <div class="hero-grid">
+  <section class="panel globe-panel" id="globePanel">
+   <div class="panel-top"><div class="eyebrow-mini"><span class="green-dot"></span> PLANETARY VIEW <i>/</i> 3D OBSERVATORY</div><div class="globe-buttons"><button class="glass-btn active" id="earthReliefToggle" type="button" title="Toggle global DEM terrain relief" aria-label="Toggle terrain relief" aria-pressed="true"><i data-lucide="mountain"></i></button><button class="glass-btn active" id="earthCloudToggle" type="button" title="Toggle static cloud composite" aria-label="Toggle static cloud texture" aria-pressed="true"><i data-lucide="cloud"></i></button><button class="glass-btn active" id="earthNightToggle" type="button" title="Toggle NASA VIIRS night lights" aria-label="Toggle night lights" aria-pressed="true"><i data-lucide="moon"></i></button><button class="glass-btn active" id="autoRotate"><i data-lucide="rotate-3d"></i> ORBIT</button><button class="glass-btn" id="resetGlobe" title="Reset view"><i data-lucide="crosshair"></i></button><button class="glass-btn" data-page="observatory" title="Open observatory"><i data-lucide="maximize-2"></i></button></div></div>
+   <div class="globe-stage" id="globeStage">
+    <canvas id="earthCanvas" aria-label="Interactive three-dimensional Earth model. Click any visible point to inspect it." tabindex="0"></canvas>
+    <div class="globe-shade"></div><div class="scan-lines"></div>
+    <div class="coord coord-left"><small>LATITUDE</small><b id="latRead">12.3375° N</b></div><div class="coord coord-right"><small>LONGITUDE</small><b id="lonRead">75.8069° E</b></div>
+    <div class="globe-crosshair"></div>
+    <div class="focus-tag"><span></span><b id="focusName">KODAGU FOREST REGION</b><small>ACTIVE STUDY AREA</small></div>
+    <div class="globe-hints"><span><i data-lucide="mouse"></i> DRAG TO ROTATE</span><span><i data-lucide="mouse-pointer-2"></i> SCROLL TO ZOOM</span><span>CLICK TO INSPECT</span><span id="textureStatus">LOADING EARTH TEXTURES</span></div>
+   </div>
+   <div class="panel-bottom"><span><i></i> WGS84 EARTH MODEL <small>NASA BLUE MARBLE · VIIRS BLACK MARBLE · GLOBAL DEM · 5× RELIEF DISPLAY</small></span><button class="link-btn" data-page="observatory">OPEN OBSERVATORY <i data-lucide="arrow-up-right"></i></button></div>
+  </section>
+  <aside class="hero-side">
+   <section class="panel region-card">
+    <div class="card-label">ACTIVE STUDY AREA</div><div class="region-title"><h2 id="regionName">Kodagu Forest Region</h2><button class="icon-btn" id="changeRegion"><i data-lucide="crosshair"></i></button></div>
+    <div class="region-sub" id="regionCoords">12.3375° N · 75.8069° E <span>KARNATAKA, INDIA</span></div>
+    <div class="region-actions"><button class="btn-primary" data-page="forest"><i data-lucide="scan-search"></i> INVESTIGATE</button><button class="btn-secondary" data-page="layers"><i data-lucide="layers"></i> DATA LAYERS</button></div>
+   </section>
+   <section class="panel telemetry-card">
+    <div class="card-head"><div><small>NETWORK TELEMETRY</small><h2>Observation Pulse</h2></div><span class="live-badge"><i></i> LIVE CHECK</span></div>
+    <div class="telemetry-metrics"><div><i data-lucide="satellite"></i><b id="missionCount">—</b><small>Mission APIs</small></div><div><i data-lucide="layers-3"></i><b id="layerCount">—</b><small>Map layers</small></div><div><i data-lucide="radio-tower"></i><b id="providerCount">—</b><small>Providers</small></div></div>
+    <div class="provider-list" id="providerList"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
+    <button class="panel-link" data-page="systems">ALL INTEGRATIONS <i data-lucide="arrow-up-right"></i></button>
+   </section>
+  </aside>
+ </div>
+ <section class="panel earth-detail-panel" id="earthDetailPanel" aria-live="polite" hidden>
+  <header class="earth-detail-head">
+   <div><small>EARTH POINT INSPECTOR / MULTI-SOURCE PROFILE</small><h2 id="earthDetailTitle">Select any point on the globe</h2><p id="earthDetailCoords">Click the 3D Earth to retrieve location-specific observations and context.</p></div>
+   <div class="earth-detail-actions"><span id="earthDetailStatus">AWAITING SELECTION</span><button class="icon-btn" id="closeEarthDetail" type="button" aria-label="Close Earth point details"><i data-lucide="x"></i></button></div>
+  </header>
+  <div class="earth-detail-grid">
+   <section class="earth-detail-block">
+    <div class="earth-detail-label"><i data-lucide="map-pin"></i> GEOGRAPHIC REFERENCE</div>
+    <div class="earth-detail-feature"><small>ADMINISTRATIVE AREA</small><b id="earthDetailAdmin">—</b></div>
+    <div class="earth-detail-feature"><small>COUNTRY</small><b id="earthDetailCountry">—</b></div>
+    <div class="earth-detail-pair"><div><small>ELEVATION</small><b id="earthDetailElevation">—</b></div><div><small>SLOPE</small><b id="earthDetailSlope">—</b></div></div>
+    <div class="earth-detail-feature"><small>ASPECT</small><b id="earthDetailAspect">—</b></div>
+   </section>
+   <section class="earth-detail-block">
+    <div class="earth-detail-label"><i data-lucide="cloud-sun"></i> LOCAL CONDITIONS</div>
+    <div class="earth-detail-metrics">
+     <div><b id="earthDetailTemp">—</b><small>TEMPERATURE</small></div>
+     <div><b id="earthDetailHumidity">—</b><small>RELATIVE HUMIDITY</small></div>
+     <div><b id="earthDetailWind">—</b><small>WIND SPEED</small></div>
+     <div><b id="earthDetailRain">—</b><small>PRECIPITATION</small></div>
+     <div><b id="earthDetailCloud">—</b><small>CLOUD COVER</small></div>
+    </div>
+   </section>
+   <section class="earth-detail-block">
+    <div class="earth-detail-label"><i data-lucide="trees"></i> FOREST & HUMAN PRESSURE</div>
+    <div class="earth-detail-pair"><div><small>TREE PROBABILITY</small><b id="earthDetailTrees">—</b></div><div><small>GEDI BIOMASS</small><b id="earthDetailBiomass">—</b></div></div>
+    <div class="earth-detail-feature"><small>CARBON DENSITY REFERENCE</small><b id="earthDetailCarbon">—</b></div>
+    <div class="earth-detail-pair"><div><small>MAPPED HUMAN FEATURES</small><b id="earthDetailPressure">—</b></div><div><small>POPULATION REFERENCE</small><b id="earthDetailPopulation">—</b></div></div>
+   </section>
+   <section class="earth-detail-block earth-detail-observations">
+    <div class="earth-detail-label"><i data-lucide="satellite"></i> SATELLITE & EVENT CONTEXT</div>
+    <div class="earth-detail-feature"><small>SENTINEL-2 CATALOGUE</small><b id="earthDetailSatellite">—</b><em id="earthDetailSceneDate">—</em></div>
+    <div class="earth-detail-pair"><div><small>FIRE DETECTIONS</small><b id="earthDetailFire">—</b></div><div><small>NASA EONET EVENTS</small><b id="earthDetailEvents">—</b></div></div>
+    <div class="earth-detail-feature"><small>PROTECTED-AREA REFERENCE</small><b id="earthDetailConservation">—</b></div>
+   </section>
+  </div>
+  <div class="earth-event-context"><div><small>RECENT REGIONAL EVENTS</small><div id="earthEventList"><span class="earth-event-empty">Select a point to load regional events.</span></div></div><div class="earth-detail-footer"><span id="earthDetailSources">Observed and derived values remain tied to provider availability.</span><button class="link-btn" type="button" data-page="forest">OPEN FULL INVESTIGATION <i data-lucide="arrow-up-right"></i></button></div></div>
+ </section>
+ <div class="signal-row">
+  <div class="signal-intro"><small>SYSTEM SNAPSHOT</small><b>Planetary signals</b><span>Values load from connected providers.</span></div>
+  <div class="signal"><i data-lucide="flame"></i><div><small>Fire observations</small><b id="fireValue">—</b><em id="fireMeta">Provider pending</em></div></div>
+  <div class="signal"><i data-lucide="thermometer-sun"></i><div><small>Local temperature</small><b id="tempValue">—</b><em id="tempMeta">Provider pending</em></div></div>
+  <div class="signal"><i data-lucide="cloud-rain"></i><div><small>Precipitation</small><b id="rainValue">—</b><em id="rainMeta">Provider pending</em></div></div>
+  <div class="signal"><i data-lucide="trees"></i><div><small>Forest assessment</small><b id="forestValue">—</b><em>Run regional investigation</em></div></div>
+ </div>
+ <div class="bottom-grid">
+  <section class="panel feed-card"><div class="section-title"><div><small>OBSERVATION FEED</small><h2>Recent environmental events</h2></div><button class="link-btn" data-page="fire">EXPLORE <i data-lucide="arrow-up-right"></i></button></div><div id="eventFeed"><div class="empty">Connecting to event and fire observation sources…</div></div></section>
+  <section class="panel launch-card"><div class="section-title"><div><small>DIRECT ACCESS</small><h2>Investigation workspaces</h2></div></div><div class="launch-grid">
+   <button data-page="satellites"><i data-lucide="satellite"></i><b>Mission catalogue</b><small>Platforms & sensors</small><i class="launch-arrow" data-lucide="arrow-up-right"></i></button>
+   <button data-page="layers"><i data-lucide="layers-3"></i><b>Layer explorer</b><small>Imagery & indices</small><i class="launch-arrow" data-lucide="arrow-up-right"></i></button>
+   <button data-page="analytics"><i data-lucide="chart-no-axes-combined"></i><b>Trend analytics</b><small>Historical evidence</small><i class="launch-arrow" data-lucide="arrow-up-right"></i></button>
+   <button data-page="reports"><i data-lucide="file-chart-line"></i><b>Evidence reports</b><small>Sources & findings</small><i class="launch-arrow" data-lucide="arrow-up-right"></i></button>
+  </div></section>
+ </div>
+</section>
+
+<section class="page-view" data-view="observatory">
+ <div class="page-head"><div><div class="eyebrow"><span></span> GLOBAL SPATIAL INTELLIGENCE</div><h1>Earth <b>Observatory.</b></h1><p>Navigate the planet and inspect geographical observations.</p></div><div class="head-meta"><div class="utc">WGS84 · GLOBAL VIEW</div><small>DRAG · ZOOM · SELECT</small></div></div>
+ <div class="map-layout">
+  <section class="panel map-panel"><div class="panel-top"><div class="eyebrow-mini">GEOGRAPHIC OBSERVATION MAP</div><button class="glass-btn" id="mapReload"><i data-lucide="refresh-cw"></i> REFRESH</button></div><div id="worldMap" class="map-canvas"></div><div class="map-footer"><span id="mapCoordinateReadout">12.3375° N · 75.8069° E</span><span>OpenStreetMap base · Provider overlays</span></div></section>
+  <aside class="panel map-tools"><small>OBSERVATORY CONTROLS</small><h2>Navigate Earth</h2><label>Place or region</label><div class="input-row"><input id="placeSearch" value="Kodagu, Karnataka, India"><button id="placeSearchBtn"><i data-lucide="search"></i></button></div><div class="two-fields"><div><label>Latitude</label><input id="mapLat" type="number" value="12.3375" step=".0001"></div><div><label>Longitude</label><input id="mapLon" type="number" value="75.8069" step=".0001"></div></div><button class="btn-primary wide" id="applyMapCoords">FLY TO COORDINATES</button><div class="tool-divider"></div><small>QUICK SATELLITE MODES</small><div class="mode-list"><button data-mode="true_color">True colour</button><button data-mode="false_color">False colour</button><button data-mode="ndvi">NDVI</button><button data-mode="ndmi">NDMI</button><button data-mode="nbr">NBR</button><button data-mode="ndwi">NDWI</button></div><div class="tool-divider"></div><small>EARTH OBSERVATION LAB</small><div class="mode-list" style="margin-top:8px;"><button id="openCompareBtn" class="action-trigger"><i data-lucide="split"></i> COMPARE SCENES</button><button id="openTime" class="action-trigger"><i data-lucide="clock"></i> TIME MACHINE</button></div><p class="hint">Only available imagery and analytical layers are shown. Satellite tracks require a separate verified orbit source.</p></aside>
+ </div>
+</section>
+
+<section class="page-view" data-view="satellites">
+ <div class="page-head"><div><div class="eyebrow"><span></span> MISSION DIRECTORY</div><h1>Satellites <b>& Missions.</b></h1><p>Browse actual mission integrations, supported products and observation services.</p></div><div class="head-meta"><div class="utc">MISSION REGISTRY</div><small id="missionStatus">CHECKING PROVIDERS</small></div></div>
+ <div class="toolbar"><div class="filter-pills" id="missionFilters"><button class="selected" data-filter="all">All</button><button data-filter="optical">Optical</button><button data-filter="radar">Radar</button><button data-filter="thermal">Thermal & fire</button><button data-filter="climate">Climate & models</button></div><div class="mini-search"><i data-lucide="search"></i><input id="missionSearch" placeholder="Search mission, sensor or provider"></div></div>
+ <div class="mission-grid" id="missionGrid"><div class="loading">Discovering integrated data services…</div></div>
+ <div class="notice"><i data-lucide="info"></i><p>A mission/data integration is not the same as live spacecraft tracking. Scene availability and observation footprints must not be presented as real-time satellite positions.</p></div>
+</section>
+
+<section class="page-view" data-view="layers">
+ <div class="page-head"><div><div class="eyebrow"><span></span> GEOSPATIAL DATA CATALOGUE</div><h1>Earth Data <b>Layers.</b></h1><p>Explore provider-backed imagery, environmental indicators and contextual layers.</p></div><div class="head-meta"><div class="utc">LAYER REGISTRY</div><small id="layersStatus">LOADING REGISTRY</small></div></div>
+ <div class="panel layer-preview"><div class="layer-preview-head"><div><small>MAP PREVIEW</small><b>Selected observation layer</b></div><div class="inline-controls"><select id="layerMode"><option value="true_color">True colour</option><option value="false_color">False colour</option><option value="ndvi">NDVI</option><option value="ndmi">NDMI</option><option value="nbr">NBR</option><option value="ndwi">NDWI</option></select><button class="btn-secondary" id="applyLayerMode">LOAD LAYER</button></div></div><div id="layerMap" class="layer-map"></div><div class="active-layer-stack"><div><small>ACTIVE OVERLAYS</small><b id="activeLayerCount">0 ACTIVE</b></div><div id="activeLayerList"><span class="muted">No raster overlays selected.</span></div></div></div>
+ <section class="panel result-panel layer-inspector"><div class="section-title"><div><small>LAYER INSPECTOR</small><h2>Selected data response</h2></div></div><div id="layerInspectorContent" class="result"><div class="empty">Select a layer to inspect its real provider response and provenance.</div></div></section>
+ <div class="toolbar"><div class="mini-search"><i data-lucide="search"></i><input id="layerSearch" placeholder="Search layers, source or variable"></div><span class="muted" id="filterCount"></span></div>
+ <div id="layerGroups" class="layer-groups"><div class="loading">Loading layer registry…</div></div>
+</section>
+
+<section class="page-view" data-view="forest">
+ <div class="page-head"><div><div class="eyebrow"><span></span> ECOSYSTEM INTELLIGENCE</div><h1>Forest <b>Intelligence.</b></h1><p>Investigate a region using imagery, vegetation and environmental evidence.</p></div><div class="head-meta"><div class="utc">REGIONAL ANALYSIS</div><small id="forestArea">KODAGU · INDIA</small></div></div>
+ <div class="toolbar"><div class="region-chip"><i data-lucide="map-pin"></i><b id="forestPlace">Kodagu Forest Region</b><small id="forestCoords">12.3375, 75.8069</small></div><button class="btn-primary" id="runInvestigation"><i data-lucide="scan-search"></i> RUN AREA INVESTIGATION</button></div>
+ <div class="feature-grid">
+  <button data-action="forest-profile"><i data-lucide="trees"></i><b>Forest Digital Profile</b><small>Forest context, terrain, cover and protected-area evidence</small></button>
+  <button data-action="remote-change"><i data-lucide="scan-line"></i><b>Remote Change Screening</b><small>Multispectral before/after evidence and candidate changes</small></button>
+  <button data-action="vegetation-series"><i data-lucide="leaf"></i><b>Vegetation Health</b><small>NDVI time-series and historical observations</small></button>
+  <button data-action="fragmentation"><i data-lucide="git-branch"></i><b>Forest Fragmentation</b><small>Upload a raster mask for component and patch analysis</small></button>
+ </div>
+ <input id="fragmentationUpload" type="file" accept=".tif,.tiff,.png,.jpg,.jpeg" hidden><section class="panel result-panel"><div class="section-title"><div><small>SOURCE-BACKED OUTPUT</small><h2>Investigation result</h2></div><span class="state-tag" id="forestResultStatus">NOT RUN</span></div><div id="forestResult" class="result"><div class="empty">Run a regional investigation to retrieve actual provider results.</div></div></section>
+</section>
+
+<section class="page-view" data-view="fire">
+ <div class="page-head"><div><div class="eyebrow"><span></span> THERMAL ANOMALY MONITORING</div><h1>Fire & <b>Hazards.</b></h1><p>Inspect satellite fire detections and natural-event context with source freshness.</p></div><div class="head-meta"><div class="utc">FIRMS · EONET · GIBS</div><small>SOURCE STATUS REQUIRED</small></div></div>
+ <div class="toolbar"><div class="region-chip"><i data-lucide="flame"></i><b id="firePlace">Kodagu · Karnataka</b></div><div class="inline-controls"><select id="fireDays"><option value="1">Last 24 hours</option><option value="3">Last 3 days</option><option value="5">Last 5 days</option></select><button class="btn-primary" id="refreshFire">REFRESH EVENTS</button></div></div>
+ <div class="stats-grid three"><div class="stat-card"><small>Returned fire observations</small><b id="fireCount">—</b><em>Current query only</em></div><div class="stat-card"><small>Returned natural events</small><b id="eventCount">—</b><em>NASA EONET response</em></div><div class="stat-card"><small>Fire source status</small><b id="fireProvider">—</b><em>FIRMS or labelled fallback</em></div></div>
+ <section class="panel result-panel"><div class="section-title"><div><small>OBSERVATION REGISTER</small><h2>Recent events</h2></div></div><div id="fireResults" class="result"><div class="empty">Load provider data to view events.</div></div></section>
+</section>
+
+<section class="page-view" data-view="climate">
+ <div class="page-head"><div><div class="eyebrow"><span></span> EARTH SYSTEM CONTEXT</div><h1>Climate & <b>Environment.</b></h1><p>Explore weather, climatology and environmental context for the selected study area.</p></div><div class="head-meta"><div class="utc">MODELS & OBSERVATIONS</div><small>SOURCE TYPE SHOWN PER RESULT</small></div></div>
+ <div class="stats-grid four"><div class="stat-card"><small>2 m air temperature</small><b id="climateTemp">—</b><em>Provider reading</em></div><div class="stat-card"><small>Relative humidity</small><b id="climateHumidity">—</b><em>Provider reading</em></div><div class="stat-card"><small>Precipitation</small><b id="climateRain">—</b><em>Provider reading</em></div><div class="stat-card"><small>Wind speed</small><b id="climateWind">—</b><em>Provider reading</em></div></div>
+ <section class="panel result-panel"><div class="section-title"><div><small>ENVIRONMENTAL RESPONSE</small><h2>Provider observations</h2></div><button class="btn-secondary" id="refreshClimate">REFRESH</button></div><div id="climateResult" class="result"><div class="empty">Weather and climate data will appear when the provider responds.</div></div></section>
+ <section class="panel simulator-panel" style="margin-top:14px;">
+  <div class="section-title"><div><small>HYDROLOGICAL SCENARIO LAB · NASA SMAP & GPM CONTEXT</small><h2>Water System & Hydrological Scenario Simulator</h2></div><span class="state-tag ok">PHYSICAL-CONSERVATION MODEL</span></div>
+  <p class="compare-hint">Simulate watershed water balance, drought stress index, and runoff risks under calibrated meteorological and canopy anomalies.</p>
+  <div class="simulator-controls" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:12px;">
+   <div><label style="display:block;margin-bottom:4px;color:#718a94;font:7px var(--mono);letter-spacing:.12em;">RAINFALL ANOMALY (%)</label><input id="simRainfall" type="range" min="-60" max="60" value="-15" step="5"><div style="display:flex;justify-content:space-between;font:8px var(--mono);color:var(--mint);margin-top:2px;"><span>-60%</span><span id="simRainVal">-15%</span><span>+60%</span></div></div>
+   <div><label style="display:block;margin-bottom:4px;color:#718a94;font:7px var(--mono);letter-spacing:.12em;">TEMP ANOMALY (°C)</label><input id="simTemp" type="range" min="-2" max="6" value="1.5" step="0.5"><div style="display:flex;justify-content:space-between;font:8px var(--mono);color:var(--amber);margin-top:2px;"><span>-2°C</span><span id="simTempVal">+1.5°C</span><span>+6°C</span></div></div>
+   <div><label style="display:block;margin-bottom:4px;color:#718a94;font:7px var(--mono);letter-spacing:.12em;">CANOPY LOSS (%)</label><input id="simCanopy" type="range" min="0" max="50" value="10" step="5"><div style="display:flex;justify-content:space-between;font:8px var(--mono);color:var(--red);margin-top:2px;"><span>0%</span><span id="simCanopyVal">-10%</span><span>-50%</span></div></div>
+   <div><label style="display:block;margin-bottom:4px;color:#718a94;font:7px var(--mono);letter-spacing:.12em;">SOIL MOISTURE DRIFT (%)</label><input id="simSoil" type="range" min="-40" max="40" value="-10" step="5"><div style="display:flex;justify-content:space-between;font:8px var(--mono);color:var(--cyan);margin-top:2px;"><span>-40%</span><span id="simSoilVal">-10%</span><span>+40%</span></div></div>
+   <div style="display:flex;align-items:flex-end;"><button class="btn-primary wide" id="runWaterSim" style="margin-top:0;height:34px;"><i data-lucide="waves"></i> RUN WATER SIMULATION</button></div>
+  </div>
+  <div id="waterSimResult" class="result" style="margin-top:8px;"><div class="empty">Adjust climate and canopy parameters and click Run Water Simulation to compute hydrological shifts.</div></div>
+ </section>
+</section>
+
+<section class="page-view" data-view="intelligence">
+ <div class="page-head"><div><div class="eyebrow"><span></span> EXPLAINABLE ENVIRONMENTAL INTELLIGENCE</div><h1>AI <b>Intelligence.</b></h1><p>Run evidence-backed analysis. Model estimates remain distinct from direct observations.</p></div><div class="head-meta"><div class="utc">EVIDENCE FIRST</div><small>AI OUTPUT ≠ DIRECT OBSERVATION</small></div></div>
+ <div class="feature-grid">
+  <button data-action="forest-doctor"><i data-lucide="stethoscope"></i><b>AI Forest Doctor</b><small>Interpret forest condition using available evidence</small></button>
+  <button data-action="anomaly-radar"><i data-lucide="radar"></i><b>Environmental Anomaly Radar</b><small>Investigate unusual conditions and evidence</small></button>
+  <button data-action="risk"><i data-lucide="shield-alert"></i><b>Risk & Warning</b><small>Read evidence-normalised warning signals</small></button>
+  <button data-action="what-if"><i data-lucide="workflow"></i><b>What-if Simulation</b><small>Explore scenario estimates and assumptions</small></button>
+ </div>
+ <section class="panel result-panel"><div class="section-title"><div><small>ANALYSIS OUTPUT</small><h2>Intelligence result</h2></div><span class="state-tag" id="intelligenceStatus">READY</span></div><div id="intelligenceResult" class="result"><div class="empty">Choose an intelligence module above.</div></div></section>
+ <section class="panel predictor-panel" style="margin-top:14px;">
+  <div class="section-title"><div><small>EARTH SYSTEM PREDICTION ENGINE · TIME-SERIES FORECASTING</small><h2>AI Environmental Predictor & Forecaster</h2></div><span class="state-tag ok">TIME-SERIES ML · UNCERTAINTY BOUNDS</span></div>
+  <p class="compare-hint">Forecast Earth-system variables (NDVI, soil moisture, rainfall, temperature) using autoregressive holdout models with 95% confidence intervals.</p>
+  <div class="predictor-controls" style="display:grid;grid-template-columns:1.5fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:12px;">
+   <div><label style="display:block;margin-bottom:4px;color:#718a94;font:7px var(--mono);letter-spacing:.12em;">HISTORICAL TIME SERIES VALUES (CSV OR SPACE-SEPARATED)</label><input id="predictionValues" value="0.74, 0.71, 0.69, 0.68, 0.66, 0.65, 0.63, 0.61, 0.59" placeholder="e.g. 0.72, 0.68, 0.65..."></div>
+   <div><label style="display:block;margin-bottom:4px;color:#718a94;font:7px var(--mono);letter-spacing:.12em;">TARGET VARIABLE</label><select id="predictionVariable"><option value="ndvi">NDVI (Canopy Vigor)</option><option value="soil_moisture">SMAP Soil Moisture</option><option value="temperature">NASA POWER Temp (°C)</option><option value="rainfall">GPM Rainfall (mm)</option></select></div>
+   <div><label style="display:block;margin-bottom:4px;color:#718a94;font:7px var(--mono);letter-spacing:.12em;">HORIZON (PERIODS)</label><input id="predictionHorizon" type="number" min="1" max="12" value="3"></div>
+   <div><button class="btn-primary" id="runPrediction" style="height:34px;"><i data-lucide="trending-up"></i> RUN FORECAST</button></div>
+  </div>
+  <div id="predictionResult" class="result"><div class="empty">Enter or keep historical sequence and click Run Forecast to compute autoregressive projections and prediction intervals.</div></div>
+ </section>
+</section>
+
+<section class="page-view" data-view="analytics">
+ <div class="page-head"><div><div class="eyebrow"><span></span> HISTORICAL ENVIRONMENTAL ANALYSIS</div><h1>Trend <b>Analytics.</b></h1><p>Inspect real time-series, change and correlation workflows. No trend is inferred until a data pipeline returns results.</p></div><div class="head-meta"><div class="utc">STATISTICAL WORKSPACE</div><small>DATA COVERAGE REQUIRED</small></div></div>
+ <section class="panel analysis-controls"><div><label>START DATE</label><input type="date" id="trendStart"></div><div><label>END DATE</label><input type="date" id="trendEnd"></div><div><label>CLOUD THRESHOLD</label><select id="trendCloud"><option>30</option><option selected>50</option><option>70</option><option>90</option></select></div><button class="btn-primary" id="runTrend">RUN VEGETATION SERIES</button></section>
+ <section class="panel result-panel"><div class="section-title"><div><small>OBSERVATION SERIES</small><h2>Vegetation time series</h2></div><span class="state-tag" id="trendStatus">NOT RUN</span></div><div id="trendResult" class="result"><div class="empty">Choose a period and run the backend vegetation-series analysis.</div></div></section>
+ <section class="panel compare-panel"><div class="section-title"><div><small>REGIONAL TREND CONTRAST</small><h2>Compare two study areas</h2></div><span class="state-tag">SAME PERIOD</span></div><p class="compare-hint">Compare evidence-derived regional indicators. Enter a second region's coordinates; no location or result is invented.</p><div class="compare-fields"><div><label>SECOND REGION NAME</label><input id="compareName" placeholder="e.g. Silent Valley"></div><div><label>LATITUDE</label><input id="compareLat" type="number" step=".0001" placeholder="11.08"></div><div><label>LONGITUDE</label><input id="compareLon" type="number" step=".0001" placeholder="76.45"></div><button class="btn-primary" id="runCompare">COMPARE REGIONS</button></div><div id="compareResult" class="result"><div class="empty">Choose a second region to compare it with the current study area.</div></div></section>
+</section>
+
+<section class="page-view trend-detective-view" data-view="trend-detective">
+ <div class="page-head">
+  <div><div class="eyebrow"><span></span> NASA SPACE APPS / CHALLENGE 02</div><h1>Earth System <b>Trend Detective.</b></h1><p>Investigate climate and vegetation change using provider-backed observations and reproducible non-parametric statistics.</p></div>
+  <div class="head-meta"><div class="utc">SCIENTIFIC WORKSPACE</div><small>OBSERVATIONS · TREND TESTS · PROVENANCE</small></div>
+ </div>
+ <section class="trend-detective-intro panel">
+  <div><small>RESEARCH STATION / EARTH SYSTEM SCIENCE</small><h2>From satellite observations to defensible trend evidence.</h2><p>The research station is integrated from this repository. It uses the same live API origin as the Mission Control workspace. Missing observations are shown as unavailable rather than replaced with generated time series.</p></div>
+  <div class="trend-detective-metrics"><span><b>01</b><small>SELECT LOCATION</small></span><span><b>02</b><small>RETRIEVE DATA</small></span><span><b>03</b><small>TEST TREND</small></span><span><b>04</b><small>EXPORT EVIDENCE</small></span></div>
+ </section>
+ <div class="trend-frame-shell"><iframe class="trend-detective-frame" src="./dashboard/research.html" title="EARTHSCOPE NASA Earth System Trend Detective research workspace" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="fullscreen"></iframe></div>
+</section>
+
+<section class="page-view" data-view="operations">
+ <div class="page-head"><div><div class="eyebrow"><span></span> FIELD RESPONSE PLANNING</div><h1>Field <b>Operations.</b></h1><p>Bring verified environmental evidence into patrol, route and intervention planning.</p></div><div class="head-meta"><div class="utc">ROUTING & RESPONSE</div><small>DECISION SUPPORT ONLY</small></div></div>
+ <div class="feature-grid three"><button data-action="patrol"><i data-lucide="route"></i><b>Patrol Optimizer</b><small>Route ordering and routing availability</small></button><button data-action="intervention"><i data-lucide="hand-heart"></i><b>Intervention Engine</b><small>Evidence-backed action recommendations</small></button><button data-action="recovery"><i data-lucide="sprout"></i><b>Recovery Intelligence</b><small>Recovery and resilience outputs</small></button></div>
+ <section class="panel result-panel"><div class="section-title"><div><small>OPERATIONAL OUTPUT</small><h2>Field plan</h2></div></div><div id="operationsResult" class="result"><div class="empty">Select a field operations module.</div></div></section>
+</section>
+
+<section class="page-view" data-view="reports">
+ <div class="page-head"><div><div class="eyebrow"><span></span> TRACEABLE SCIENTIFIC OUTPUT</div><h1>Reports & <b>Evidence.</b></h1><p>Generate backend reports and retain provenance with every result.</p></div><div class="head-meta"><div class="utc">PROVENANCE REGISTER</div><small>SOURCE ATTRIBUTION</small></div></div>
+ <section class="panel report-builder"><div><small>REPORT GENERATOR</small><h2>Build an investigation report</h2><p>Uses the selected study area and currently available backend evidence.</p></div><button class="btn-primary" id="generateReport"><i data-lucide="file-down"></i> GENERATE REPORT</button></section>
+ <section class="panel result-panel"><div class="section-title"><div><small>REPORT RESPONSE</small><h2>Latest report</h2></div></div><div id="reportResult" class="result"><div class="empty">No report generated in this session.</div></div></section>
+</section>
+
+<section class="page-view" data-view="systems">
+ <div class="page-head"><div><div class="eyebrow"><span></span> DATA PROVIDER TRANSPARENCY</div><h1>System <b>Integrations.</b></h1><p>Inspect real provider health and feature capability responses. Secrets are never displayed.</p></div><div class="head-meta"><div class="utc">SOURCE HEALTH</div><small>NO SECRET VALUES EXPOSED</small></div></div>
+ <div class="stats-grid three"><div class="stat-card"><small>Backend API</small><b id="apiHealth">—</b><em id="apiHealthMeta">Health check pending</em></div><div class="stat-card"><small>Provider records</small><b id="sourceTotal">—</b><em>Returned by health service</em></div><div class="stat-card"><small>Feature capability records</small><b id="featureTotal">—</b><em>Backend registry</em></div></div>
+ <section class="panel result-panel"><div class="section-title"><div><small>CONNECTED PROVIDERS</small><h2>Provider health register</h2></div><button class="btn-secondary" id="refreshSystems">REFRESH STATUS</button></div><div id="systemResults" class="system-list"><div class="loading">Checking provider endpoints…</div></div></section>
+ <section class="panel result-panel"><div class="section-title"><div><small>CAPABILITY REGISTER</small><h2>Application modules</h2></div></div><div id="featureResults" class="feature-register"><div class="empty">Loading feature registry.</div></div></section>
+</section>
+</div>
+</div>
+<footer class="footer"><span>EARTHSCOPE × VANRAKSHAK AI</span><span>INDEPENDENT EARTH INTELLIGENCE · NOT AN OFFICIAL NASA PRODUCT</span><span id="footerApi">API: CHECKING</span></footer>
+</main>
+</div>
+
+<div class="cinematic-loader" id="cinematicLoader" role="status" aria-label="Loading Earthscope">
+  <div class="loader-brand">EARTHSCOPE · PLANETARY INTELLIGENCE</div>
+  <div class="loader-center"><span class="loader-word" id="loaderWord">Observe</span></div>
+  <div class="loader-counter" id="loaderCounter">000</div>
+  <div class="loader-track"><div class="loader-progress" id="loaderProgress"></div></div>
+</div>
+
+<div id="toastStack" class="toast-stack"></div>
+<dialog id="compareModal" class="dialog compare-dialog">
+ <div class="dialog-inner">
+  <div class="dialog-head"><div><small>EARTH OBSERVATION LAB · SATELLITE COMPARISON</small><h2>Before ↔ After Satellite Observation</h2></div><button class="icon-btn" id="closeCompare" type="button"><i data-lucide="x"></i></button></div>
+  <div class="compare-controls">
+   <div><label>BEFORE DATE</label><input id="beforeDate" type="date"></div>
+   <div><label>AFTER DATE</label><input id="afterDate" type="date"></div>
+   <div><label>SPECTRAL MODE</label><select id="compareMode"><option value="true_color">True colour (RGB)</option><option value="false_color">False colour (NIR/Red/Green)</option><option value="ndvi">NDVI (Vegetation Index)</option><option value="ndmi">NDMI (Moisture Index)</option><option value="nbr">NBR (Burn Ratio)</option><option value="ndwi">NDWI (Water Index)</option></select></div>
+   <div><label>MAX CLOUD %</label><input id="compareCloud" type="number" min="5" max="100" value="50"></div>
+   <button id="loadCompare" class="btn-primary" type="button"><i data-lucide="layers"></i> LOAD SCENES</button>
+   <button id="loadInlineCompare" style="display:none;" type="button"></button>
+  </div>
+  <div id="compareShell" class="compare-shell">
+   <div id="compareBefore" class="compare-map"></div>
+   <div id="compareAfterWrap" class="compare-after-wrap"><div id="compareAfter" class="compare-map"></div></div>
+   <input id="compareSlider" class="compare-slider" type="range" min="0" max="100" value="50">
+  </div>
+  <div class="compare-footer-bar">
+   <div id="compareMeta" class="compare-meta">Choose two observation dates to retrieve verified Landsat / Sentinel-2 scenes.</div>
+   <div class="split-readout"><span id="splitValue">SPLIT 50%</span></div>
+  </div>
+ </div>
+</dialog>
+<dialog id="timeModal" class="dialog time-dialog">
+ <div class="dialog-inner">
+  <div class="dialog-head"><div><small>EARTH SYSTEM CHRONOLOGY · SATELLITE ARCHIVE</small><h2>Earth Observation Time Machine</h2></div><button class="icon-btn" id="closeTime" type="button"><i data-lucide="x"></i></button></div>
+  <div class="compare-controls">
+   <div><label>HISTORICAL START</label><input id="timeStart" type="date"></div>
+   <div><label>HISTORICAL END</label><input id="timeEnd" type="date"></div>
+   <button id="loadTime" class="btn-primary" type="button"><i data-lucide="calendar"></i> LOAD TIMELINE</button>
+   <button id="playTime" class="btn-secondary" type="button"><i data-lucide="play"></i> ▶ Play</button>
+  </div>
+  <div id="timeMap" class="time-map"></div>
+  <div id="timeCaption" class="compare-meta">Select a historical observation below to inspect that scene.</div>
+  <div id="timeline" class="timeline-bar">Select a location and load a timeline first.</div>
+ </div>
+</dialog>
+<dialog id="regionDialog" class="dialog"><form method="dialog"><div class="dialog-head"><div><small>STUDY AREA</small><h2>Observation centre</h2></div><button class="icon-btn" value="cancel"><i data-lucide="x"></i></button></div><label>Region name</label><input id="regionInputName" value="Kodagu Forest Region"><div class="two-fields"><div><label>Latitude</label><input id="regionInputLat" type="number" step=".0001" value="12.3375"></div><div><label>Longitude</label><input id="regionInputLon" type="number" step=".0001" value="75.8069"></div></div><button class="btn-primary wide" id="saveRegion" value="default">APPLY STUDY AREA</button></form></dialog>
+<dialog id="aboutDialog" class="dialog"><form method="dialog"><div class="dialog-head"><div><small>PLATFORM IDENTITY</small><h2>Earth intelligence, with evidence.</h2></div><button class="icon-btn" value="cancel"><i data-lucide="x"></i></button></div><p>EARTHSCOPE and VanRakshak AI is an independent Earth-observation and forest-intelligence platform. It uses third-party datasets and APIs. Satellite imagery is not continuous live video; observations, model outputs, derived metrics and AI interpretations must remain distinct.</p><p>This project is not an official NASA product and does not imply endorsement by NASA, ESA, USGS or ISRO.</p><button class="btn-primary wide" value="cancel">UNDERSTOOD</button></form></dialog>
+<script src="./cinematic-dashboard.js" defer></script>
+<script type="module" src="./command-center.js"></script>
+</body></html>
