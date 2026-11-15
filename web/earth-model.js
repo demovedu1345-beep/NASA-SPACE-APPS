@@ -49,8 +49,9 @@ export function applyWgs84Ellipsoid(THREE, geometry, radius = 2) {
 }
 
 /**
- * Load a coarse, global Terrarium DEM mosaic from AWS Terrain Tiles.
- * At zoom 2 this requests 16 world tiles (not a high-resolution analytical DEM).
+ * Load a global Terrarium DEM mosaic from AWS Terrain Tiles.
+ * At zoom 3 this samples a 2,048 × 1,024 global mosaic (roughly ~20 km pixel
+ * spacing at the equator); this is a visual terrain base, not a local survey DEM.
  * The helper fails closed when CORS or source access prevents safe pixel sampling.
  */
 export async function loadGlobalTerrariumDEM({
@@ -70,37 +71,42 @@ export async function loadGlobalTerrariumDEM({
   if (!context) return null;
 
   let loadedTiles = 0;
-  const tasks = [];
+  const coordinates = [];
   for (let y = 0; y < tileCount; y++) {
-    for (let x = 0; x < tileCount; x++) {
-      tasks.push(new Promise(resolve => {
-        const image = new Image();
-        image.crossOrigin = "anonymous";
-        image.decoding = "async";
-        let settled = false;
-        const finish = ok => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          resolve(ok);
-        };
-        const timer = setTimeout(() => finish(false), timeoutMs);
-        image.onload = () => {
-          try {
-            context.drawImage(image, x * tileSize, y * tileSize, tileSize, tileSize);
-            loadedTiles++;
-            finish(true);
-          } catch {
-            finish(false);
-          }
-        };
-        image.onerror = () => finish(false);
-        image.src = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${zoom}/${x}/${y}.png`;
-      }));
-    }
+    for (let x = 0; x < tileCount; x++) coordinates.push([x, y]);
   }
 
-  await Promise.all(tasks);
+  const loadTile = (x, y) => new Promise(resolve => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.decoding = "async";
+    let settled = false;
+    const finish = ok => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(ok);
+    };
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    image.onload = () => {
+      try {
+        context.drawImage(image, x * tileSize, y * tileSize, tileSize, tileSize);
+        loadedTiles++;
+        finish(true);
+      } catch {
+        finish(false);
+      }
+    };
+    image.onerror = () => finish(false);
+    image.src = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${zoom}/${x}/${y}.png`;
+  });
+
+  // Six requests per batch avoids timing out images merely waiting behind the
+  // browser's per-origin connection queue.
+  for (let offset = 0; offset < coordinates.length; offset += 6) {
+    const batch = coordinates.slice(offset, offset + 6);
+    await Promise.all(batch.map(([x, y]) => loadTile(x, y)));
+  }
   if (loadedTiles < minimumTiles) return null;
 
   let pixels;
