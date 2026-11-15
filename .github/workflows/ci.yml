@@ -23,6 +23,8 @@ jobs:
       - run: node --input-type=module --check < web/earth-model.js
       - run: node --input-type=module --check < web/command-center.js
       - run: node --check web/earthscope-station.js
+      - run: node --check web/api/proxy.js
+      - run: node scripts/check_proxy_compat.js
       - name: Extract and syntax-check research dashboard scripts
         run: |
           python - <<'PY'
