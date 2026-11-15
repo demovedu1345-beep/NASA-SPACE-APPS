@@ -1677,6 +1677,7 @@
         const anomaly = climateData && (climateData.temperature || climateData.anomaly || climateData.summary);
         put('drawerTrend', anomaly ? 'Climate anomaly response available; open analysis for full statistics' : 'No climate anomaly result returned');
       });
+    }
 
     function jumpToLocation(lat, lon, name) {
       if (window.earthscopeMap) {
