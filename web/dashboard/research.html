@@ -17,6 +17,10 @@
 
   <!-- Libraries: Three.js, ECharts, MapLibre GL -->
   <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script type="module">
+    import * as EarthModel from "../earth-model.js";
+    window.EarthModel = EarthModel;
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
   <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
 
@@ -1170,21 +1174,25 @@
     // 2. Three.js Background Canvas
     function initEarthBackground() {
       const canvas = document.getElementById('earthCanvas');
-      if (!canvas || !window.THREE) return;
+      const model = window.EarthModel;
+      if (!canvas || !window.THREE || !model) return;
+
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 100);
       camera.position.set(0, 0, 2.65);
       const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.25 : 1.8));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.15 : 1.6));
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.05;
+
       scene.add(new THREE.AmbientLight(0x91afc4, 1.05));
       const sun = new THREE.DirectionalLight(0xfff1dd, 2.7);
-      sun.position.set(-4, 2.2, 4); scene.add(sun);
+      scene.add(sun);
       const rim = new THREE.PointLight(0x45b9dc, 1.25, 12);
-      rim.position.set(2, -1, -3); scene.add(rim);
+      rim.position.set(2, -1, -3);
+      scene.add(rim);
 
       const starsGeometry = new THREE.BufferGeometry();
       const starCount = 1800, starPositions = new Float32Array(starCount * 3);
@@ -1197,10 +1205,15 @@
       starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
       scene.add(new THREE.Points(starsGeometry, new THREE.PointsMaterial({ color: 0xc9e6f3, size: 0.055, transparent: true, opacity: 0.7 })));
 
-      const earthGroup = new THREE.Group(); scene.add(earthGroup);
-      const earthGeometry = new THREE.SphereGeometry(0.93, 144, 144);
+      const earthGroup = new THREE.Group();
+      scene.add(earthGroup);
+      const earthGeometry = new THREE.SphereGeometry(0.93, 256, 128);
+      const basePositions = model.applyWgs84Ellipsoid(THREE, earthGeometry, 0.93);
+      const terrain = { enabled: true, ready: false, heights: null };
       const earthMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 20, specular: new THREE.Color(0x557a96) });
-      earthGroup.add(new THREE.Mesh(earthGeometry, earthMaterial));
+      const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+      earthGroup.add(earth);
+
       const textureLoader = new THREE.TextureLoader();
       textureLoader.setCrossOrigin('anonymous');
       const loadTexture = (url, isColor) => new Promise(resolve => textureLoader.load(url, texture => {
@@ -1208,54 +1221,130 @@
         texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
         resolve(texture);
       }, undefined, () => resolve(null)));
+
       const urls = {
         day: 'https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-topography-bathymetry/january/world.topo.bathy.200401.3x5400x2700.jpg',
         fallback: 'https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-blue-marble.jpg',
         topology: 'https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-topology.png',
         water: 'https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-water.png',
-        night: 'https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-night.jpg',
+        night: 'https://assets.science.nasa.gov/content/dam/science/esd/eo/images/imagerecords/144000/144898/BlackMarble_2016_01deg.jpg',
         clouds: 'https://raw.githubusercontent.com/turban/webgl-earth/master/images/fair_clouds_4k.png'
       };
-      const nightMaterial = new THREE.MeshBasicMaterial({ color: 0xffbd78, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false });
-      const nightLayer = new THREE.Mesh(new THREE.SphereGeometry(0.934, 128, 128), nightMaterial); earthGroup.add(nightLayer);
+
+      const nightMaterial = new THREE.ShaderMaterial({
+        uniforms: { nightMap: { value: null }, sunDirection: { value: new THREE.Vector3(1, 0, 0) } },
+        vertexShader: 'varying vec2 vUv;varying vec3 vNormalWorld;void main(){vUv=uv;vNormalWorld=normalize(mat3(modelMatrix)*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+        fragmentShader: 'uniform sampler2D nightMap;uniform vec3 sunDirection;varying vec2 vUv;varying vec3 vNormalWorld;void main(){float light=dot(normalize(vNormalWorld),normalize(sunDirection));float darkSide=1.0-smoothstep(-0.08,0.18,light);vec3 lights=texture2D(nightMap,vUv).rgb;float mask=smoothstep(0.08,0.48,max(max(lights.r,lights.g),lights.b));float alpha=darkSide*mask*0.95;gl_FragColor=vec4(lights*vec3(1.0,0.62,0.30)*1.35,alpha);}',
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+      });
+      const nightGeometry = new THREE.SphereGeometry(0.933, 192, 128);
+      model.applyWgs84Ellipsoid(THREE, nightGeometry, 0.933);
+      const nightLayer = new THREE.Mesh(nightGeometry, nightMaterial);
+      earthGroup.add(nightLayer);
+
       const cloudMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide });
-      const cloudLayer = new THREE.Mesh(new THREE.SphereGeometry(0.943, 128, 128), cloudMaterial); earthGroup.add(cloudLayer);
-      const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(0.985, 96, 96), new THREE.ShaderMaterial({
+      const cloudGeometry = new THREE.SphereGeometry(0.943, 192, 128);
+      model.applyWgs84Ellipsoid(THREE, cloudGeometry, 0.943);
+      const cloudLayer = new THREE.Mesh(cloudGeometry, cloudMaterial);
+      earthGroup.add(cloudLayer);
+
+      const atmosphereGeometry = new THREE.SphereGeometry(0.985, 96, 72);
+      model.applyWgs84Ellipsoid(THREE, atmosphereGeometry, 0.985);
+      const atmosphere = new THREE.Mesh(atmosphereGeometry, new THREE.ShaderMaterial({
         transparent: true, side: THREE.BackSide, depthWrite: false, blending: THREE.AdditiveBlending,
         vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.0);vV=-mv.xyz;gl_Position=projectionMatrix*mv;}',
         fragmentShader: 'varying vec3 vN; varying vec3 vV; void main(){float rim=pow(1.0-max(dot(normalize(vN),normalize(vV)),0.0),2.2);gl_FragColor=vec4(0.28,0.70,0.91,rim*0.6);}'
       }));
       earthGroup.add(atmosphere);
+
+      const updateSolar = () => {
+        const direction = model.getSolarDirection(THREE, new Date());
+        sun.position.copy(direction).multiplyScalar(40);
+        nightMaterial.uniforms.sunDirection.value.copy(direction);
+      };
+      updateSolar();
+      let lastSolarUpdate = performance.now();
+
+      const terrainButton = document.getElementById('earthReliefToggle');
+      const updateStatus = label => {
+        const node = document.getElementById('telemetryStatusText');
+        if (node) node.textContent = label;
+      };
+
       Promise.all([
         loadTexture(urls.day, true), loadTexture(urls.topology, false), loadTexture(urls.water, false),
         loadTexture(urls.night, true), loadTexture(urls.clouds, false)
       ]).then(async ([day, topology, water, night, clouds]) => {
         const surface = day || await loadTexture(urls.fallback, true);
         if (surface) { earthMaterial.map = surface; earthMaterial.needsUpdate = true; }
-        if (topology) { earthMaterial.bumpMap = topology; earthMaterial.bumpScale = 0.022; earthMaterial.needsUpdate = true; }
+        if (topology) { earthMaterial.bumpMap = topology; earthMaterial.bumpScale = 0.016; earthMaterial.needsUpdate = true; }
         if (water) { earthMaterial.specularMap = water; earthMaterial.specular.set(0x7893a8); earthMaterial.shininess = 24; earthMaterial.needsUpdate = true; }
-        if (night) { nightMaterial.map = night; nightMaterial.needsUpdate = true; } else nightLayer.visible = false;
-        if (clouds) { cloudMaterial.map = clouds; cloudMaterial.needsUpdate = true; } else cloudLayer.visible = false;
-        const status = document.getElementById('telemetryStatusText');
-        if (status) status.textContent = surface ? (day ? 'NASA BLUE MARBLE · TEXTURE LOADED' : 'EARTH SURFACE TEXTURE READY') : 'EARTH TEXTURE UNAVAILABLE';
+        if (night) { nightMaterial.uniforms.nightMap.value = night; nightMaterial.needsUpdate = true; }
+        else { nightLayer.visible = false; document.getElementById('earthNightToggle')?.setAttribute('disabled', ''); }
+        if (clouds) { cloudMaterial.map = clouds; cloudMaterial.needsUpdate = true; }
+        else { cloudLayer.visible = false; document.getElementById('earthCloudToggle')?.setAttribute('disabled', ''); }
+        updateStatus(surface ? (day ? 'NASA BLUE MARBLE · NASA VIIRS NIGHT · WGS84' : 'EARTH SURFACE READY · PARTIAL LAYERS') : 'EARTH TEXTURE UNAVAILABLE');
       });
-      let running = true;
-      const animate = () => {
-        if (!running || !canvas.isConnected) { renderer.dispose(); return; }
+
+      updateStatus('WGS84 · LOADING GLOBAL ELEVATION MOSAIC');
+      model.loadGlobalTerrariumDEM({ zoom: model.WGS84.terrainZoom }).then(dem => {
+        if (!dem) {
+          updateStatus('WGS84 · NASA BLUE MARBLE · DEM TILE ACCESS UNAVAILABLE');
+          terrainButton?.setAttribute('disabled', '');
+          return;
+        }
+        const heights = model.buildTerrainHeightSamples(earthGeometry, dem);
+        if (!heights) {
+          updateStatus('WGS84 · NASA BLUE MARBLE · DEM PIXEL ACCESS UNAVAILABLE');
+          terrainButton?.setAttribute('disabled', '');
+          return;
+        }
+        terrain.heights = heights;
+        terrain.ready = true;
+        model.applyTerrainDisplacement(THREE, earthGeometry, basePositions, heights, {
+          radius: 0.93,
+          exaggeration: model.WGS84.reliefExaggeration,
+          enabled: terrain.enabled
+        });
+        updateStatus('WGS84 · NASA BLUE MARBLE · GLOBAL DEM · 5× VISUAL RELIEF');
+      }).catch(error => {
+        console.warn('Trend Detective global DEM unavailable', error);
+        updateStatus('WGS84 · NASA BLUE MARBLE · DEM FALLBACK');
+        terrainButton?.setAttribute('disabled', '');
+      });
+
+      terrainButton?.addEventListener('click', () => {
+        if (!terrain.ready) return;
+        terrain.enabled = !terrain.enabled;
+        model.applyTerrainDisplacement(THREE, earthGeometry, basePositions, terrain.heights, {
+          radius: 0.93,
+          exaggeration: model.WGS84.reliefExaggeration,
+          enabled: terrain.enabled
+        });
+        terrainButton.classList.toggle('active', terrain.enabled);
+        terrainButton.setAttribute('aria-pressed', String(terrain.enabled));
+      });
+
+      const runningState = { running: true };
+      const animate = (now = 0) => {
+        if (!runningState.running || !canvas.isConnected) { renderer.dispose(); return; }
         requestAnimationFrame(animate);
         if (document.hidden) return;
-        earthGroup.rotation.y += 0.00018;
-        cloudLayer.rotation.y += 0.00024;
+        if (now - lastSolarUpdate > 30000) { updateSolar(); lastSolarUpdate = now; }
         renderer.render(scene, camera);
       };
-      animate();
+      requestAnimationFrame(animate);
+
       const resize = () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
       };
       window.addEventListener('resize', resize, { passive: true });
-      window.addEventListener('pagehide', () => { running = false; window.removeEventListener('resize', resize); }, { once: true });
+      window.addEventListener('pagehide', () => {
+        runningState.running = false;
+        window.removeEventListener('resize', resize);
+      }, { once: true });
     }
 
     // 3. Location Selectors Handling
