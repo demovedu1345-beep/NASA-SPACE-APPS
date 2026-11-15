@@ -246,9 +246,9 @@ function initEarth(){
   if(surface){earthMat.map=surface;earthMat.color.set(0xffffff);earthMat.needsUpdate=true}
   if(topology){earthMat.bumpMap=topology;earthMat.bumpScale=.026;earthMat.needsUpdate=true}
   if(water){earthMat.specularMap=water;earthMat.specular.set(0x667f98);earthMat.shininess=24;earthMat.needsUpdate=true}
-  if(night){nightMat.uniforms.nightMap.value=night;nightMat.needsUpdate=true}else nightLayer.visible=false;
-  if(cloud){cloudMat.map=cloud;cloudMat.needsUpdate=true}else clouds.visible=false;
-  $("textureStatus").textContent=surface?(day?"NASA BLUE MARBLE · NASA VIIRS NIGHT":"EARTH SURFACE TEXTURE READY"):"SURFACE TEXTURE FALLBACK";
+  if(night){nightMat.uniforms.nightMap.value=night;nightMat.needsUpdate=true}else{nightLayer.visible=false;$("earthNightToggle")?.setAttribute("disabled","")}
+  if(cloud){cloudMat.map=cloud;cloudMat.needsUpdate=true}else{clouds.visible=false;$("earthCloudToggle")?.setAttribute("disabled","")}
+  $("textureStatus").textContent=terrainState.ready?"WGS84 · NASA BLUE MARBLE · GLOBAL DEM · 5× RELIEF":(surface?(day&&night?"NASA BLUE MARBLE · NASA VIIRS NIGHT":"EARTH SURFACE · PARTIAL LAYERS"):"SURFACE TEXTURE FALLBACK");
  });
  state.earth={scene,camera,renderer,controls,group,markers,earth,clouds,nightLayer,selection,selectionToken:0,terrain:terrainState};
  $("textureStatus").textContent="NASA SURFACE + WGS84 · LOADING GLOBAL DEM";
