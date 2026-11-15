@@ -546,7 +546,7 @@ async function compatClimateForecast(lat, lon, place, startDate, requestedDays =
   const current = payload.current || {};
   const dayLimit = Math.max(1, Math.min(7, Math.floor(Number(requestedDays) || 7)));
   if (startDate) {
-    const validStart = /^\\d{4}-\\d{2}-\\d{2}$/.test(String(startDate));
+    const validStart = /^\d{4}-\d{2}-\d{2}$/.test(String(startDate));
     if (!validStart) {
       const error = new Error("start_date must use YYYY-MM-DD");
       error.status = 422;
