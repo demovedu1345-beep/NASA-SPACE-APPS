@@ -76,6 +76,7 @@ export async function loadGlobalTerrariumDEM({
     for (let x = 0; x < tileCount; x++) coordinates.push([x, y]);
   }
 
+  const deadline = Date.now() + 18000;
   const loadTile = (x, y) => new Promise(resolve => {
     const image = new Image();
     image.crossOrigin = "anonymous";
@@ -87,8 +88,10 @@ export async function loadGlobalTerrariumDEM({
       clearTimeout(timer);
       resolve(ok);
     };
-    const timer = setTimeout(() => finish(false), timeoutMs);
+    const remaining = Math.max(0, Math.min(timeoutMs, deadline - Date.now()));
+    const timer = setTimeout(() => finish(false), remaining);
     image.onload = () => {
+      if (settled || Date.now() > deadline) return;
       try {
         context.drawImage(image, x * tileSize, y * tileSize, tileSize, tileSize);
         loadedTiles++;
@@ -101,10 +104,10 @@ export async function loadGlobalTerrariumDEM({
     image.src = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${zoom}/${x}/${y}.png`;
   });
 
-  // Six requests per batch avoids timing out images merely waiting behind the
-  // browser's per-origin connection queue.
-  for (let offset = 0; offset < coordinates.length; offset += 6) {
-    const batch = coordinates.slice(offset, offset + 6);
+  // Small batches avoid timing out images merely waiting behind the browser's
+  // per-origin connection queue. A single global deadline keeps failure bounded.
+  for (let offset = 0; offset < coordinates.length && Date.now() < deadline; offset += 16) {
+    const batch = coordinates.slice(offset, offset + 16);
     await Promise.all(batch.map(([x, y]) => loadTile(x, y)));
   }
   if (loadedTiles < minimumTiles) return null;
