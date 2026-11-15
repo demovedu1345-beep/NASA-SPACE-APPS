@@ -172,7 +172,7 @@ function initEarth(){
  const group=new THREE.Group();scene.add(group);
  const geometry=new THREE.SphereGeometry(2,384,192);
  const basePositions=applyWgs84Ellipsoid(THREE,geometry,2);
- const terrainState={basePositions,heights:null,dem:null,ready:false,enabled:true,minElevation:0,maxElevation:0};
+ const terrainState={basePositions,heights:null,dem:null,ready:false,failed:false,enabled:true,minElevation:0,maxElevation:0};
  const earthMat=new THREE.MeshPhongMaterial({color:0xffffff,shininess:22,specular:new THREE.Color(0x557c9a),bumpScale:.035});
  const earth=new THREE.Mesh(geometry,earthMat);group.add(earth);
  const loader=new THREE.TextureLoader();loader.setCrossOrigin("anonymous");
@@ -195,10 +195,10 @@ function initEarth(){
   transparent:true,depthWrite:false,blending:THREE.AdditiveBlending
  });
  const nightGeometry=new THREE.SphereGeometry(2.007,192,128);applyWgs84Ellipsoid(THREE,nightGeometry,2.007);
- const nightLayer=new THREE.Mesh(nightGeometry,nightMat);group.add(nightLayer);
+ const nightLayer=new THREE.Mesh(nightGeometry,nightMat);nightLayer.visible=false;group.add(nightLayer);
  const cloudMat=new THREE.MeshPhongMaterial({color:0xffffff,transparent:true,opacity:.32,depthWrite:false,side:THREE.DoubleSide});
  const cloudGeometry=new THREE.SphereGeometry(2.022,192,128);applyWgs84Ellipsoid(THREE,cloudGeometry,2.022);
- const clouds=new THREE.Mesh(cloudGeometry,cloudMat);group.add(clouds);
+ const clouds=new THREE.Mesh(cloudGeometry,cloudMat);clouds.visible=false;group.add(clouds);
  const atmosphereGeometry=new THREE.SphereGeometry(2.105,128,96);applyWgs84Ellipsoid(THREE,atmosphereGeometry,2.105);
  const atmosphere=new THREE.Mesh(atmosphereGeometry,new THREE.ShaderMaterial({
   transparent:true,side:THREE.BackSide,depthWrite:false,blending:THREE.AdditiveBlending,
@@ -227,7 +227,6 @@ function initEarth(){
   if(!document.hidden){
    controls.update();
    if(now-lastSolarUpdate>30000){updateSolar();lastSolarUpdate=now}
-   if(!reduced)clouds.rotation.y+=.000003;
    stars.rotation.y-=.000006;
    if(selection.visible){
     const t=(now-(selection.userData.started||now))/1000;
@@ -246,23 +245,25 @@ function initEarth(){
   if(surface){earthMat.map=surface;earthMat.color.set(0xffffff);earthMat.needsUpdate=true}
   if(topology){earthMat.bumpMap=topology;earthMat.bumpScale=.026;earthMat.needsUpdate=true}
   if(water){earthMat.specularMap=water;earthMat.specular.set(0x667f98);earthMat.shininess=24;earthMat.needsUpdate=true}
-  if(night){nightMat.uniforms.nightMap.value=night;nightMat.needsUpdate=true}else{nightLayer.visible=false;$("earthNightToggle")?.setAttribute("disabled","")}
-  if(cloud){cloudMat.map=cloud;cloudMat.needsUpdate=true}else{clouds.visible=false;$("earthCloudToggle")?.setAttribute("disabled","")}
-  $("textureStatus").textContent=terrainState.ready?"WGS84 · NASA BLUE MARBLE · GLOBAL DEM · 5× RELIEF":(surface?(day&&night?"NASA BLUE MARBLE · NASA VIIRS NIGHT":"EARTH SURFACE · PARTIAL LAYERS"):"SURFACE TEXTURE FALLBACK");
+  if(night){nightMat.uniforms.nightMap.value=night;nightMat.needsUpdate=true;nightLayer.visible=true}else{$("earthNightToggle")?.setAttribute("disabled","")}
+  if(cloud){cloudMat.map=cloud;cloudMat.needsUpdate=true;clouds.visible=true}else{$("earthCloudToggle")?.setAttribute("disabled","")}
+  $("textureStatus").textContent=terrainState.ready?"WGS84 · NASA BLUE MARBLE · GLOBAL DEM · 5× RELIEF":(terrainState.failed?"NASA SURFACE · DEM UNAVAILABLE":(surface?(day&&night?"NASA BLUE MARBLE · NASA VIIRS NIGHT":"EARTH SURFACE · PARTIAL LAYERS"):"SURFACE TEXTURE FALLBACK"));
  });
  state.earth={scene,camera,renderer,controls,group,markers,earth,clouds,nightLayer,selection,selectionToken:0,terrain:terrainState};
  $("textureStatus").textContent="NASA SURFACE + WGS84 · LOADING GLOBAL DEM";
  loadGlobalTerrariumDEM({zoom:WGS84.terrainZoom}).then(dem=>{
-  if(!dem){$("textureStatus").textContent="NASA SURFACE · GLOBAL DEM UNAVAILABLE";$("earthReliefToggle")?.setAttribute("disabled","");return}
+  if(!dem){terrainState.failed=true;$("textureStatus").textContent="NASA SURFACE · GLOBAL DEM UNAVAILABLE";$("earthReliefToggle")?.setAttribute("disabled","");return}
   const heights=buildTerrainHeightSamples(geometry,dem);
-  if(!heights){$("textureStatus").textContent="NASA SURFACE · DEM PIXEL ACCESS UNAVAILABLE";$("earthReliefToggle")?.setAttribute("disabled","");return}
+  if(!heights){terrainState.failed=true;$("textureStatus").textContent="NASA SURFACE · DEM PIXEL ACCESS UNAVAILABLE";$("earthReliefToggle")?.setAttribute("disabled","");return}
   terrainState.dem=dem;terrainState.heights=heights;terrainState.ready=true;
   applyTerrainDisplacement(THREE,geometry,basePositions,heights,{radius:2,exaggeration:WGS84.reliefExaggeration,enabled:terrainState.enabled});
   terrainState.minElevation=heights.reduce((min,value)=>Math.min(min,value),Infinity);
   terrainState.maxElevation=heights.reduce((max,value)=>Math.max(max,value),-Infinity);
+  $("earthReliefToggle")?.removeAttribute("disabled");
   $("textureStatus").textContent="WGS84 · NASA BLUE MARBLE · GLOBAL DEM · 5× RELIEF";
  }).catch(error=>{
   console.warn("Global DEM unavailable",error);
+  terrainState.failed=true;
   $("textureStatus").textContent="NASA SURFACE · DEM FALLBACK";
   $("earthReliefToggle")?.setAttribute("disabled","");
  });
