@@ -982,13 +982,13 @@
             <p style="font-size:11px; color:var(--text-subtle);">Click anywhere on map to select location</p>
             
             <div style="display:flex; flex-direction:column; gap:6px; font-size:11px; color:var(--text-muted);">
-              <span>Forecast horizon:</span>
-              <input type="date" class="selector-input" id="mapStartDateInput" value="2026-11-16" style="width:100%;">
+              <span>Start date (provider window):</span>
+              <input type="date" class="selector-input" id="mapStartDateInput" style="width:100%;">
             </div>
 
             <div style="display:flex; flex-direction:column; gap:6px; font-size:11px; color:var(--text-muted);">
-              <span>Provider limit:</span>
-              <input type="number" min="1" max="30" value="30" class="selector-input" id="mapDaysInput" style="width:100%;">
+              <span>Days to display (maximum 7):</span>
+              <input type="number" min="1" max="7" value="7" class="selector-input" id="mapDaysInput" style="width:100%;">
             </div>
 
             <button class="btn btn-mint" style="width:100%; justify-content:center; font-weight:600;" onclick="openMapWeatherPredictionModal()">
@@ -1837,10 +1837,12 @@
       document.getElementById('modalLocCoords').innerText =
         'Coordinates: ' + Math.abs(lat).toFixed(4) + '°' + (lat >= 0 ? 'N' : 'S') + ', ' + Math.abs(lon).toFixed(4) + '°' + (lon >= 0 ? 'E' : 'W') + ' | Retrieving provider forecast…';
       const tbody = document.getElementById('modalPredictionsTableBody');
-      tbody.innerHTML = '<tr><td colspan="6">Retrieving a seven-day forecast for the selected map point…</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6">Retrieving the selected provider forecast window for this map point…</td></tr>';
       modal.style.display = 'flex';
       try {
-        const params = new URLSearchParams({lat, lon, place});
+        const startDate = document.getElementById('mapStartDateInput')?.value || '';
+        const requestedDays = Math.max(1, Math.min(7, Math.floor(Number(document.getElementById('mapDaysInput')?.value || 7))));
+        const params = new URLSearchParams({lat, lon, place, start_date: startDate, days: String(requestedDays)});
         const response = await fetch('/api/climate/forecast?' + params.toString());
         const payload = await response.json();
         if (!response.ok || !payload.ok) throw new Error(payload.detail || 'No provider forecast is available');
@@ -1881,6 +1883,27 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
+      const startInput = document.getElementById('mapStartDateInput');
+      if (startInput) {
+        const formatLocalDate = value => {
+          const year = value.getFullYear();
+          const month = String(value.getMonth() + 1).padStart(2, '0');
+          const day = String(value.getDate()).padStart(2, '0');
+          return year + '-' + month + '-' + day;
+        };
+        const today = new Date();
+        const lastForecastDay = new Date(today);
+        lastForecastDay.setDate(lastForecastDay.getDate() + 6);
+        startInput.min = formatLocalDate(today);
+        startInput.max = formatLocalDate(lastForecastDay);
+        startInput.value = formatLocalDate(today);
+      }
+      const daysInput = document.getElementById('mapDaysInput');
+      if (daysInput) {
+        daysInput.min = '1';
+        daysInput.max = '7';
+        daysInput.value = '7';
+      }
       initEarthBackground();
       initMap();
       populateCatalogs();
