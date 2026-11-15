@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/controls/OrbitControls.js";
+import { applyWgs84Ellipsoid, loadGlobalTerrariumDEM, buildTerrainHeightSamples, applyTerrainDisplacement, latLonToEarthVector, earthPointToLatLon, wgs84SurfaceNormal, getSolarDirection, WGS84 } from "./earth-model.js";
 const gsap = window.gsap;
 
 const API_BASE=(window.VANRAKSHAK_API_BASE||"").replace(/\/$/,"");
@@ -39,13 +40,12 @@ function setLocation(lat,lon,place){
  if(state.map)state.map.flyTo({center:[lon,lat],zoom:6,duration:900});
 }
 function latLonToVector(lat,lon,radius=2.04){
- const phi=(90-lat)*Math.PI/180,theta=(lon+180)*Math.PI/180;
- return new THREE.Vector3(-radius*Math.sin(phi)*Math.cos(theta),radius*Math.cos(phi),radius*Math.sin(phi)*Math.sin(theta));
+ return latLonToEarthVector(THREE,lat,lon,radius);
 }
 function showEarthSelectionEffect(localPoint){
  const earthState=state.earth;if(!earthState)return;
- const normal=localPoint.clone().normalize();
- earthState.selection.position.copy(normal.clone().multiplyScalar(2.035));
+ const normal=wgs84SurfaceNormal(THREE,localPoint);
+ earthState.selection.position.copy(localPoint.clone().addScaledVector(normal,.026));
  earthState.selection.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),normal);
  earthState.selection.visible=true;earthState.selection.userData.started=performance.now();
  earthState.controls.autoRotate=false;$("autoRotate")?.classList.remove("active");
@@ -170,7 +170,9 @@ function initEarth(){
  starGeo.setAttribute("position",new THREE.BufferAttribute(pos,3));
  const stars=new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xc8e4f2,size:.075,transparent:true,opacity:.62,sizeAttenuation:true}));scene.add(stars);
  const group=new THREE.Group();scene.add(group);
- const geometry=new THREE.SphereGeometry(2,192,192);
+ const geometry=new THREE.SphereGeometry(2,384,192);
+ const basePositions=applyWgs84Ellipsoid(THREE,geometry,2);
+ const terrainState={basePositions,heights:null,dem:null,ready:false,enabled:true,minElevation:0,maxElevation:0};
  const earthMat=new THREE.MeshPhongMaterial({color:0xffffff,shininess:22,specular:new THREE.Color(0x557c9a),bumpScale:.035});
  const earth=new THREE.Mesh(geometry,earthMat);group.add(earth);
  const loader=new THREE.TextureLoader();loader.setCrossOrigin("anonymous");
@@ -179,11 +181,11 @@ function initEarth(){
   texture.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);resolve(texture);
  },undefined,()=>resolve(null)));
  const assets={
-  day:"https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/january/world.200401.3x5400x2700.jpg",
+  day:"https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-topography-bathymetry/january/world.topo.bathy.200401.3x5400x2700.jpg",
   dayFallback:"https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-blue-marble.jpg",
   topology:"https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-topology.png",
   water:"https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-water.png",
-  night:"https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-night.jpg",
+  night:"https://assets.science.nasa.gov/content/dam/science/esd/eo/images/imagerecords/144000/144898/BlackMarble_2016_01deg.jpg",
   clouds:"https://raw.githubusercontent.com/turban/webgl-earth/master/images/fair_clouds_4k.png"
  };
  const nightMat=new THREE.ShaderMaterial({
@@ -192,10 +194,13 @@ function initEarth(){
   fragmentShader:"uniform sampler2D nightMap;uniform vec3 sunDirection;varying vec2 vUv;varying vec3 vNormalWorld;void main(){float light=dot(normalize(vNormalWorld),normalize(sunDirection));float darkSide=1.0-smoothstep(-0.08,0.18,light);vec3 lights=texture2D(nightMap,vUv).rgb;float mask=smoothstep(0.08,0.48,max(max(lights.r,lights.g),lights.b));float alpha=darkSide*mask*0.95;gl_FragColor=vec4(lights*vec3(1.0,0.62,0.30)*1.35,alpha);}",
   transparent:true,depthWrite:false,blending:THREE.AdditiveBlending
  });
- const nightLayer=new THREE.Mesh(new THREE.SphereGeometry(2.004,160,160),nightMat);group.add(nightLayer);
+ const nightGeometry=new THREE.SphereGeometry(2.007,192,128);applyWgs84Ellipsoid(THREE,nightGeometry,2.007);
+ const nightLayer=new THREE.Mesh(nightGeometry,nightMat);group.add(nightLayer);
  const cloudMat=new THREE.MeshPhongMaterial({color:0xffffff,transparent:true,opacity:.32,depthWrite:false,side:THREE.DoubleSide});
- const clouds=new THREE.Mesh(new THREE.SphereGeometry(2.018,128,128),cloudMat);group.add(clouds);
- const atmosphere=new THREE.Mesh(new THREE.SphereGeometry(2.105,96,96),new THREE.ShaderMaterial({
+ const cloudGeometry=new THREE.SphereGeometry(2.022,192,128);applyWgs84Ellipsoid(THREE,cloudGeometry,2.022);
+ const clouds=new THREE.Mesh(cloudGeometry,cloudMat);group.add(clouds);
+ const atmosphereGeometry=new THREE.SphereGeometry(2.105,128,96);applyWgs84Ellipsoid(THREE,atmosphereGeometry,2.105);
+ const atmosphere=new THREE.Mesh(atmosphereGeometry,new THREE.ShaderMaterial({
   transparent:true,side:THREE.BackSide,depthWrite:false,blending:THREE.AdditiveBlending,
   uniforms:{glowColor:{value:new THREE.Color(0x62b9e2)}},
   vertexShader:"varying vec3 vN;varying vec3 vV;void main(){vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.0);vV=-mv.xyz;gl_Position=projectionMatrix*mv;}",
@@ -211,10 +216,19 @@ function initEarth(){
  const controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.dampingFactor=.055;controls.enablePan=false;controls.minDistance=4.15;controls.maxDistance=8.7;controls.autoRotate=!reduced;controls.autoRotateSpeed=.22;controls.rotateSpeed=.44;controls.zoomSpeed=.68;controls.target.set(0,0,0);
  const resize=()=>{const b=canvas.getBoundingClientRect();if(!b.width||!b.height)return;camera.aspect=b.width/b.height;camera.updateProjectionMatrix();renderer.setSize(b.width,b.height,false);renderer.setPixelRatio(Math.min(devicePixelRatio||1,matchMedia("(pointer: coarse)").matches?1.35:1.8))};
  const ro=new ResizeObserver(resize);ro.observe(canvas.parentElement);resize();
+ const updateSolar=()=>{
+  const direction=getSolarDirection(THREE,new Date());
+  sun.position.copy(direction).multiplyScalar(40);
+  nightMat.uniforms.sunDirection.value.copy(direction);
+ };
+ updateSolar();let lastSolarUpdate=performance.now();
  const draw=now=>{
   if(!canvas.isConnected){ro.disconnect();renderer.dispose();controls.dispose();return}
   if(!document.hidden){
-   controls.update();clouds.rotation.y+=reduced?0:.00010;stars.rotation.y-=.000006;
+   controls.update();
+   if(now-lastSolarUpdate>30000){updateSolar();lastSolarUpdate=now}
+   if(!reduced)clouds.rotation.y+=.000003;
+   stars.rotation.y-=.000006;
    if(selection.visible){
     const t=(now-(selection.userData.started||now))/1000;
     selection.userData.rings.forEach((ring,index)=>{
@@ -234,9 +248,24 @@ function initEarth(){
   if(water){earthMat.specularMap=water;earthMat.specular.set(0x667f98);earthMat.shininess=24;earthMat.needsUpdate=true}
   if(night){nightMat.uniforms.nightMap.value=night;nightMat.needsUpdate=true}else nightLayer.visible=false;
   if(cloud){cloudMat.map=cloud;cloudMat.needsUpdate=true}else clouds.visible=false;
-  $("textureStatus").textContent=surface?(day?"NASA BLUE MARBLE · 5.4K":"EARTH SURFACE TEXTURE READY"):"SURFACE TEXTURE FALLBACK";
+  $("textureStatus").textContent=surface?(day?"NASA BLUE MARBLE · NASA VIIRS NIGHT":"EARTH SURFACE TEXTURE READY"):"SURFACE TEXTURE FALLBACK";
  });
- state.earth={scene,camera,renderer,controls,group,markers,earth,clouds,selection,selectionToken:0};
+ state.earth={scene,camera,renderer,controls,group,markers,earth,clouds,nightLayer,selection,selectionToken:0,terrain:terrainState};
+ $("textureStatus").textContent="NASA SURFACE + WGS84 · LOADING GLOBAL DEM";
+ loadGlobalTerrariumDEM({zoom:WGS84.terrainZoom}).then(dem=>{
+  if(!dem){$("textureStatus").textContent="NASA SURFACE · GLOBAL DEM UNAVAILABLE";$("earthReliefToggle")?.setAttribute("disabled","");return}
+  const heights=buildTerrainHeightSamples(geometry,dem);
+  if(!heights){$("textureStatus").textContent="NASA SURFACE · DEM PIXEL ACCESS UNAVAILABLE";$("earthReliefToggle")?.setAttribute("disabled","");return}
+  terrainState.dem=dem;terrainState.heights=heights;terrainState.ready=true;
+  applyTerrainDisplacement(THREE,geometry,basePositions,heights,{radius:2,exaggeration:WGS84.reliefExaggeration,enabled:terrainState.enabled});
+  terrainState.minElevation=heights.reduce((min,value)=>Math.min(min,value),Infinity);
+  terrainState.maxElevation=heights.reduce((max,value)=>Math.max(max,value),-Infinity);
+  $("textureStatus").textContent="WGS84 · NASA BLUE MARBLE · GLOBAL DEM · 5× RELIEF";
+ }).catch(error=>{
+  console.warn("Global DEM unavailable",error);
+  $("textureStatus").textContent="NASA SURFACE · DEM FALLBACK";
+  $("earthReliefToggle")?.setAttribute("disabled","");
+ });
  let pointerStart=null;const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();canvas.style.cursor="crosshair";
  canvas.addEventListener("pointerdown",event=>{pointerStart={x:event.clientX,y:event.clientY,id:event.pointerId}});
  canvas.addEventListener("pointerup",event=>{
@@ -247,10 +276,9 @@ function initEarth(){
   const markerHit=raycaster.intersectObjects(markers.children,false)[0];
   const earthHit=raycaster.intersectObject(earth,false)[0];
   const hit=markerHit&&(!earthHit||markerHit.distance<earthHit.distance)?markerHit:earthHit;if(!hit)return;
-  const local=group.worldToLocal(hit.point.clone()).normalize();
-  const lat=Math.asin(THREE.MathUtils.clamp(local.y,-1,1))*180/Math.PI;
-  const lon=((Math.atan2(local.z,-local.x)*180/Math.PI-180+540)%360)-180;
-  showEarthSelectionEffect(local);setLocation(lat,lon,"Resolving selected point…");loadEarthDetails(lat,lon);
+  const local=group.worldToLocal(hit.point.clone());
+  const coords=earthPointToLatLon(local);
+  showEarthSelectionEffect(local);setLocation(coords.lat,coords.lon,"Resolving selected point…");loadEarthDetails(coords.lat,coords.lon);
  });
  canvas.addEventListener("pointercancel",()=>{pointerStart=null});
  $("autoRotate").addEventListener("click",()=>{controls.autoRotate=!controls.autoRotate;$("autoRotate").classList.toggle("active",controls.autoRotate)});
@@ -259,6 +287,15 @@ function initEarth(){
   else camera.position.set(0,0,5.9);
   controls.target.set(0,0,0);controls.enabled=true;controls.autoRotate=true;$("autoRotate").classList.add("active");selection.visible=false;
  });
+ const setButtonState=(id,enabled)=>{const button=$(id);if(button){button.classList.toggle("active",enabled);button.setAttribute("aria-pressed",String(enabled))}};
+ $("earthReliefToggle")?.addEventListener("click",()=>{
+  if(!terrainState.ready){toast("Global terrain tiles are not ready yet");return}
+  terrainState.enabled=!terrainState.enabled;
+  applyTerrainDisplacement(THREE,geometry,basePositions,terrainState.heights,{radius:2,exaggeration:WGS84.reliefExaggeration,enabled:terrainState.enabled});
+  setButtonState("earthReliefToggle",terrainState.enabled);
+ });
+ $("earthCloudToggle")?.addEventListener("click",()=>{clouds.visible=!clouds.visible;setButtonState("earthCloudToggle",clouds.visible)});
+ $("earthNightToggle")?.addEventListener("click",()=>{nightLayer.visible=!nightLayer.visible;setButtonState("earthNightToggle",nightLayer.visible)});
  $("closeEarthDetail")?.addEventListener("click",()=>{$("earthDetailPanel").hidden=true;selection.visible=false});
 }
 
