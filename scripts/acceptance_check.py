@@ -109,6 +109,42 @@ for input_id in ("whatTemp", "whatRain", "whatFire"):
     if match and float(match.group(1)) != 0:
         errors.append(f"Scenario input #{input_id} must default to zero in production")
 
+# 7) Both 3D globes must use the shared real-data WGS84 model.
+earth_model_path = ROOT / "web" / "earth-model.js"
+if not earth_model_path.exists():
+    errors.append("Shared Earth model module web/earth-model.js is missing")
+else:
+    earth_model = earth_model_path.read_text(encoding="utf-8")
+    for symbol in (
+        "applyWgs84Ellipsoid", "loadGlobalTerrariumDEM",
+        "buildTerrainHeightSamples", "applyTerrainDisplacement",
+        "earthPointToLatLon", "getSolarDirection",
+    ):
+        if f"function {symbol}" not in earth_model and f" {symbol}(" not in earth_model:
+            errors.append(f"Shared Earth model function {symbol} is missing")
+
+    for source in (
+        "s3.amazonaws.com/elevation-tiles-prod/terrarium",
+        "NASA",
+    ):
+        if source not in earth_model:
+            errors.append(f"Earth model source marker {source!r} is missing")
+
+if './earth-model.js' not in command_js:
+    errors.append("Mission Control does not import the shared WGS84 Earth model")
+for control_id in ("earthReliefToggle", "earthCloudToggle", "earthNightToggle"):
+    if control_id not in html or control_id not in command_js:
+        errors.append(f"Mission Control Earth layer control #{control_id} is not wired")
+
+research_path = ROOT / "web" / "dashboard" / "research.html"
+research_html = research_path.read_text(encoding="utf-8")
+if 'import * as EarthModel from "../earth-model.js"' not in research_html:
+    errors.append("Trend Detective does not import the shared WGS84 Earth model")
+if "loadGlobalTerrariumDEM" not in research_html or "applyTerrainDisplacement" not in research_html:
+    errors.append("Trend Detective does not load/apply real terrain elevation samples")
+if "BlackMarble_2016_01deg.jpg" not in command_js or "BlackMarble_2016_01deg.jpg" not in research_html:
+    errors.append("NASA VIIRS Black Marble night-light imagery is not configured in both globes")
+
 if errors:
     print("EARTHSCOPE / VanRakshak acceptance check FAILED")
     for error in errors:
