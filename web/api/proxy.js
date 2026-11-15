@@ -509,7 +509,7 @@ async function compatRunEarthTrend(input) {
   };
 }
 
-async function compatClimateForecast(lat, lon, place) {
+async function compatClimateForecast(lat, lon, place, startDate, requestedDays = 7) {
   const weather = await compatFetchBackend("/api/weather", { lat, lon });
   const payload = weather.data || {};
   const hourly = payload.hourly || {};
@@ -529,7 +529,7 @@ async function compatClimateForecast(lat, lon, place) {
     if (Number.isFinite(probability)) bucket.rainProb.push(probability);
     if (Number.isFinite(wind)) bucket.wind.push(wind);
   }
-  const daily = [...days.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([date, row]) => {
+  let daily = [...days.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([date, row]) => {
     const avg = values => values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
     const d = new Date(date + "T12:00:00Z");
     return {
@@ -544,6 +544,22 @@ async function compatClimateForecast(lat, lon, place) {
     };
   });
   const current = payload.current || {};
+  const dayLimit = Math.max(1, Math.min(7, Math.floor(Number(requestedDays) || 7)));
+  if (startDate) {
+    const validStart = /^\\d{4}-\\d{2}-\\d{2}$/.test(String(startDate));
+    if (!validStart) {
+      const error = new Error("start_date must use YYYY-MM-DD");
+      error.status = 422;
+      throw error;
+    }
+    if (!daily.some(row => row.date === startDate)) {
+      const error = new Error("start_date is outside the provider's available forecast window");
+      error.status = 422;
+      throw error;
+    }
+    daily = daily.filter(row => row.date >= startDate);
+  }
+  daily = daily.slice(0, dayLimit);
   const highs = daily.map(row => row.temp_high).filter(Number.isFinite);
   const lows = daily.map(row => row.temp_low).filter(Number.isFinite);
   const rains = daily.map(row => row.rain_mm).filter(Number.isFinite);
@@ -617,9 +633,9 @@ async function compatFallback(path, method, req) {
   if (path === "climate/forecast" && method === "GET") {
     const q = req.query || {};
     try {
-      return { status: 200, body: await compatClimateForecast(Number(q.lat ?? 12.3375), Number(q.lon ?? 75.8069), q.place) };
+      return { status: 200, body: await compatClimateForecast(Number(q.lat ?? 12.3375), Number(q.lon ?? 75.8069), q.place, q.start_date, q.days) };
     } catch (error) {
-      return { status: 503, body: { ok: false, detail: "Existing forecast provider unavailable: " + String(error.message || error).slice(0, 220) } };
+      return { status: error.status || 503, body: { ok: false, detail: String(error.message || "Existing forecast provider unavailable").slice(0, 220) } };
     }
   }
   if ((path === "earth/investigate" || path === "earth/trends/analyze") && (method === "GET" || method === "POST")) {
