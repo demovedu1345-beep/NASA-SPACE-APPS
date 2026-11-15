@@ -57,7 +57,7 @@ export function applyWgs84Ellipsoid(THREE, geometry, radius = 2) {
 export async function loadGlobalTerrariumDEM({
   zoom = WGS84.terrainZoom,
   timeoutMs = 9000,
-  minimumTiles = 60
+  minimumTiles = 64
 } = {}) {
   if (typeof document === "undefined" || typeof Image === "undefined") return null;
   const tileCount = 2 ** zoom;
