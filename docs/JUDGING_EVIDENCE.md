@@ -230,7 +230,7 @@ The Mission Control and Trend Detective workspaces share a WGS84-based 3D Earth 
 - Separate controls for terrain relief, static cloud texture, night lights and orbit/reset.
 - The cloud texture is static, not a real-time cloud observation. The NASA surface and night composites are reference imagery, not live satellite video.
 
-The global DEM source is a variable-resolution mosaic and is only a visualization base. Its mosaic scale is roughly 20 km per pixel at the equator; this is not a guarantee of source accuracy, a local survey-grade terrain model or a basis for the product's quantitative elevation analysis. The visual 5× relief is not physical scale. DEM displacement is applied only when browser tile loading and CORS pixel access succeed; otherwise the UI keeps the real surface imagery and disables the relief toggle rather than inventing elevation values.
+The global DEM source is a variable-resolution mosaic and is only a visualization base. Its mosaic scale is roughly 20 km per pixel at the equator; this is not a guarantee of source accuracy, a local survey-grade terrain model or a basis for the product's quantitative elevation analysis. The visual 5× land relief is not physical scale. Positive land elevation displaces the mesh while the ocean surface remains at sea level; bathymetry is shown by the NASA surface composite, not by deforming the sea surface. DEM displacement is applied only when browser tile loading and CORS pixel access succeed; otherwise the UI keeps the real surface imagery and disables the relief toggle rather than inventing elevation values.
 
 ### Demo sequence
 
