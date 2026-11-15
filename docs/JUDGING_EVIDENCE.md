@@ -226,7 +226,7 @@ The Mission Control and Trend Detective workspaces share a WGS84-based 3D Earth 
 - WGS84 oblate-ellipsoid geometry with geodetic coordinate conversion and surface normals.
 - NASA Blue Marble: Next Generation topography/bathymetry imagery as the global surface map.
 - NASA VIIRS Black Marble 2016 night-light composite, with the day/night terminator driven by an approximate solar position calculated from UTC.
-- Public AWS Terrain Tiles / Terrarium elevation mosaic sampled onto the globe mesh. The current zoom-3 world mosaic is 2,048 × 2,048 pixels; the display applies 5× vertical exaggeration to make relief visible.
+- Public AWS Terrain Tiles / Terrarium elevation mosaic sampled onto the globe mesh. The current zoom-3 world mosaic is 2,048 × 2,048 source pixels and is sampled to a 384 × 192 globe mesh for rendering; the display applies 5× vertical exaggeration to make relief visible.
 - Separate controls for terrain relief, static cloud texture, night lights and orbit/reset.
 - The cloud texture is static, not a real-time cloud observation. The NASA surface and night composites are reference imagery, not live satellite video.
 
