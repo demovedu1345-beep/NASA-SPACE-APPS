@@ -165,6 +165,10 @@
   function initMap() {
     const container = document.getElementById('earthscopeMap');
     if (!container || typeof maplibregl === 'undefined') return;
+    if (S.map) {
+      try { S.map.resize(); } catch (_) {}
+      return;
+    }
 
     try {
       S.map = new maplibregl.Map({
@@ -212,6 +216,10 @@
   function initChart() {
     const container = document.getElementById('earthscopeChart');
     if (!container || typeof echarts === 'undefined') return;
+    if (S.chart) {
+      try { S.chart.resize(); } catch (_) {}
+      return;
+    }
 
     try {
       S.chart = echarts.init(container);
@@ -1376,6 +1384,32 @@
         ⚠️ <b>Scientific Model Caveat:</b> This model evaluates temporal trajectory changes on standardized satellite series. It screens disturbance candidates; ground-truth operational validation requires independent local corroboration.
       </div>
     `;
+  };
+
+  // Public Trend Detective Section Initializer
+  window.initTrendDetectiveStation = function () {
+    if (window.state && typeof window.state.lat === 'number') {
+      S.lat = window.state.lat;
+      S.lon = window.state.lon;
+      S.place = window.state.place || S.place;
+    }
+    initMap();
+    initChart();
+    initSearch();
+    if (S.map) {
+      try {
+        S.map.resize();
+        S.map.flyTo({ center: [S.lon, S.lat], zoom: 9 });
+        if (S.marker) S.marker.setLngLat([S.lon, S.lat]);
+      } catch (_) {}
+    }
+    if (S.chart) {
+      try { S.chart.resize(); } catch (_) {}
+    }
+    updateRealTimeTelemetry(S.lat, S.lon);
+    renderBenchmarkModel();
+    loadOpenSourceIntegrations();
+    loadDemoScenarios();
   };
 
   // Document Ready Initialization

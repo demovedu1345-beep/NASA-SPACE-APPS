@@ -79,12 +79,12 @@
     },
     {
       "source": "/earthscope",
-      "destination": "/dashboard/research.html",
+      "destination": "/?page=trend-detective",
       "permanent": false
     },
     {
       "source": "/earthscope/",
-      "destination": "/dashboard/research.html",
+      "destination": "/?page=trend-detective",
       "permanent": false
     }
   ],

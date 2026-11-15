@@ -17,7 +17,7 @@ html,body{background:#0a0a0a;color:#f5f5f5;font-family:var(--font-body)}
 body{overflow:hidden}
 .accent-gradient{background:var(--accent-gradient)}
 /* One floating navigation surface; the old utility bar is consolidated into it. */
-.main{grid-template-rows:84px minmax(0,1fr) 26px!important}
+.main{grid-template-rows:minmax(0,1fr) 26px!important}
 .topbar{display:none!important}
 .portfolio-nav{
   position:fixed;z-index:120;top:16px;left:50%;transform:translateX(-50%);
@@ -252,7 +252,7 @@ body{overflow:hidden}
   .portfolio-tools .api-chip{display:none}
 }
 @media(max-width:700px){
-  .main{grid-template-rows:67px minmax(0,1fr) 25px!important}
+  .main{grid-template-rows:minmax(0,1fr) 25px!important}
   .portfolio-nav{top:8px;width:calc(100% - 16px);max-width:none;gap:5px;padding:6px;border-radius:999px}
   .portfolio-mark{width:33px;height:33px;font-size:16px}
   .portfolio-divider{height:17px}
