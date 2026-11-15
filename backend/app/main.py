@@ -2872,6 +2872,8 @@ async def climate_forecast_ep(
     lat: float = Query(12.3375, ge=-90, le=90),
     lon: float = Query(75.8069, ge=-180, le=180),
     place: str = Query("Selected location", max_length=120),
+    start_date: str | None = Query(None, min_length=10, max_length=10),
+    days_requested: int = Query(7, ge=1, le=7, alias="days"),
 ):
     params = {
         "latitude": lat, "longitude": lon,
@@ -2905,6 +2907,17 @@ async def climate_forecast_ep(
                 "condition": "Provider forecast",
                 "source": "Open-Meteo",
             })
+
+    if start_date:
+        try:
+            selected_start = datetime.fromisoformat(start_date).date()
+        except ValueError:
+            raise HTTPException(422, "start_date must use YYYY-MM-DD")
+        available_dates = {datetime.fromisoformat(day["date"]).date() for day in days}
+        if selected_start not in available_dates:
+            raise HTTPException(422, "start_date is outside the provider's available forecast window")
+        days = [day for day in days if datetime.fromisoformat(day["date"]).date() >= selected_start]
+    days = days[:days_requested]
 
     start_hist = (datetime.now(timezone.utc).date().replace(year=datetime.now(timezone.utc).year - 10)).isoformat()
     end_hist = (datetime.now(timezone.utc).date() - timedelta(days=7)).isoformat()
@@ -2960,7 +2973,7 @@ async def climate_forecast_ep(
             "pressure": current.get("pressure_msl") if current else None,
             "totalPrecip": (str(round(avg_fc_rain, 1)) + " mm/day (7-day mean)") if avg_fc_rain is not None else "Unavailable",
             "weatherPattern": "Provider forecast" if forecast else "Forecast unavailable",
-            "patternDetail": "Seven-day forecast and ten-year monthly reference climatology are shown separately; no forecast is extrapolated beyond the provider horizon.",
+            "patternDetail": str(len(days)) + "-day provider forecast window and ten-year monthly reference climatology are shown separately; no forecast is extrapolated beyond the provider horizon.",
             "humidity": current_humidity, "rain_now": current_rain,
         },
         "daily_forecast": days,
