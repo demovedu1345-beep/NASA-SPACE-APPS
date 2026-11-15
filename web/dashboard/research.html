@@ -1209,7 +1209,7 @@
       scene.add(earthGroup);
       const earthGeometry = new THREE.SphereGeometry(0.93, 256, 128);
       const basePositions = model.applyWgs84Ellipsoid(THREE, earthGeometry, 0.93);
-      const terrain = { enabled: true, ready: false, heights: null };
+      const terrain = { enabled: true, ready: false, failed: false, heights: null };
       const earthMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 20, specular: new THREE.Color(0x557a96) });
       const earth = new THREE.Mesh(earthGeometry, earthMaterial);
       earthGroup.add(earth);
@@ -1240,12 +1240,14 @@
       const nightGeometry = new THREE.SphereGeometry(0.933, 192, 128);
       model.applyWgs84Ellipsoid(THREE, nightGeometry, 0.933);
       const nightLayer = new THREE.Mesh(nightGeometry, nightMaterial);
+      nightLayer.visible = false;
       earthGroup.add(nightLayer);
 
       const cloudMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide });
       const cloudGeometry = new THREE.SphereGeometry(0.943, 192, 128);
       model.applyWgs84Ellipsoid(THREE, cloudGeometry, 0.943);
       const cloudLayer = new THREE.Mesh(cloudGeometry, cloudMaterial);
+      cloudLayer.visible = false;
       earthGroup.add(cloudLayer);
 
       const atmosphereGeometry = new THREE.SphereGeometry(0.985, 96, 72);
@@ -1279,23 +1281,24 @@
         if (surface) { earthMaterial.map = surface; earthMaterial.needsUpdate = true; }
         if (topology) { earthMaterial.bumpMap = topology; earthMaterial.bumpScale = 0.016; earthMaterial.needsUpdate = true; }
         if (water) { earthMaterial.specularMap = water; earthMaterial.specular.set(0x7893a8); earthMaterial.shininess = 24; earthMaterial.needsUpdate = true; }
-        if (night) { nightMaterial.uniforms.nightMap.value = night; nightMaterial.needsUpdate = true; }
-        else { nightLayer.visible = false; }
-        if (clouds) { cloudMaterial.map = clouds; cloudMaterial.needsUpdate = true; }
-        else { cloudLayer.visible = false; }
+        if (night) { nightMaterial.uniforms.nightMap.value = night; nightMaterial.needsUpdate = true; nightLayer.visible = true; }
+        if (clouds) { cloudMaterial.map = clouds; cloudMaterial.needsUpdate = true; cloudLayer.visible = true; }
         updateStatus(terrain.ready ? 'WGS84 · NASA BLUE MARBLE · GLOBAL DEM · 5× VISUAL RELIEF' :
-          (surface ? (day && night ? 'NASA BLUE MARBLE · NASA VIIRS NIGHT · WGS84' : 'EARTH SURFACE READY · PARTIAL LAYERS') : 'EARTH TEXTURE UNAVAILABLE'));
+          (terrain.failed ? 'WGS84 · NASA BLUE MARBLE · DEM UNAVAILABLE' :
+          (surface ? (day && night ? 'NASA BLUE MARBLE · NASA VIIRS NIGHT · WGS84' : 'EARTH SURFACE READY · PARTIAL LAYERS') : 'EARTH TEXTURE UNAVAILABLE')));
       });
 
       updateStatus('WGS84 · LOADING GLOBAL ELEVATION MOSAIC');
       model.loadGlobalTerrariumDEM({ zoom: model.WGS84.terrainZoom }).then(dem => {
         if (!dem) {
+          terrain.failed = true;
           updateStatus('WGS84 · NASA BLUE MARBLE · DEM TILE ACCESS UNAVAILABLE');
           terrainButton?.setAttribute('disabled', '');
           return;
         }
         const heights = model.buildTerrainHeightSamples(earthGeometry, dem);
         if (!heights) {
+          terrain.failed = true;
           updateStatus('WGS84 · NASA BLUE MARBLE · DEM PIXEL ACCESS UNAVAILABLE');
           terrainButton?.setAttribute('disabled', '');
           return;
@@ -1310,6 +1313,7 @@
         updateStatus('WGS84 · NASA BLUE MARBLE · GLOBAL DEM · 5× VISUAL RELIEF');
       }).catch(error => {
         console.warn('Trend Detective global DEM unavailable', error);
+        terrain.failed = true;
         updateStatus('WGS84 · NASA BLUE MARBLE · DEM FALLBACK');
         terrainButton?.setAttribute('disabled', '');
       });
