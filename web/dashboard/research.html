@@ -1280,10 +1280,11 @@
         if (topology) { earthMaterial.bumpMap = topology; earthMaterial.bumpScale = 0.016; earthMaterial.needsUpdate = true; }
         if (water) { earthMaterial.specularMap = water; earthMaterial.specular.set(0x7893a8); earthMaterial.shininess = 24; earthMaterial.needsUpdate = true; }
         if (night) { nightMaterial.uniforms.nightMap.value = night; nightMaterial.needsUpdate = true; }
-        else { nightLayer.visible = false; document.getElementById('earthNightToggle')?.setAttribute('disabled', ''); }
+        else { nightLayer.visible = false; }
         if (clouds) { cloudMaterial.map = clouds; cloudMaterial.needsUpdate = true; }
-        else { cloudLayer.visible = false; document.getElementById('earthCloudToggle')?.setAttribute('disabled', ''); }
-        updateStatus(surface ? (day ? 'NASA BLUE MARBLE · NASA VIIRS NIGHT · WGS84' : 'EARTH SURFACE READY · PARTIAL LAYERS') : 'EARTH TEXTURE UNAVAILABLE');
+        else { cloudLayer.visible = false; }
+        updateStatus(terrain.ready ? 'WGS84 · NASA BLUE MARBLE · GLOBAL DEM · 5× VISUAL RELIEF' :
+          (surface ? (day && night ? 'NASA BLUE MARBLE · NASA VIIRS NIGHT · WGS84' : 'EARTH SURFACE READY · PARTIAL LAYERS') : 'EARTH TEXTURE UNAVAILABLE'));
       });
 
       updateStatus('WGS84 · LOADING GLOBAL ELEVATION MOSAIC');
