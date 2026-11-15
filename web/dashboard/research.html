@@ -1430,6 +1430,37 @@
       put('insightWeatherAdvice', ins.patternDetail || 'No advisory is generated without provider observations.');
       const grid = document.getElementById('daysForecastGrid');
       const daysList = data && data.daily_forecast ? data.daily_forecast : [];
+      const mapStartInput = document.getElementById('mapStartDateInput');
+      const mapDaysInput = document.getElementById('mapDaysInput');
+      const providerDates = [...new Set(daysList.map(day => String(day.date || '')).filter(date => /^\\d{4}-\\d{2}-\\d{2}$/.test(date)))].sort();
+      if (mapStartInput && mapDaysInput) {
+        if (providerDates.length) {
+          mapStartInput.min = providerDates[0];
+          mapStartInput.max = providerDates[providerDates.length - 1];
+          if (!providerDates.includes(mapStartInput.value)) mapStartInput.value = providerDates[0];
+          mapStartInput.disabled = false;
+          const syncProviderWindow = () => {
+            if (!providerDates.includes(mapStartInput.value)) {
+              mapStartInput.value = providerDates.find(date => date >= mapStartInput.value) || providerDates[0];
+            }
+            const remaining = providerDates.filter(date => date >= mapStartInput.value).length;
+            const maximum = Math.max(1, Math.min(7, remaining));
+            mapDaysInput.min = '1';
+            mapDaysInput.max = String(maximum);
+            if (!Number.isFinite(Number(mapDaysInput.value)) || Number(mapDaysInput.value) < 1 || Number(mapDaysInput.value) > maximum) {
+              mapDaysInput.value = String(maximum);
+            }
+            mapDaysInput.disabled = false;
+          };
+          mapStartInput.onchange = syncProviderWindow;
+          syncProviderWindow();
+        } else {
+          mapStartInput.disabled = true;
+          mapDaysInput.disabled = true;
+          mapStartInput.removeAttribute('min');
+          mapStartInput.removeAttribute('max');
+        }
+      }
       if (grid) {
         grid.innerHTML = daysList.length ? daysList.map(day => (
           '<div class="day-forecast-card"><div class="day-name">' + (day.day || '—') +
@@ -1884,26 +1915,9 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       const startInput = document.getElementById('mapStartDateInput');
-      if (startInput) {
-        const formatLocalDate = value => {
-          const year = value.getFullYear();
-          const month = String(value.getMonth() + 1).padStart(2, '0');
-          const day = String(value.getDate()).padStart(2, '0');
-          return year + '-' + month + '-' + day;
-        };
-        const today = new Date();
-        const lastForecastDay = new Date(today);
-        lastForecastDay.setDate(lastForecastDay.getDate() + 6);
-        startInput.min = formatLocalDate(today);
-        startInput.max = formatLocalDate(lastForecastDay);
-        startInput.value = formatLocalDate(today);
-      }
       const daysInput = document.getElementById('mapDaysInput');
-      if (daysInput) {
-        daysInput.min = '1';
-        daysInput.max = '7';
-        daysInput.value = '7';
-      }
+      if (startInput) startInput.disabled = true;
+      if (daysInput) daysInput.disabled = true;
       initEarthBackground();
       initMap();
       populateCatalogs();
