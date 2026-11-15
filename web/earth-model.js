@@ -128,7 +128,6 @@ export async function loadGlobalTerrariumDEM({
 
   const sample = (latitude, longitude) => {
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
-    if (Math.abs(latitude) > MERCATOR_LIMIT) return 0;
     const lon = wrapLongitude(longitude);
     const latRad = clamp(latitude, -MERCATOR_LIMIT, MERCATOR_LIMIT) * RAD;
     const x = ((lon + 180) / 360) * width;
@@ -203,7 +202,8 @@ export function applyTerrainDisplacement(
     const nx = cosLat * Math.cos(longitude);
     const ny = Math.sin(latitude);
     const nz = -cosLat * Math.sin(longitude);
-    const offset = enabled ? heights[i] * metresToWorld : 0;
+    // Keep the ocean surface at sea level; bathymetry remains in NASA's surface composite.
+    const offset = enabled ? Math.max(0, heights[i]) * metresToWorld : 0;
 
     target[i * 3] = bx + nx * offset;
     target[i * 3 + 1] = by + ny * offset;
