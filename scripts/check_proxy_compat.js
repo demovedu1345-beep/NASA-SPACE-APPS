@@ -181,7 +181,8 @@ async function main() {
   assert.equal(vegetationTrend.status, 200);
   assert.equal(vegetationTrend.json.ok, true);
   assert.equal(vegetationTrend.json.time_series.ndvi.values.length, 8);
-  assert.equal(vegetationTrend.json.metadata.ndvi.provider, "Sentinel-2 L2A / Earth Search");
+  assert.match(vegetationTrend.json.metadata.ndvi.provider, /Earth Search/);
+  assert.equal(vegetationTrend.json.metadata.ndvi.source, "Sentinel-2 L2A / Earth Search");
   assert.equal(vegetationTrend.json.trends.ndvi.data_class, "ESA_DERIVED_METRIC");
   assert.equal(vegetationTrend.json.trends.ndvi.direction, "DECREASING");
 
