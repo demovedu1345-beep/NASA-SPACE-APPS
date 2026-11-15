@@ -231,4 +231,4 @@ The active Mission Control UI includes a first-class NASA Trend Detective (CH.02
 - **Clouds:** static cloud texture overlay; it is not a live meteorological layer.
 - **Fallback behavior:** real surface texture can remain visible when the DEM is unavailable; the relief control is disabled rather than substituting generated height data.
 
-The globe is an interactive visualization and context layer. It is not a 500 m global terrain mesh, a survey-grade elevation product, or a substitute for the location-specific analytical data providers used by VanRakshak.
+The DEM displaces positive land elevations only; the ocean surface remains at sea level, while bathymetry is represented in the NASA topography/bathymetry surface imagery. The globe is an interactive visualization and context layer. It is not a 500 m global terrain mesh, a survey-grade elevation product, or a substitute for the location-specific analytical data providers used by VanRakshak.
