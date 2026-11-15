@@ -34,12 +34,36 @@ function nasaPowerFixture() {
 function makeHarness() {
   const calls = [];
   const fixture = nasaPowerFixture();
+  const sentinelObservations = [
+    ["2017-08-15T05:00:00Z", 0.79],
+    ["2018-08-15T05:00:00Z", 0.78],
+    ["2019-08-15T05:00:00Z", 0.76],
+    ["2020-08-15T05:00:00Z", 0.74],
+    ["2021-08-15T05:00:00Z", 0.72],
+    ["2022-08-15T05:00:00Z", 0.70],
+    ["2023-08-15T05:00:00Z", 0.68],
+    ["2024-08-15T05:00:00Z", 0.66]
+  ].map(([datetime, mean_ndvi]) => ({
+    datetime,
+    mean_ndvi,
+    forest_fraction: 0.92,
+    cloud_masked_fraction: 0.08,
+    valid_pixels: 100
+  }));
   const mockFetch = async (input) => {
     const url = new URL(String(input));
     calls.push(url.toString());
 
     if (url.hostname === "vanrakshak-ai-scu6.onrender.com") {
       const route = url.pathname;
+      if (route === "/api/analysis/vegetation-series") {
+        return new Response(JSON.stringify({
+          source: "Sentinel-2 L2A / Earth Search",
+          observations: sentinelObservations,
+          errors: [],
+          label: "DERIVED_METRIC"
+        }), { status: 200, headers: { "content-type": "application/json" } });
+      }
       if (route === "/api/weather") {
         return new Response(JSON.stringify({
           ok: true,
@@ -146,6 +170,21 @@ async function main() {
   assert.match(trends.json.ai_research_analyst.interpretation_mode, /RULE_BASED/);
   assert.ok(harness.calls.some((url) => url.startsWith("https://power.larc.nasa.gov/")));
 
+  const vegetationTrend = await harness.invoke("earth/investigate", {
+    lat: "12.3375",
+    lon: "75.8069",
+    variable: "ndvi",
+    region_name: "Kodagu NDVI test",
+    start_year: "2017",
+    end_year: "2024"
+  });
+  assert.equal(vegetationTrend.status, 200);
+  assert.equal(vegetationTrend.json.ok, true);
+  assert.equal(vegetationTrend.json.time_series.ndvi.values.length, 8);
+  assert.equal(vegetationTrend.json.metadata.ndvi.provider, "Sentinel-2 L2A / Earth Search");
+  assert.equal(vegetationTrend.json.trends.ndvi.data_class, "ESA_DERIVED_METRIC");
+  assert.equal(vegetationTrend.json.trends.ndvi.direction, "DECREASING");
+
   const forecast = await harness.invoke("climate/forecast", {
     lat: "12.3375", lon: "75.8069", place: "Kodagu"
   });
@@ -155,7 +194,7 @@ async function main() {
   assert.equal(forecast.json.daily_forecast[0].temp_high, 25);
   assert.equal(forecast.json.source, "Test existing weather provider adapter");
 
-  console.log("EarthScope proxy compatibility checks passed: variable catalogue, 36 state/UT references, 60 NASA POWER monthly observations, and weather forecast aggregation.");
+  console.log("EarthScope proxy compatibility checks passed: variable catalogue, 36 state/UT references, 60 NASA POWER monthly observations, 8 Sentinel-2 NDVI observations, and weather forecast aggregation.");
 }
 
 main().catch((error) => {
