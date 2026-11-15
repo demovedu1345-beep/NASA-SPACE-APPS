@@ -161,3 +161,83 @@ No. It is the newest available provider observation with real timestamps and fre
 **“Does a probable driver prove illegal deforestation?”**
 
 No. Probable drivers are evidence-ranked hypotheses for patrol verification. Field evidence and competent authority review are required for a factual/legal determination.
+
+
+## NASA Space Apps Challenge 2026 — Challenge 02: Be An Earth System Trend Detective
+
+The challenge is not simply a satellite-map viewer. The core workflow is: choose Earth-system variables measured by NASA missions or produced by NASA models, retrieve a sufficiently long time series for a selected region, visualize it, estimate the direction and magnitude of change, and test whether the trend is statistically significant.
+
+### Current source matrix
+
+| Variable / product | NASA source | Extraction and temporal treatment | Runtime gate |
+|---|---|---|---|
+| 2 m air temperature | NASA POWER / GMAO | Daily T2M → monthly mean; 80% valid-day threshold | Public API; no key |
+| Precipitation | NASA POWER / GMAO | Daily PRECTOTCORR → monthly total; 80% valid-day threshold | Public API; no key |
+| MODIS NDVI / EVI | Terra MOD13Q1.061 | 16-day 250 m composite; SummaryQA ≤ 1; scale 0.0001; buffered AOI mean | Earth Engine project + credentials |
+| MODIS daytime / nighttime LST | Terra MOD11A2.061 | 8-day 1 km composite; QC_Day/QC_Night mandatory bits == 0; scale 0.02; Kelvin → °C | Earth Engine project + credentials |
+| GPM IMERG | GPM Monthly V07 | Monthly merged satellite-gauge precipitation rate (mm/hr); current collection ends 2025-09 | Earth Engine project + credentials |
+| MERRA-2 T2M | NASA GMAO M2T1NXSLV | Hourly reanalysis → monthly mean; Kelvin → °C | Earth Engine project + credentials |
+| GLDAS soil moisture | GLDAS-2.1 Noah | 3-hourly 0–10 cm soil moisture → monthly mean | Earth Engine project + credentials |
+| Total column ozone | NASA TOMS/OMI Merged V4 | Daily merged record → monthly mean; historical TOMS and OMI/Aura-era values with interpolated gaps | Earth Engine project + credentials |
+| Sentinel-2 NDVI | ESA Copernicus | Cloud/shadow-masked 10 m NDVI; complementary evidence only | Public scene catalogue path |
+| AIRS | Aqua AIRS | Catalogue reference only; no validated trend extraction adapter | Not connected |
+
+A product is not considered live merely because it appears in the catalogue. The API must return real observations, provider provenance, valid timestamps and the expected units. Earth Engine products remain unavailable when credentials are missing; the dashboard must show that state rather than fabricate data.
+
+### Statistical contract
+
+- Mann–Kendall tests monotonic trend direction; report statistic, tau, z-score, p-value and sample count.
+- Sen's slope reports the rate of change using actual elapsed time between observations, including irregular MODIS/Sentinel sampling.
+- The 95% interval is an interval for the slope estimate, not a confidence band around every chart point.
+- Seasonal Mann–Kendall is reported when repeated seasonal samples exist.
+- Benjamini–Hochberg q-values are reported for multi-variable requests; show nominal p and adjusted q separately.
+- Lag-1 autocorrelation is currently a diagnostic only. Yue–Pilon pre-whitening is not applied by the active trend route, so nominal p-values must be interpreted cautiously where serial dependence is present.
+- Correlation is descriptive and does not prove causation.
+- Missing values, fill values and low-coverage months are excluded; missing months are not filled with zero.
+- NASA POWER is a gridded NASA model/reanalysis product, not a local weather-station measurement.
+- GPM IMERG is a merged satellite-gauge estimate; its monthly rate is not a monthly accumulation.
+- TOMS/OMI is a merged historical record, not an OMI-only series over its full time span.
+
+### Active API workflow
+
+- `GET /api/earth/variables` — variable catalogue with source metadata and credential notes.
+- `GET /api/earth/investigate` — single-variable regional time-series and trend analysis.
+- `GET /api/earth/trends/analyze` — multi-variable analysis with FDR correction.
+- `POST /api/earth/trends/analyze` — multi-variable analysis request.
+- `POST /api/earth/trends/compare` — region comparison.
+- `GET /api/source-health` — provider configuration/health; this is not proof that a specific product has been extracted.
+- `GET /api/earth/cmr/search` — NASA CMR discovery; catalogue discovery is not data extraction.
+
+### Release blockers
+
+1. Confirm the Render backend is healthy and the Vercel API proxy reaches it.
+2. Verify NASA POWER at a real location in production.
+3. Run authenticated Earth Engine extraction tests for MODIS, GPM, MERRA-2, GLDAS and TOMS/OMI.
+4. Verify output timestamps, units, source metadata, QA masking and sample counts against provider documentation.
+5. Keep AIRS marked catalogue-only until its own NASA data retrieval path is implemented and tested.
+6. Capture a complete browser smoke test and a reproducible end-to-end demo before claiming production readiness.
+
+
+
+## 3D Earth model — visualization evidence and limits
+
+The Mission Control and Trend Detective workspaces share a WGS84-based 3D Earth implementation:
+
+- WGS84 oblate-ellipsoid geometry with geodetic coordinate conversion and surface normals.
+- NASA Blue Marble: Next Generation topography/bathymetry imagery as the global surface map.
+- NASA VIIRS Black Marble 2016 night-light composite, with the day/night terminator driven by an approximate solar position calculated from UTC.
+- Public AWS Terrain Tiles / Terrarium elevation mosaic sampled onto the globe mesh. The current zoom-3 world mosaic is 2,048 × 2,048 source pixels and is sampled to a 384 × 192 globe mesh for rendering; the display applies 5× vertical exaggeration to make relief visible.
+- Separate controls for terrain relief, static cloud texture, night lights and orbit/reset.
+- The cloud texture is static, not a real-time cloud observation. The NASA surface and night composites are reference imagery, not live satellite video.
+
+The global DEM source is a variable-resolution mosaic and is only a visualization base. Its mosaic scale is roughly 20 km per pixel at the equator; this is not a guarantee of source accuracy, a local survey-grade terrain model or a basis for the product's quantitative elevation analysis. The visual 5× land relief is not physical scale. Positive land elevation displaces the mesh while the ocean surface remains at sea level; bathymetry is shown by the NASA surface composite, not by deforming the sea surface. DEM displacement is applied only when browser tile loading and CORS pixel access succeed; otherwise the UI keeps the real surface imagery and disables the relief toggle rather than inventing elevation values.
+
+### Demo sequence
+
+1. Open Mission Control and allow the globe's NASA surface and DEM layers to load.
+2. Toggle relief off/on to contrast ellipsoid-only and terrain-displaced geometry.
+3. Toggle the night-light and static cloud overlays independently.
+4. Rotate/zoom and click a point; confirm that the selected coordinates and evidence inspector still respond.
+5. Open Trend Detective and verify that its globe uses the same Earth model.
+
+Do not present the global visual DEM as a high-resolution analytical terrain layer or the globe as continuously live imagery.

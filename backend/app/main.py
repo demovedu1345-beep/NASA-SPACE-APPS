@@ -1,5 +1,16 @@
 from __future__ import annotations
 import asyncio, json, os, math
+
+if not hasattr(asyncio, "timeout"):
+    from contextlib import asynccontextmanager
+    @asynccontextmanager
+    async def _async_timeout(delay):
+        try:
+            yield
+        except Exception:
+            raise
+    asyncio.timeout = _async_timeout
+
 import httpx
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -2298,3 +2309,759 @@ def root():
     p = WEB / "index.html"
     return FileResponse(str(p)) if p.exists() else {"message": "VanRakshak AI API", "docs": "/docs"}
 
+
+
+# =============================================================================
+# EARTHSCOPE — NASA Earth System Trend Detective integration.
+# All trend inputs below come from live provider observations. Missing sources
+# remain unavailable; no synthetic NDVI/LST/climate values are substituted.
+# =============================================================================
+from pydantic import BaseModel, Field
+from collections import defaultdict
+from statistics import mean, median
+from calendar import month_abbr, monthrange
+
+class EarthTrendRequest(BaseModel):
+    lat: float = Field(12.3375, ge=-90, le=90)
+    lon: float = Field(75.8069, ge=-180, le=180)
+    region_name: str = "Kodagu Forest Region"
+    variables: list[str] = Field(default_factory=lambda: ["ndvi", "t2m", "precipitation"])
+    start_year: int = Field(2015, ge=1981, le=2100)
+    end_year: int = Field(2026, ge=1981, le=2100)
+    alpha: float = Field(0.05, gt=0.0, lt=0.5)
+
+class EarthTrendCompareRequest(BaseModel):
+    regions: list[dict] = Field(default_factory=list, min_length=2, max_length=8)
+    variables: list[str] = Field(default_factory=lambda: ["ndvi", "t2m", "precipitation"])
+    start_year: int = Field(2015, ge=1981, le=2100)
+    end_year: int = Field(2026, ge=1981, le=2100)
+
+_EARTH_TREND_VARIABLES = {
+    "ndvi": {
+        "name": "Sentinel-2 NDVI (ESA Copernicus; complementary evidence)",
+        "unit": "NDVI",
+        "dataset": "Sentinel-2 MSI Level-2A",
+        "source": "Element 84 Earth Search / ESA Copernicus Sentinel-2 L2A COGs",
+        "resolution": "10 m",
+        "data_class": "ESA_DERIVED_METRIC",
+        "method": "Cloud/shadow-masked red and near-infrared reflectance, summarized over a 1.5 km radius.",
+    },
+    "t2m": {
+        "name": "2 m Air Temperature",
+        "unit": "°C",
+        "dataset": "NASA POWER Daily Point API (NASA model/reanalysis product)",
+        "source": "NASA POWER T2M daily observations aggregated to monthly means",
+        "resolution": "0.5° × 0.625° (approximately 50 km)",
+        "data_class": "NASA_MODEL_OUTPUT",
+        "method": "Monthly means calculated from NASA POWER daily T2M values; provider provenance is retained.",
+    },
+    "precipitation": {
+        "name": "Precipitation",
+        "unit": "mm/month",
+        "dataset": "NASA POWER Daily Point API (NASA model/reanalysis product)",
+        "source": "NASA POWER PRECTOTCORR daily values aggregated to monthly totals",
+        "resolution": "0.5° × 0.625° (approximately 50 km)",
+        "data_class": "NASA_MODEL_OUTPUT",
+        "method": "Monthly totals calculated from NASA POWER daily PRECTOTCORR values; provider provenance is retained.",
+    },
+    "modis_ndvi": {
+        "name": "MODIS NDVI (NASA Terra)",
+        "unit": "NDVI",
+        "dataset": "MODIS/061/MOD13Q1",
+        "source": "Google Earth Engine / NASA Terra MODIS MOD13Q1.061",
+        "resolution": "250 m",
+        "data_class": "NASA_DIRECT_OBSERVATION",
+        "method": "16-day composite; SummaryQA <= 1; 1.5 km buffered AOI mean; NDVI scale factor 0.0001.",
+    },
+    "modis_lst_day": {
+        "name": "MODIS Daytime Land Surface Temperature (NASA Terra)",
+        "unit": "°C",
+        "dataset": "MODIS/061/MOD11A2",
+        "source": "Google Earth Engine / NASA Terra MODIS MOD11A2.061",
+        "resolution": "1 km",
+        "data_class": "NASA_DIRECT_OBSERVATION",
+        "method": "8-day composite; QC_Day mandatory QA bits == 0; scale factor 0.02 and Kelvin-to-Celsius conversion.",
+    },
+    "modis_evi": {
+        "name": "MODIS Enhanced Vegetation Index (NASA Terra)",
+        "unit": "EVI",
+        "dataset": "MODIS/061/MOD13Q1",
+        "source": "Google Earth Engine / NASA Terra MODIS MOD13Q1.061",
+        "resolution": "250 m",
+        "data_class": "NASA_DIRECT_OBSERVATION",
+        "method": "16-day composite; SummaryQA <= 1; scale factor 0.0001; EVI provides complementary sensitivity in high-biomass vegetation.",
+    },
+    "modis_lst_night": {
+        "name": "MODIS Nighttime Land Surface Temperature (NASA Terra)",
+        "unit": "°C",
+        "dataset": "MODIS/061/MOD11A2",
+        "source": "Google Earth Engine / NASA Terra MODIS MOD11A2.061",
+        "resolution": "1 km",
+        "data_class": "NASA_DIRECT_OBSERVATION",
+        "method": "8-day composite; QC_Night mandatory QA bits == 0; scale factor 0.02 and Kelvin-to-Celsius conversion.",
+    },
+    "gpm_precipitation": {
+        "name": "GPM IMERG Monthly Precipitation Rate",
+        "unit": "mm/hr",
+        "dataset": "NASA/GPM_L3/IMERG_MONTHLY_V07",
+        "source": "Google Earth Engine / NASA GPM IMERG Monthly V07",
+        "resolution": "0.1° (~11.1 km)",
+        "data_class": "NASA_SATELLITE_GAUGE_MERGED_PRODUCT",
+        "method": "Monthly GPM IMERG merged satellite-gauge precipitation rate; AOI mean; monthly product currently ends in 2025-09; precipitationQualityIndex is not yet used as a rejection mask.",
+    },
+    "merra2_t2m": {
+        "name": "MERRA-2 2 m Air Temperature",
+        "unit": "°C",
+        "dataset": "NASA/GSFC/MERRA/slv/2",
+        "source": "Google Earth Engine / NASA MERRA-2 M2T1NXSLV",
+        "resolution": "Approximately 69 × 55 km",
+        "data_class": "NASA_MODEL_OUTPUT",
+        "method": "Hourly T2M reanalysis aggregated to monthly means; Kelvin converted to Celsius.",
+    },
+    "gldas_soil_moisture": {
+        "name": "GLDAS Surface Soil Moisture (0–10 cm)",
+        "unit": "kg/m²",
+        "dataset": "NASA/GLDAS/V021/NOAH/G025/T3H",
+        "source": "Google Earth Engine / NASA GLDAS-2.1 Noah",
+        "resolution": "27.8 km",
+        "data_class": "NASA_MODEL_OUTPUT",
+        "method": "3-hourly 0–10 cm soil-moisture estimates aggregated to monthly means.",
+    },
+    "omi_ozone": {
+        "name": "TOMS / OMI Merged Total Column Ozone",
+        "unit": "Dobson units",
+        "dataset": "TOMS/MERGED_V4",
+        "source": "Google Earth Engine / NASA GES DISC TOMS-OMI merged product",
+        "resolution": "111 km",
+        "data_class": "NASA_MERGED_SATELLITE_PRODUCT",
+        "method": "Daily merged total-column ozone observations aggregated to monthly means; includes TOMS history and OMI/Aura-era observations.",
+    },
+}
+
+def _earth_date_decimal(date_text: str) -> float:
+    raw = str(date_text)[:10]
+    dt = datetime.fromisoformat(raw)
+    return dt.year + (dt.timetuple().tm_yday - 1) / (366 if (dt.year % 4 == 0 and (dt.year % 100 != 0 or dt.year % 400 == 0)) else 365)
+
+def _earth_mk_core(values: list[float]) -> dict:
+    n = len(values)
+    if n < 4:
+        return {"n": n, "s": 0, "tau": None, "z": None, "p_value": None, "variance": None, "significant": None}
+    from collections import Counter
+    s_value = sum((1 if values[j] > values[i] else -1 if values[j] < values[i] else 0)
+                  for i in range(n - 1) for j in range(i + 1, n))
+    ties = Counter(round(v, 8) for v in values)
+    tie_sum = sum(t * (t - 1) * (2 * t + 5) for t in ties.values() if t > 1)
+    variance = (n * (n - 1) * (2 * n + 5) - tie_sum) / 18.0
+    if variance <= 0:
+        z_value = 0.0
+    elif s_value > 0:
+        z_value = (s_value - 1.0) / math.sqrt(variance)
+    elif s_value < 0:
+        z_value = (s_value + 1.0) / math.sqrt(variance)
+    else:
+        z_value = 0.0
+    p_value = math.erfc(abs(z_value) / math.sqrt(2.0))
+    return {
+        "n": n, "s": s_value,
+        "tau": round(s_value / (0.5 * n * (n - 1)), 6),
+        "z": round(z_value, 6), "p_value": round(p_value, 8),
+        "variance": round(variance, 6),
+    }
+
+def _earth_trend_stats(rows: list[dict], alpha: float = 0.05) -> dict:
+    clean = []
+    for row in rows:
+        try:
+            date_text = str(row["date"])[:10]
+            value = float(row["value"])
+            year_x = _earth_date_decimal(date_text)
+            if math.isfinite(value) and math.isfinite(year_x):
+                clean.append({"date": date_text, "x": year_x, "value": value})
+        except (KeyError, TypeError, ValueError):
+            continue
+    clean.sort(key=lambda item: item["date"])
+    values = [row["value"] for row in clean]
+    mk = _earth_mk_core(values)
+    pairs = []
+    for i in range(len(clean) - 1):
+        for j in range(i + 1, len(clean)):
+            dt_years = clean[j]["x"] - clean[i]["x"]
+            if dt_years > 0:
+                pairs.append((clean[j]["value"] - clean[i]["value"]) / dt_years)
+    slope = median(pairs) if pairs else None
+    ci = [None, None]
+    if pairs:
+        ordered = sorted(pairs)
+        variance = mk.get("variance") or 0.0
+        m = len(ordered)
+        rank_offset = 1.959964 * math.sqrt(max(0.0, variance))
+        lo = max(0, min(m - 1, int(math.floor((m - rank_offset) / 2.0))))
+        hi = max(0, min(m - 1, int(math.ceil((m + rank_offset) / 2.0))))
+        ci = [round(ordered[lo], 8), round(ordered[hi], 8)]
+    seasonal_s = 0
+    seasonal_var = 0.0
+    by_month = defaultdict(list)
+    for row in clean:
+        try:
+            by_month[int(row["date"][5:7])].append(row["value"])
+        except (ValueError, IndexError):
+            pass
+    seasonal_months = 0
+    for month_values in by_month.values():
+        if len(month_values) < 2:
+            continue
+        month_stats = _earth_mk_core(month_values)
+        seasonal_s += month_stats.get("s") or 0
+        seasonal_var += month_stats.get("variance") or 0.0
+        seasonal_months += 1
+    if seasonal_months and seasonal_var > 0:
+        if seasonal_s > 0:
+            seasonal_z = (seasonal_s - 1.0) / math.sqrt(seasonal_var)
+        elif seasonal_s < 0:
+            seasonal_z = (seasonal_s + 1.0) / math.sqrt(seasonal_var)
+        else:
+            seasonal_z = 0.0
+        seasonal_p = math.erfc(abs(seasonal_z) / math.sqrt(2.0))
+    else:
+        seasonal_z = None
+        seasonal_p = None
+    lag1 = None
+    if len(values) >= 4:
+        avg = mean(values)
+        denom = sum((v - avg) ** 2 for v in values)
+        lag1 = sum((values[i] - avg) * (values[i - 1] - avg) for i in range(1, len(values))) / denom if denom else 0.0
+    return {
+        "n": len(clean),
+        "mann_kendall_s": mk.get("s"),
+        "mann_kendall_tau": mk.get("tau"),
+        "mann_kendall_z": mk.get("z"),
+        "p_value": mk.get("p_value"),
+        "sens_slope": round(slope, 8) if slope is not None else None,
+        "ci_95": ci,
+        "seasonal_mk_z": round(seasonal_z, 6) if seasonal_z is not None else None,
+        "seasonal_mk_p_value": round(seasonal_p, 8) if seasonal_p is not None else None,
+        "seasonal_months_with_repeated_samples": seasonal_months,
+        "lag1_autocorrelation": round(lag1, 6) if lag1 is not None else None,
+        "significant": bool(mk.get("p_value") is not None and mk["p_value"] < alpha),
+        "direction": ("INCREASING" if slope is not None and slope > 0 else "DECREASING" if slope is not None and slope < 0 else "NO_DIRECTION") if mk.get("n", 0) >= 4 else "INSUFFICIENT_DATA",
+    }
+
+def _earth_fdr(trend_results: dict, alpha: float = 0.05) -> dict:
+    valid = [(key, value.get("p_value")) for key, value in trend_results.items()
+             if value.get("p_value") is not None]
+    valid.sort(key=lambda item: item[1])
+    total = len(valid)
+    q_values = {}
+    running = 1.0
+    for index in range(total - 1, -1, -1):
+        key, p_value = valid[index]
+        rank = index + 1
+        running = min(running, p_value * total / rank)
+        q_values[key] = round(min(1.0, running), 8)
+    return {
+        "method": "Benjamini-Hochberg false-discovery-rate correction",
+        "alpha": alpha,
+        "q_values": q_values,
+        "significant": {key: value < alpha for key, value in q_values.items()},
+    }
+
+async def _earth_trend_analysis(
+    lat: float, lon: float, region_name: str,
+    variables: list[str], start_year: int, end_year: int, alpha: float = 0.05,
+) -> dict:
+    if start_year > end_year:
+        raise HTTPException(422, "start_year must not exceed end_year")
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        raise HTTPException(422, "Coordinates must be within WGS84 bounds")
+    end_dt = min(datetime(end_year, 12, 31, tzinfo=timezone.utc), datetime.now(timezone.utc))
+    start_dt = datetime(start_year, 1, 1, tzinfo=timezone.utc)
+    if end_dt <= start_dt:
+        raise HTTPException(422, "The requested end year has no completed observation window")
+    start_text = start_dt.date().isoformat()
+    end_text = end_dt.date().isoformat()
+    requested = list(dict.fromkeys(variables))
+    unknown = [v for v in requested if v not in _EARTH_TREND_VARIABLES]
+    unavailable = {v: "This variable is catalogued but is not connected to a validated observation time-series in this runtime." for v in unknown}
+    series_by_variable = {}
+    metadata = {}
+    provider_errors = []
+
+    if "ndvi" in requested:
+        try:
+            veg = await vegetation_series_ep(
+                lat, lon, start_text, end_text,
+                max_observations=16, cloud_lt=50, radius_km=1.5,
+            )
+            observations = veg.get("observations") or []
+            ndvi_rows = [
+                {"date": str(item.get("datetime") or "")[:10], "value": item.get("mean_ndvi")}
+                for item in observations if item.get("mean_ndvi") is not None and item.get("datetime")
+            ]
+            if len(ndvi_rows) >= 4:
+                series_by_variable["ndvi"] = ndvi_rows
+                metadata["ndvi"] = {
+                    **_EARTH_TREND_VARIABLES["ndvi"],
+                    "sample_count": len(ndvi_rows),
+                    "provider": veg.get("source") or _EARTH_TREND_VARIABLES["ndvi"]["source"],
+                    "cloud_quality": "SCL-masked; cloud-masked fraction retained per observation",
+                    "observations": observations,
+                }
+            else:
+                unavailable["ndvi"] = "Fewer than four usable Sentinel-2 observations were returned for the requested period."
+        except Exception as exc:
+            unavailable["ndvi"] = "Sentinel-2 vegetation observations unavailable: " + str(exc)[:220]
+            provider_errors.append({"variable": "ndvi", "error": str(exc)[:300]})
+
+    earth_engine_layers = {
+        "modis_ndvi": "modis_ndvi",
+        "modis_evi": "modis_evi",
+        "modis_lst_day": "modis_lst",
+        "modis_lst_night": "modis_lst_night",
+        "gpm_precipitation": "gpm_precipitation",
+        "merra2_t2m": "merra2_t2m",
+        "gldas_soil_moisture": "gldas_soil_moisture",
+        "omi_ozone": "omi_ozone",
+    }
+    for variable, layer_id in earth_engine_layers.items():
+        if variable not in requested:
+            continue
+        try:
+            end_exclusive = (end_dt + timedelta(days=1)).date().isoformat()
+            extraction = await asyncio.to_thread(
+                ee.timeseries, layer_id, lat, lon, start_text, end_exclusive,
+            )
+            observations = extraction.get("observations") or []
+            rows = [
+                {"date": str(item.get("date") or "")[:10], "value": item.get("value")}
+                for item in observations
+                if item.get("date") and item.get("value") is not None
+                and math.isfinite(float(item["value"]))
+            ]
+            if len(rows) >= 12:
+                series_by_variable[variable] = rows
+                metadata[variable] = {
+                    **_EARTH_TREND_VARIABLES[variable],
+                    "sample_count": len(rows),
+                    "provider": extraction.get("source") or _EARTH_TREND_VARIABLES[variable]["source"],
+                    "quality_control": extraction.get("quality_mask"),
+                    "extraction_period": extraction.get("period"),
+                }
+            else:
+                unavailable[variable] = (
+                    f"NASA Earth Engine extraction returned {len(rows)} observations after configured filtering; "
+                    "at least 12 are required for a trend result."
+                )
+        except Exception as exc:
+            unavailable[variable] = "NASA Earth Engine observations unavailable: " + str(exc)[:220]
+            provider_errors.append({"variable": variable, "error": str(exc)[:300]})
+
+    climate_variables = {"t2m", "precipitation"}.intersection(requested)
+    if climate_variables:
+        try:
+            # Challenge 02 requires NASA mission/model variables. Use NASA POWER
+            # as the primary trend source; do not silently substitute a non-NASA
+            # weather archive into the scientific trend calculation.
+            history = await power.historical_daily(lat, lon, start_text, end_text)
+            climate_source = "NASA POWER Daily Point API"
+            provider_trace = []
+            daily = history.get("daily") or {}
+            dates = daily.get("time") or []
+            temps = daily.get("temperature_2m_mean") or []
+            rainfall = daily.get("precipitation_sum") or []
+            temp_months = defaultdict(list)
+            rain_months = defaultdict(list)
+            for day, temp, rain in zip(dates, temps, rainfall):
+                month_key = str(day)[:7]
+                if temp is not None and math.isfinite(float(temp)) and float(temp) > -900:
+                    temp_months[month_key].append(float(temp))
+                if rain is not None and math.isfinite(float(rain)) and float(rain) > -900:
+                    rain_months[month_key].append(float(rain))
+            for variable in climate_variables:
+                values = temp_months if variable == "t2m" else rain_months
+                rows = []
+                for month_key in sorted(values):
+                    vals = values[month_key]
+                    year, month = int(month_key[:4]), int(month_key[5:7])
+                    minimum_valid_days = math.ceil(monthrange(year, month)[1] * 0.8)
+                    if len(vals) >= minimum_valid_days:
+                        val = mean(vals) if variable == "t2m" else sum(vals)
+                        rows.append({"date": month_key + "-15", "value": round(val, 5)})
+                if len(rows) >= 12:
+                    series_by_variable[variable] = rows
+                    metadata[variable] = {
+                        **_EARTH_TREND_VARIABLES[variable],
+                        "sample_count": len(rows),
+                        "provider": climate_source,
+                        "provider_trace": provider_trace,
+                    }
+                else:
+                    unavailable[variable] = "Fewer than 12 monthly values were returned by the climate archive."
+        except Exception as exc:
+            for variable in climate_variables:
+                unavailable[variable] = "Historical climate observations unavailable: " + str(exc)[:220]
+            provider_errors.append({"variable": "climate", "error": str(exc)[:300]})
+
+    trends = {}
+    time_series = {}
+    for variable, rows in series_by_variable.items():
+        stats = _earth_trend_stats(rows, alpha)
+        trends[variable] = {
+            **stats,
+            "fdr_significant": None,
+            "unit": _EARTH_TREND_VARIABLES[variable]["unit"],
+            "source": metadata[variable].get("provider"),
+            "data_class": _EARTH_TREND_VARIABLES[variable]["data_class"],
+        }
+        time_series[variable] = {
+            "dates": [row["date"][:10] for row in rows],
+            "values": [row["value"] for row in rows],
+        }
+
+    fdr = _earth_fdr(trends, alpha)
+    for variable, result in trends.items():
+        result["fdr_q_value"] = fdr["q_values"].get(variable)
+        result["fdr_significant"] = fdr["significant"].get(variable)
+
+    correlation_matrix = {}
+    annual = {}
+    for variable, rows in series_by_variable.items():
+        grouped = defaultdict(list)
+        for row in rows:
+            grouped[row["date"][:4]].append(row["value"])
+        annual[variable] = {year: mean(vals) for year, vals in grouped.items() if vals}
+    variables_with_data = list(annual)
+    for i, var_a in enumerate(variables_with_data):
+        for var_b in variables_with_data[i + 1:]:
+            shared = sorted(set(annual[var_a]).intersection(annual[var_b]))
+            if len(shared) < 4:
+                continue
+            a_vals = [annual[var_a][year] for year in shared]
+            b_vals = [annual[var_b][year] for year in shared]
+            a_mean, b_mean = mean(a_vals), mean(b_vals)
+            a_ss = sum((x - a_mean) ** 2 for x in a_vals)
+            b_ss = sum((y - b_mean) ** 2 for y in b_vals)
+            denominator = math.sqrt(a_ss * b_ss)
+            corr = sum((a_vals[k] - a_mean) * (b_vals[k] - b_mean) for k in range(len(shared))) / denominator if denominator else None
+            correlation_matrix[var_a + "_vs_" + var_b] = {
+                "variable_a": var_a, "variable_b": var_b,
+                "pearson_r": round(corr, 6) if corr is not None else None,
+                "n_years": len(shared), "years": shared,
+                "relationship": "Correlation only; does not establish causation.",
+            }
+
+    summary = []
+    for variable, result in trends.items():
+        unit = result["unit"]
+        slope = result.get("sens_slope")
+        p_value = result.get("p_value")
+        label = "insufficient data" if p_value is None else ("statistically significant " if result["significant"] else "not statistically significant ") + str(result.get("direction", "")).lower() + " trend"
+        summary.append(
+            _EARTH_TREND_VARIABLES[variable]["name"] + ": " + label +
+            (f" (Sen's slope {slope:+.5f} {unit}/year, p={p_value:.5f})." if slope is not None and p_value is not None else ".")
+        )
+
+    return {
+        "ok": bool(trends),
+        "investigation_id": "ESC-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S"),
+        "region": {"name": region_name, "latitude": lat, "longitude": lon},
+        "timeframe": {"start_year": start_year, "end_year": end_year, "start_date": start_text, "end_date": end_text},
+        "variables_evaluated": list(trends),
+        "unavailable_variables": unavailable,
+        "trends": trends,
+        "results": trends,
+        "time_series": time_series,
+        "metadata": metadata,
+        "correlation_matrix": correlation_matrix,
+        "multiple_testing_fdr": fdr,
+        "provider_errors": provider_errors,
+        "ai_research_analyst": {
+            "grounded_interpretation": " ".join(summary) if summary else "No valid observations were returned. No trend conclusion is available.",
+            "limitations": [
+                "Trend statistics are computed only from returned provider observations; no synthetic NDVI, LST or climate series are inserted.",
+                "Sentinel-2 optical observations are irregular and cloud-masked; revisit gaps and seasonal sampling can affect trend interpretation.",
+                "NASA POWER climate grids are regional model/reanalysis estimates, not field microclimate measurements.",
+                "NASA MODIS and GPM values are satellite products summarized over buffered point areas; they are not field sensor measurements.",
+                "MERRA-2 and GLDAS values are NASA model/reanalysis outputs, not direct satellite measurements.",
+                "TOMS/OMI ozone is a merged satellite record with historical source transitions; it is not an OMI-only series across the full record.",
+                "Earth Engine MODIS extraction requires a configured Google Cloud project and authenticated Earth Engine credentials.",
+                "Correlation is descriptive and does not establish environmental causation.",
+                "A detected vegetation decline is a screening result, not legal proof of deforestation.",
+            ],
+        },
+        "retrieved_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+@app.post("/api/earth/trends/analyze")
+async def earth_trends_analyze_post(request: EarthTrendRequest):
+    return await _earth_trend_analysis(
+        request.lat, request.lon, request.region_name, request.variables,
+        request.start_year, request.end_year, request.alpha,
+    )
+
+@app.get("/api/earth/trends/analyze")
+async def earth_trends_analyze_get(
+    lat: float = Query(12.3375, ge=-90, le=90),
+    lon: float = Query(75.8069, ge=-180, le=180),
+    region_name: str = Query("Kodagu Forest Region", max_length=120),
+    variables: str = Query("ndvi,t2m,precipitation"),
+    start_year: int = Query(2015, ge=1981, le=2100),
+    end_year: int = Query(2026, ge=1981, le=2100),
+    alpha: float = Query(0.05, gt=0.0, lt=0.5),
+):
+    return await _earth_trend_analysis(
+        lat, lon, region_name, [v.strip() for v in variables.split(",") if v.strip()],
+        start_year, end_year, alpha,
+    )
+
+@app.get("/api/earth/investigate")
+async def earth_investigate_get(
+    lat: float = Query(12.3375, ge=-90, le=90),
+    lon: float = Query(75.8069, ge=-180, le=180),
+    variable: str = Query("ndvi"),
+    region_name: str = Query("Kodagu Forest Region", max_length=120),
+    start_year: int = Query(2015, ge=1981, le=2100),
+    end_year: int = Query(2026, ge=1981, le=2100),
+):
+    return await _earth_trend_analysis(lat, lon, region_name, [variable], start_year, end_year)
+
+@app.post("/api/earth/trends/compare")
+async def earth_trends_compare(request: EarthTrendCompareRequest):
+    async def run_region(region):
+        try:
+            lat = float(region.get("lat"))
+            lon = float(region.get("lon"))
+            name = str(region.get("name") or "Selected region")[:120]
+            return await _earth_trend_analysis(lat, lon, name, request.variables, request.start_year, request.end_year)
+        except Exception as exc:
+            return {"ok": False, "region": region, "error": str(exc)[:240]}
+    results = await asyncio.gather(*(run_region(region) for region in request.regions))
+    return {"ok": any(item.get("ok") for item in results), "count": len(results), "comparisons": results}
+
+@app.get("/api/earth/variables")
+def earth_variables_catalog():
+    return {"ok": True, "count": len(_EARTH_TREND_VARIABLES), "variables": _EARTH_TREND_VARIABLES,
+            "note": "Catalogue entries include public and credential-gated extraction paths. Runtime source health and each extraction response determine availability; metadata alone never marks a product available."}
+
+@app.get("/api/earth/cmr/search")
+async def earth_cmr_search(keyword: str = Query("MODIS", min_length=2, max_length=120), page_size: int = Query(8, ge=1, le=25)):
+    params = {"keyword": keyword, "page_size": page_size, "sort_key": "-usage_score"}
+    headers = {"Accept": "application/json", "User-Agent": "EARTHSCOPE-NASA-SpaceApps/2026.1"}
+    token = os.getenv("EARTHDATA_BEARER_TOKEN") or os.getenv("EARTHDATA_TOKEN")
+    if token:
+        headers["Authorization"] = "Bearer " + token
+    try:
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            response = await client.get("https://cmr.earthdata.nasa.gov/search/collections.json", params=params, headers=headers)
+            response.raise_for_status()
+            feed = response.json().get("feed", {}).get("entry", [])
+            records = [{
+                "id": item.get("id"), "title": item.get("title"),
+                "summary": (item.get("summary") or "")[:300],
+                "time_start": item.get("time_start"), "time_end": item.get("time_end"),
+                "data_center": item.get("data_center"), "version_id": item.get("version_id"),
+                "links": [link.get("href") for link in item.get("links", []) if link.get("rel") == "http://esipfed.org/ns/fedsearch/1.1/data#"]
+            } for item in feed]
+        return {"ok": True, "keyword": keyword, "count": len(records), "collections": records, "authentication": "EARTHDATA_BEARER_TOKEN" if token else "PUBLIC_CMR"}
+    except Exception as exc:
+        return {"ok": False, "keyword": keyword, "count": 0, "collections": [], "error": str(exc)[:240]}
+
+@app.get("/api/earth/geocode")
+async def earth_geocode(q: str = Query(..., min_length=2, max_length=180)):
+    return await geocode(q)
+
+@app.get("/api/earth/coverage")
+async def earth_coverage(
+    lat: float = Query(12.3375, ge=-90, le=90),
+    lon: float = Query(75.8069, ge=-180, le=180),
+):
+    sat, met = await asyncio.gather(
+        sat_ep(lat, lon, 45, 60),
+        weather_source_result(lat, lon),
+        return_exceptions=True,
+    )
+    def summarize(result, provider):
+        if isinstance(result, Exception):
+            return {"status": "UNAVAILABLE", "provider": provider, "reason": str(result)[:180]}
+        ok = getattr(result, "ok", None)
+        data = getattr(result, "data", None)
+        provenance = getattr(result, "provenance", None)
+        return {
+            "status": "AVAILABLE" if ok else "UNAVAILABLE",
+            "provider": getattr(provenance, "source", None) or provider,
+            "observed_at": getattr(provenance, "observed_at", None),
+            "data_available": data is not None,
+            "error": getattr(result, "error", None),
+        }
+    return {
+        "ok": True, "location": {"lat": lat, "lon": lon},
+        "coverage": {
+            "sentinel2": summarize(sat, "Sentinel-2 catalogue chain"),
+            "weather": summarize(met, "Open-Meteo / MET Norway"),
+        },
+        "note": "Availability is checked at request time and is not a guarantee of cloud-free pixels or complete temporal coverage.",
+    }
+
+@app.get("/api/climate/forecast")
+async def climate_forecast_ep(
+    lat: float = Query(12.3375, ge=-90, le=90),
+    lon: float = Query(75.8069, ge=-180, le=180),
+    place: str = Query("Selected location", max_length=120),
+    start_date: str | None = Query(None, min_length=10, max_length=10),
+    days_requested: int = Query(7, ge=1, le=7, alias="days"),
+):
+    params = {
+        "latitude": lat, "longitude": lon,
+        "current": "temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,pressure_msl",
+        "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max",
+        "forecast_days": 7, "timezone": "auto",
+    }
+    forecast_error = None
+    forecast = None
+    try:
+        forecast = await weather.get_json(settings.open_meteo_url, params=params)
+    except Exception as exc:
+        forecast_error = str(exc)[:220]
+    daily = forecast.get("daily") if isinstance(forecast, dict) else {}
+    current = forecast.get("current") if isinstance(forecast, dict) else {}
+    days = []
+    if daily:
+        for i, day in enumerate(daily.get("time") or []):
+            def safe_at(key):
+                values = daily.get(key) or []
+                return values[i] if i < len(values) else None
+            days.append({
+                "date": day,
+                "day": datetime.fromisoformat(day).strftime("%a"),
+                "temp_high": safe_at("temperature_2m_max"),
+                "temp_low": safe_at("temperature_2m_min"),
+                "temp_c": safe_at("temperature_2m_max"),
+                "rain_mm": safe_at("precipitation_sum"),
+                "rain_prob": safe_at("precipitation_probability_max"),
+                "wind_kmh": safe_at("wind_speed_10m_max"),
+                "condition": "Provider forecast",
+                "source": "Open-Meteo",
+            })
+
+    if start_date:
+        try:
+            selected_start = datetime.fromisoformat(start_date).date()
+        except ValueError:
+            raise HTTPException(422, "start_date must use YYYY-MM-DD")
+        available_dates = {datetime.fromisoformat(day["date"]).date() for day in days}
+        if selected_start not in available_dates:
+            raise HTTPException(422, "start_date is outside the provider's available forecast window")
+        days = [day for day in days if datetime.fromisoformat(day["date"]).date() >= selected_start]
+    days = days[:days_requested]
+
+    start_hist = (datetime.now(timezone.utc).date().replace(year=datetime.now(timezone.utc).year - 10)).isoformat()
+    end_hist = (datetime.now(timezone.utc).date() - timedelta(days=7)).isoformat()
+    hist_months = defaultdict(lambda: {"temp": [], "rain": []})
+    climate_source = None
+    climate_error = None
+    try:
+        history, climate_source, provider_trace = await historical_climate_daily_real(lat, lon, start_hist, end_hist)
+        hist = history.get("daily") or {}
+        for day, temp, rain in zip(hist.get("time") or [], hist.get("temperature_2m_mean") or [], hist.get("precipitation_sum") or []):
+            month = int(str(day)[5:7])
+            if temp is not None: hist_months[month]["temp"].append(float(temp))
+            if rain is not None: hist_months[month]["rain"].append(float(rain))
+    except Exception as exc:
+        climate_error = str(exc)[:220]
+        provider_trace = []
+
+    months = [month_abbr[i] for i in range(1, 13)]
+    monthly_temps = [round(mean(hist_months[i]["temp"]), 2) if hist_months[i]["temp"] else None for i in range(1, 13)]
+    monthly_precip = [round(mean(hist_months[i]["rain"]) * 30.4375, 2) if hist_months[i]["rain"] else None for i in range(1, 13)]
+    valid_temps = [float(x) for x in monthly_temps if x is not None]
+    valid_rain = [float(x) for x in monthly_precip if x is not None]
+    current_temp = current.get("temperature_2m") if current else None
+    current_humidity = current.get("relative_humidity_2m") if current else None
+    current_wind = current.get("wind_speed_10m") if current else None
+    current_rain = current.get("precipitation") if current else None
+    valid_highs = [float(d["temp_high"]) for d in days if d["temp_high"] is not None]
+    valid_lows = [float(d["temp_low"]) for d in days if d["temp_low"] is not None]
+    valid_rain = [float(d["rain_mm"]) for d in days if d["rain_mm"] is not None]
+    valid_wind = [float(d["wind_kmh"]) for d in days if d["wind_kmh"] is not None]
+    avg_fc_temp = mean(valid_highs) if valid_highs else None
+    avg_fc_rain = mean(valid_rain) if valid_rain else None
+    sum_fc_rain = sum(valid_rain) if valid_rain else None
+    max_fc_rain = max(valid_rain) if valid_rain else None
+    rainy_days = sum(1 for value in valid_rain if value >= 0.1)
+    max_fc_wind = max(valid_wind) if valid_wind else None
+    return {
+        "ok": bool(forecast),
+        "location": {"name": place, "lat": lat, "lon": lon},
+        "source": "Open-Meteo Forecast API" if forecast else None,
+        "climatology_source": climate_source,
+        "current": current or None,
+        "insights": {
+            "avgTemp": (str(round(avg_fc_temp, 1)) + "°C") if avg_fc_temp is not None else "Unavailable",
+            "avgTempValueC": round(avg_fc_temp, 2) if avg_fc_temp is not None else None,
+            "minTemp": (str(round(min([d["temp_low"] for d in days if d["temp_low"] is not None]), 1)) + "°C") if any(d["temp_low"] is not None for d in days) else "Unavailable",
+            "maxTemp": (str(round(max([d["temp_high"] for d in days if d["temp_high"] is not None]), 1)) + "°C") if any(d["temp_high"] is not None for d in days) else "Unavailable",
+            "avgWind": (str(round(current_wind, 1)) + " km/h") if current_wind is not None else "Unavailable",
+            "maxWind": (str(round(max_fc_wind, 1)) + " km/h") if max_fc_wind is not None else "Unavailable",
+            "maxPrecip": (str(round(max_fc_rain, 1)) + " mm/day") if max_fc_rain is not None else "Unavailable",
+            "rainyDays": str(rainy_days) + " days" if valid_rain else "Unavailable",
+            "sevenDayPrecipitationTotalMm": round(sum_fc_rain, 2) if sum_fc_rain is not None else None,
+            "pressure": current.get("pressure_msl") if current else None,
+            "totalPrecip": (str(round(avg_fc_rain, 1)) + " mm/day (7-day mean)") if avg_fc_rain is not None else "Unavailable",
+            "weatherPattern": "Provider forecast" if forecast else "Forecast unavailable",
+            "patternDetail": str(len(days)) + "-day provider forecast window and ten-year monthly reference climatology are shown separately; no forecast is extrapolated beyond the provider horizon.",
+            "humidity": current_humidity, "rain_now": current_rain,
+        },
+        "daily_forecast": days,
+        "months": months, "monthly_temps": monthly_temps, "monthly_precip": monthly_precip,
+        "climatology_period": {"start": start_hist, "end": end_hist, "years": 10},
+        "provider_errors": {"forecast": forecast_error, "climatology": climate_error, "climate_provider_trace": provider_trace},
+        "retrieved_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+_EARTHSCOPE_STATE_REFERENCE = [
+    ("Andhra Pradesh",15.9129,79.7400,"Semi-Arid / Coastal","Nagarjunsagar-Srisailam, Seshachalam Hills"),
+    ("Arunachal Pradesh",28.2180,94.7278,"Montane Rainforest","Namdapha National Park, Pakke Tiger Reserve"),
+    ("Assam",26.2006,92.9376,"Humid Subtropical","Kaziranga, Manas Biosphere Reserve"),
+    ("Bihar",25.0961,85.3131,"Gangetic Alluvial Plain","Valmiki National Park"),
+    ("Chhattisgarh",21.2787,81.8661,"Tropical Moist Deciduous","Achanakmar, Indravati National Park"),
+    ("Goa",15.2993,74.1240,"Coastal Tropical","Bhagwan Mahaveer Sanctuary, Mollem"),
+    ("Gujarat",22.2587,71.1924,"Semi-Arid / Coastal","Gir Asiatic Lion Sanctuary, Velavadar"),
+    ("Haryana",29.0588,76.0856,"Semi-Arid Subtropical","Sultanpur National Park, Kalesar National Park"),
+    ("Himachal Pradesh",31.1048,77.1734,"Alpine / Temperate","Great Himalayan National Park, Pin Valley"),
+    ("Jharkhand",23.6102,85.2799,"Tropical Deciduous","Betla National Park, Dalma Wildlife Sanctuary"),
+    ("Karnataka",15.3173,75.7139,"Tropical Monsoon","Kodagu, Western Ghats, Nagarhole"),
+    ("Kerala",10.8505,76.2711,"Wet Tropical","Silent Valley, Wayanad Wildlife Sanctuary"),
+    ("Madhya Pradesh",22.9734,78.6569,"Subtropical Semi-Arid","Kanha, Bandhavgarh, Panna Tiger Reserve"),
+    ("Maharashtra",19.7515,75.7139,"Semi-Arid / Coastal","Tadoba Andhari, Sanjay Gandhi National Park"),
+    ("Manipur",24.6637,93.9063,"Subtropical Hill","Keibul Lamjao National Park"),
+    ("Meghalaya",25.4670,91.3662,"Subtropical Pluvial","Nokrek Biosphere Reserve, Cherrapunji"),
+    ("Mizoram",23.1645,92.9376,"Subtropical Hill","Dampa Tiger Reserve, Murlen National Park"),
+    ("Nagaland",26.1584,94.5624,"Montane Subtropical","Ntangki National Park, Fakim Sanctuary"),
+    ("Odisha",20.9517,85.0985,"Tropical Maritime","Similipal Biosphere Reserve, Chilika Lake"),
+    ("Punjab",31.1471,75.3412,"Semi-Arid Continental","Harike Wetland"),
+    ("Rajasthan",27.0238,74.2179,"Arid / Desert","Ranthambore, Sariska Tiger Reserve"),
+    ("Sikkim",27.5330,88.5122,"Alpine / Eastern Himalayan","Khangchendzonga Biosphere Reserve"),
+    ("Tamil Nadu",11.1271,78.6569,"Tropical Wet-and-Dry","Mudumalai, Nilgiri Biosphere Reserve"),
+    ("Telangana",18.1124,79.0193,"Semi-Arid Tropical","Amrabad Tiger Reserve, Kawal Tiger Reserve"),
+    ("Tripura",23.9408,91.9882,"Tropical Humid","Clouded Leopard National Park, Sepahijala"),
+    ("Uttar Pradesh",26.8467,80.9462,"Subtropical Alluvial","Dudhwa National Park, Pilibhit Tiger Reserve"),
+    ("Uttarakhand",30.0668,79.0193,"Montane / Subalpine","Jim Corbett, Rajaji National Park"),
+    ("West Bengal",22.9868,87.8550,"Tropical Savanna / Deltaic","Sundarbans Mangroves, Buxa Tiger Reserve"),
+]
+
+@app.get("/api/climate/states")
+def climate_states_catalog():
+    return {
+        "ok": True, "count": len(_EARTHSCOPE_STATE_REFERENCE),
+        "states": [
+            {"name": name, "lat": lat, "lon": lon, "climate_zone": zone, "hotspot": hotspot,
+             "capital": None, "data_mode": "COORDINATE_REFERENCE",
+             "note": "Selecting this state triggers live coordinate-based provider queries; the catalog itself is not a live climate reading."}
+            for name, lat, lon, zone, hotspot in _EARTHSCOPE_STATE_REFERENCE
+        ],
+    }
+
+
+# Mount web directory at root for all assets (CSS, JS, textures, iframe)
+if WEB.exists():
+    app.mount("/", StaticFiles(directory=str(WEB), html=True), name="web_root")

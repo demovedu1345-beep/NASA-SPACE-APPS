@@ -214,3 +214,21 @@ node --check web/app.js
 ## License
 
 Original repository code is MIT licensed. Every external API/dataset keeps its own terms, attribution and access requirements.
+
+
+## NASA Space Apps Challenge 2026 — Earth System Trend Detective
+
+The active Mission Control UI includes a first-class NASA Trend Detective (CH.02) workspace. Live trend variables are: Sentinel-2 L2A NDVI from ESA Copernicus as clearly labelled complementary evidence, plus NASA POWER T2M and PRECTOTCORR daily data aggregated to monthly means/totals with an 80% valid-day quality gate. NASA Terra MODIS MOD13Q1 NDVI/EVI and MOD11A2 day/night LST, GPM IMERG Monthly V07, MERRA-2 T2M, GLDAS soil moisture, and the TOMS/OMI merged ozone record have Google Earth Engine extraction adapters. They require a configured project and successful authenticated regional retrieval before being labelled live. AIRS remains catalogue-only; no synthetic series are substituted. The backend exposes GET/POST /api/earth/trends/analyze, GET /api/earth/investigate, POST /api/earth/trends/compare, GET /api/earth/variables, GET /api/earth/cmr/search, GET /api/earth/coverage, GET /api/earth/geocode, GET /api/climate/forecast and GET /api/climate/states. See docs/CHALLENGE_02_DATA_COMPLIANCE.md and docs/JUDGING_EVIDENCE.md for source status, methods, limitations and judge demo sequence.
+
+**Inventory reconciliation:** the supplied inventory is a target/reference catalogue, not proof that every route or file exists in this Git tree. A repository tree audit found no local /static/textures/earth_day.jpg, earth_night.jpg, earth_clouds_1024.png, earth_specular_2048.jpg or earth_topology.png. The primary Mission Control and Trend Detective globes now share a WGS84 oblate-ellipsoid model, NASA Blue Marble topography/bathymetry surface imagery, NASA VIIRS Black Marble 2016 night-light imagery, and an optional public Terrarium global DEM mosaic (zoom 3; 64 tiles forming a 2,048 × 2,048 source mosaic (about 20 km equatorial source-grid spacing), sampled onto a 384 × 192 globe mesh for real-time rendering) for 5× visual relief. The DEM is a variable-resolution global mosaic, not a surveyed local terrain product; the exaggeration is explicitly visual. The cloud overlay is a static texture composite, not live cloud observations. Imagery and DEM tiles are remote browser dependencies; relief is disabled cleanly when tile access or CORS pixel sampling fails. Runtime integrations should be checked through /api/source-health; optional Earth Engine, FIRMS and Protected Planet credentials belong in deployment secrets. The active FastAPI app currently contains 95 route decorators (93 /api routes plus root and favicon), not 131.
+
+## 3D Earth model
+
+- **Reference shape:** WGS84 oblate ellipsoid rather than a perfect sphere; click coordinates are resolved using geodetic latitude/longitude.
+- **Surface imagery:** NASA Blue Marble: Next Generation topography/bathymetry global composite (January 2004 map image).
+- **Night illumination:** NASA Suomi NPP VIIRS Black Marble 2016 composite, shaded against an approximate Sun subsolar position recalculated every 30 seconds.
+- **Terrain:** global Terrarium-encoded elevation tiles, decoded to height samples and displaced onto the ellipsoid. 5× vertical exaggeration is a display choice, not physical scale.
+- **Clouds:** static cloud texture overlay; it is not a live meteorological layer.
+- **Fallback behavior:** real surface texture can remain visible when the DEM is unavailable; the relief control is disabled rather than substituting generated height data.
+
+The DEM displaces positive land elevations only; the ocean surface remains at sea level, while bathymetry is represented in the NASA topography/bathymetry surface imagery. The globe is an interactive visualization and context layer. It is not a 500 m global terrain mesh, a survey-grade elevation product, or a substitute for the location-specific analytical data providers used by VanRakshak.

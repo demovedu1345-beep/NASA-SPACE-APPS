@@ -1,0 +1,96 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api/proxy?__proxy_path=:path*"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/dashboard",
+      "destination": "/?page=overview",
+      "permanent": false
+    },
+    {
+      "source": "/dashboard/",
+      "destination": "/?page=overview",
+      "permanent": false
+    },
+    {
+      "source": "/mission-control",
+      "destination": "/?page=overview",
+      "permanent": false
+    },
+    {
+      "source": "/globe",
+      "destination": "/?page=observatory",
+      "permanent": false
+    },
+    {
+      "source": "/satellites",
+      "destination": "/?page=satellites",
+      "permanent": false
+    },
+    {
+      "source": "/layers",
+      "destination": "/?page=layers",
+      "permanent": false
+    },
+    {
+      "source": "/forest",
+      "destination": "/?page=forest",
+      "permanent": false
+    },
+    {
+      "source": "/hazards",
+      "destination": "/?page=fire",
+      "permanent": false
+    },
+    {
+      "source": "/environment",
+      "destination": "/?page=climate",
+      "permanent": false
+    },
+    {
+      "source": "/intelligence",
+      "destination": "/?page=intelligence",
+      "permanent": false
+    },
+    {
+      "source": "/analytics",
+      "destination": "/?page=analytics",
+      "permanent": false
+    },
+    {
+      "source": "/operations",
+      "destination": "/?page=operations",
+      "permanent": false
+    },
+    {
+      "source": "/reports",
+      "destination": "/?page=reports",
+      "permanent": false
+    },
+    {
+      "source": "/system",
+      "destination": "/?page=systems",
+      "permanent": false
+    },
+    {
+      "source": "/earthscope",
+      "destination": "/?page=trend-detective",
+      "permanent": false
+    },
+    {
+      "source": "/earthscope/",
+      "destination": "/?page=trend-detective",
+      "permanent": false
+    }
+  ],
+  "functions": {
+    "api/proxy.js": {
+      "maxDuration": 60
+    }
+  }
+}

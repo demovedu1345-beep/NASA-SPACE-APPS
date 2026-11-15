@@ -1,0 +1,1929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EARTHSCOPE — Planetary Observation & Trend Dashboard</title>
+  <meta name="description" content="AI-assisted Earth System Trend Discovery & Weather Intelligence Dashboard. NASA Space Apps Challenge 2026.">
+  <link rel="icon" href="/favicon.svg" color="#78D6A9">
+
+  <!-- MapLibre GL CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css">
+  
+  <!-- Fonts: Space Grotesk (Display), DM Mono (Code/Telemetry), Inter (Body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Libraries: Three.js, ECharts, MapLibre GL -->
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script type="module">
+    import * as EarthModel from "../earth-model.js";
+    window.EarthModel = EarthModel;
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+
+  <style>
+    :root {
+      --bg: #050508;
+      --surface: rgba(11, 13, 20, 0.82);
+      --surface-solid: #0c0e15;
+      --surface-hover: rgba(22, 26, 38, 0.94);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(120, 214, 169, 0.35);
+      --mint: #78D6A9;
+      --mint-glow: rgba(120, 214, 169, 0.3);
+      --mint-subtle: rgba(120, 214, 169, 0.12);
+      --cyan: #38bdf8;
+      --cyan-glow: rgba(56, 189, 248, 0.25);
+      --cyan-subtle: rgba(56, 189, 248, 0.12);
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-subtle: #6b7280;
+      --font-sans: 'Inter', -apple-system, sans-serif;
+      --font-display: 'Space Grotesk', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* 3D WebGL Earth Background */
+    #earthCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: auto;
+    }
+
+    /* Ambient Film Grain & Atmospheric Radial Vignette */
+    .dashboard-vignette {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 50% 25%, transparent 0%, rgba(5,5,8,0.4) 60%, rgba(5,5,8,0.92) 100%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Main Dashboard Application Shell */
+    .dashboard-app {
+      position: relative;
+      z-index: 2;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 28px 48px;
+      gap: 16px;
+      max-width: 1720px;
+      margin: 0 auto;
+    }
+
+    /* Top Sticky Header */
+    .top-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 20px;
+      background: var(--surface);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo-svg {
+      width: 34px;
+      height: 34px;
+      fill: none;
+      stroke: var(--mint);
+      stroke-width: 2.2;
+      filter: drop-shadow(0 0 10px var(--mint-glow));
+    }
+
+    .brand-title {
+      font-family: var(--font-display);
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      background: var(--mint-subtle);
+      border: 1px solid var(--mint);
+      color: var(--mint);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .system-status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      background: rgba(255,255,255,0.03);
+      padding: 6px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+    }
+
+    .status-pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--mint);
+      box-shadow: 0 0 8px var(--mint);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.2);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-mint {
+      background: var(--mint);
+      color: #050508;
+      border-color: var(--mint);
+      font-weight: 600;
+      box-shadow: 0 0 16px var(--mint-glow);
+    }
+
+    .btn-mint:hover {
+      background: #8eebb8;
+      border-color: #8eebb8;
+      box-shadow: 0 0 24px var(--mint-glow);
+    }
+
+    .btn-cyan {
+      background: var(--cyan);
+      color: #050508;
+      border-color: var(--cyan);
+      font-weight: 600;
+      box-shadow: 0 0 16px var(--cyan-glow);
+    }
+
+    /* Segmented Studio Navigation Switcher */
+    .studio-options-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px;
+      background: var(--surface);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow-x: auto;
+    }
+
+    .option-tab-btn {
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 9px 18px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .option-tab-btn:hover {
+      color: #fff;
+      background: rgba(255,255,255,0.04);
+    }
+
+    .option-tab-btn.active {
+      background: rgba(120, 214, 169, 0.12);
+      border-color: var(--mint);
+      color: #fff;
+      font-weight: 600;
+      box-shadow: 0 0 14px var(--mint-glow);
+    }
+
+    /* Location & Time Control Strip */
+    .control-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 12px 18px;
+      background: var(--surface);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .selectors-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .selector-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .selector-input, .selector-select {
+      background: rgba(5,5,8,0.7);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 6px 10px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .selector-input:focus, .selector-select:focus {
+      border-color: var(--mint);
+    }
+
+    /* Dedicated View Panes (Only 1 shown at a time) */
+    .studio-view-pane {
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+      animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .studio-view-pane.active-pane {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Glass Cards */
+    .glass-card {
+      background: var(--surface);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .glass-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+    }
+
+    .card-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .card-title {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-subtitle {
+      font-size: 12px;
+      color: var(--text-subtle);
+    }
+
+    /* AstroKites Weather Insights 4-Card Grid */
+    .insights-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+    }
+
+    .insight-card {
+      background: rgba(14, 17, 26, 0.75);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .insight-card:hover {
+      border-color: rgba(120, 214, 169, 0.35);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.3);
+    }
+
+    .insight-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .insight-value {
+      font-family: var(--font-mono);
+      font-size: 28px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.02em;
+    }
+
+    .insight-details {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .insight-trend-badge {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(120, 214, 169, 0.15);
+      color: var(--mint);
+      border: 1px solid rgba(120, 214, 169, 0.3);
+    }
+
+    /* 7-Day Day-of-Year Probability Forecast Grid */
+    .days-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .day-forecast-card {
+      background: rgba(15, 18, 28, 0.7);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .day-forecast-card:hover {
+      border-color: var(--cyan);
+      background: rgba(22, 27, 42, 0.85);
+      transform: translateY(-2px);
+    }
+
+    .day-name {
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .day-date {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-subtle);
+    }
+
+    .day-weather-icon {
+      font-size: 32px;
+      margin: 4px 0;
+    }
+
+    .day-temp-badge {
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--mint);
+    }
+
+    .day-metrics {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+    }
+
+    /* Historical Climatology Multi-Curve Chart & Map Canvas */
+    .chart-container-large {
+      width: 100%;
+      height: 380px;
+      border-radius: 10px;
+    }
+
+    .map-container-large {
+      width: 100%;
+      height: 560px;
+      border-radius: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Extreme Events Table */
+    .events-table-wrapper {
+      max-height: 280px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .events-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    .events-table th {
+      background: rgba(20, 24, 38, 0.9);
+      padding: 10px 14px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-size: 11px;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .events-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      color: var(--text);
+    }
+
+    .events-table tr:hover td {
+      background: rgba(255,255,255,0.03);
+    }
+
+    .event-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 500;
+    }
+
+    .badge-rain { background: rgba(56, 189, 248, 0.15); color: var(--cyan); border: 1px solid rgba(56, 189, 248, 0.3); }
+    .badge-heat { background: rgba(244, 63, 94, 0.15); color: var(--rose); border: 1px solid rgba(244, 63, 94, 0.3); }
+    .badge-wind { background: rgba(245, 158, 11, 0.15); color: var(--amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+
+    /* Map Drawer Popup */
+    .map-telemetry-drawer {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      width: 320px;
+      background: rgba(11, 13, 20, 0.94);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-accent);
+      border-radius: 12px;
+      padding: 16px;
+      z-index: 10;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.6);
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Satellite & Services Grid */
+    .fleet-grid, .services-grid, .states-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 14px;
+    }
+
+    .fleet-card, .service-card, .state-card {
+      background: rgba(14, 17, 26, 0.85);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
+    }
+
+    .fleet-card:hover, .service-card:hover, .state-card:hover {
+      border-color: var(--mint);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.3);
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .dashboard-app { padding: 12px 14px 36px; }
+      .top-nav { flex-direction: column; align-items: stretch; }
+      .control-strip { flex-direction: column; align-items: stretch; }
+    }
+  </style>
+</head>
+<body>
+  <!-- 3D WebGL Rotating Earth Background -->
+  <canvas id="earthCanvas"></canvas>
+  <div class="dashboard-vignette"></div>
+
+  <!-- Dashboard Application Shell -->
+  <div class="dashboard-app">
+    
+    <!-- Top Sticky Header -->
+    <header class="top-nav">
+      <div class="brand-group">
+        <a href="/" style="display:flex; align-items:center; gap:12px; text-decoration:none;">
+          <svg class="brand-logo-svg" viewBox="0 0 32 32">
+            <circle cx="16" cy="16" r="13" stroke="currentColor" stroke-dasharray="3 3"/>
+            <circle cx="16" cy="16" r="7" stroke="currentColor"/>
+            <ellipse cx="16" cy="16" rx="13" ry="5" stroke="currentColor" transform="rotate(-25 16 16)"/>
+            <circle cx="16" cy="16" r="2.5" fill="currentColor"/>
+          </svg>
+          <div>
+            <h1 class="brand-title">EARTHSCOPE</h1>
+            <span style="font-size:10px; font-family:var(--font-mono); color:var(--text-subtle); display:block; margin-top:-2px;">PLANETARY DISCOVERY STUDIO</span>
+          </div>
+        </a>
+        <span class="brand-badge">NASA CHALLENGE 2026</span>
+      </div>
+
+      <div class="system-status-indicator">
+        <div class="status-pulse-dot"></div>
+        <span id="telemetryStatusText">8 MISSION CATALOGUE ENTRIES · PROVIDER HEALTH CHECK PENDING</span>
+      </div>
+
+      <div class="nav-actions">
+        <a href="/" class="btn" title="Return to Landing Page">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Home
+        </a>
+        <button class="btn btn-mint" onclick="triggerFullAnalysis()" id="runAnalysisBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Run Analysis
+        </button>
+        <button class="btn" onclick="exportDossier('html')" title="Export Research Report">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Report
+        </button>
+      </div>
+    </header>
+
+    <!-- Segmented Multi-Option Studio Navigation (Keeps everything clean & organized!) -->
+    <nav class="studio-options-nav" aria-label="Studio Options">
+      <button class="option-tab-btn active" onclick="switchOptionView('forecast')" id="tab-forecast">
+        🌦️ Weather Forecast
+      </button>
+      <button class="option-tab-btn" onclick="switchOptionView('trends')" id="tab-trends">
+        📈 Decadal Trends
+      </button>
+      <button class="option-tab-btn" onclick="switchOptionView('map')" id="tab-map">
+        🗺️ Geographic Map
+      </button>
+      <button class="option-tab-btn" onclick="switchOptionView('fleet')" id="tab-fleet">
+        🛰️ Satellite Fleet
+      </button>
+      <button class="option-tab-btn" onclick="switchOptionView('services')" id="tab-services">
+        🔌 APIs & Services
+      </button>
+      <button class="option-tab-btn" onclick="switchOptionView('states')" id="tab-states">
+        🇮🇳 All States Scan
+      </button>
+    </nav>
+
+    <!-- Global Location & Time Observation Strip -->
+    <div class="control-strip">
+      <div class="selectors-row">
+        <div class="selector-item">
+          <span>Country:</span>
+          <select class="selector-select" id="countrySelector">
+            <option value="India" selected>India (29 States & UTs)</option>
+            <option value="Global">Global Hotspots</option>
+          </select>
+        </div>
+
+        <div class="selector-item">
+          <span>State / Hotspot:</span>
+          <select class="selector-select" id="stateSelector" onchange="onStateSelectChange(this.value)">
+            <option value="Karnataka:12.3375:75.8069" selected>Karnataka (Kodagu / Western Ghats)</option>
+            <option value="Delhi:28.6139:77.2090">Delhi (National Capital)</option>
+            <option value="Maharashtra:19.0760:72.8777">Maharashtra (Mumbai)</option>
+            <option value="Tamil Nadu:13.0827:80.2707">Tamil Nadu (Chennai)</option>
+            <option value="Kerala:8.5241:76.9366">Kerala (Thiruvananthapuram)</option>
+            <option value="West Bengal:22.5726:88.3639">West Bengal (Sundarbans)</option>
+            <option value="Assam:26.1445:91.7362">Assam (Kaziranga / Guwahati)</option>
+            <option value="Uttarakhand:30.3165:78.0322">Uttarakhand (Jim Corbett)</option>
+            <option value="Rajasthan:26.9124:75.7873">Rajasthan (Jaipur / Thar)</option>
+            <option value="Himachal Pradesh:31.1048:77.1734">Himachal Pradesh (Shimla)</option>
+            <option value="Andhra Pradesh:17.6868:83.2185">Andhra Pradesh (Visakhapatnam)</option>
+            <option value="Gujarat:23.0225:72.5714">Gujarat (Gir Forest)</option>
+          </select>
+        </div>
+
+        <div class="selector-item">
+          <span>Coordinates:</span>
+          <input type="text" class="selector-input" id="latInput" value="12.3375" style="width:75px;" placeholder="Lat" onchange="onCoordInputChange()">
+          <input type="text" class="selector-input" id="lonInput" value="75.8069" style="width:75px;" placeholder="Lon" onchange="onCoordInputChange()">
+        </div>
+
+        <div class="selector-item">
+          <span>Period:</span>
+          <input type="date" class="selector-input" id="startDateInput" value="2016-11-15">
+          <span style="color:var(--text-subtle);">to</span>
+          <input type="date" class="selector-input" id="endDateInput" value="2026-11-15">
+        </div>
+      </div>
+
+      <div class="selectors-row">
+        <button class="btn" onclick="exportCSV()" title="Export series as CSV">
+          CSV
+        </button>
+        <button class="btn" onclick="exportJSON()" title="Export JSON payload">
+          JSON
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== VIEW 1: WEATHER FORECAST (AstroKites Reference) ==================== -->
+    <section class="studio-view-pane active-pane" id="pane-forecast">
+      <!-- 4 Weather Insights Cards -->
+      <div class="insights-grid">
+        <div class="insight-card">
+          <div class="insight-label">
+            <span>7-Day Mean Daily High</span>
+            <span style="font-size:16px;">🌡️</span>
+          </div>
+          <div class="insight-value" id="insightAvgTemp">—</div>
+          <div class="insight-details">
+            <span>Range: <strong id="insightTempRange">—</strong></span>
+            <span class="insight-trend-badge" id="insightTempTrend">Not calculated</span>
+          </div>
+        </div>
+
+        <div class="insight-card">
+          <div class="insight-label">
+            <span>Mean Daily Precipitation</span>
+            <span style="font-size:16px;">🌧️</span>
+          </div>
+          <div class="insight-value" id="insightTotalPrecip">—</div>
+          <div class="insight-details">
+            <span>Peak Daily Rain: <strong id="insightMaxPrecip">—</strong></span>
+            <span>Rain Days (7d): <strong id="insightRainyDays">—</strong></span>
+          </div>
+        </div>
+
+        <div class="insight-card">
+          <div class="insight-label">
+            <span>Surface Wind & Pressure</span>
+            <span style="font-size:16px;">💨</span>
+          </div>
+          <div class="insight-value" id="insightAvgWind">—</div>
+          <div class="insight-details">
+            <span>Forecast Max: <strong id="insightMaxWind">—</strong></span>
+            <span>Atm Pressure: <strong id="insightPressure">—</strong></span>
+          </div>
+        </div>
+
+        <div class="insight-card" style="border-color: rgba(120, 214, 169, 0.4);">
+          <div class="insight-label">
+            <span style="color:var(--mint);">Climate Pattern & Field Advisory</span>
+            <span style="font-size:16px;">🌿</span>
+          </div>
+          <div class="insight-value" style="font-size:20px; color:var(--mint);" id="insightWeatherPattern">Awaiting observations</div>
+          <div class="insight-details" style="font-size:11px; line-height:1.4;" id="insightWeatherAdvice">
+            No field advisory is shown until provider observations are returned.
+          </div>
+        </div>
+      </div>
+
+      <!-- 7-Day Day-of-Year Probability Forecast Grid -->
+      <div class="glass-card">
+        <div class="card-header-row">
+          <div>
+            <h2 class="card-title">
+              <span>🔮 7-Day Provider Weather Forecast</span>
+            </h2>
+            <p class="card-subtitle">Daily forecast values returned by the weather provider. This is not a 30-year probability or confidence product.</p>
+          </div>
+          <span class="brand-badge" style="background:var(--cyan-subtle); border-color:var(--cyan); color:var(--cyan);">PROVIDER FORECAST · 7 DAYS</span>
+        </div>
+        <div class="days-grid" id="daysForecastGrid">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+
+      <!-- Historical Climatology Explorer (ECharts multi-parameter curve) -->
+      <div class="glass-card">
+        <div class="card-header-row">
+          <div>
+            <h2 class="card-title">
+              <span>📊 Historical Climatology Explorer (12-Month Profile)</span>
+            </h2>
+            <p class="card-subtitle">10-year monthly climate reference from Open-Meteo Archive (separate from NASA POWER trend analysis)</p>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn active" style="font-size:11px; padding:4px 10px;" id="btnToggleTemp" onclick="toggleClimatologyParam('T2M')">Temp (°C)</button>
+            <button class="btn" style="font-size:11px; padding:4px 10px;" id="btnTogglePrecip" onclick="toggleClimatologyParam('PRECTOT')">Precip (mm)</button>
+            <button class="btn" style="font-size:11px; padding:4px 10px;" id="btnToggleWind" disabled title="A historical wind series is not currently connected">Wind (not connected)</button>
+          </div>
+        </div>
+        <div id="climatologyChart" class="chart-container-large"></div>
+      </div>
+
+      <!-- Detected Extreme Weather Events Stream -->
+      <div class="glass-card">
+        <div class="card-header-row">
+          <div>
+            <h2 class="card-title">
+              <span>⚡ Detected Extreme Weather & Anomaly Events</span>
+            </h2>
+            <p class="card-subtitle">Recorded storm peaks, heavy monsoonal rainfall, and thermal exceedances</p>
+          </div>
+          <span style="font-size:12px; font-family:var(--font-mono); color:var(--text-muted);" id="eventsCountBadge">0 provider events returned</span>
+        </div>
+        <div class="events-table-wrapper">
+          <table class="events-table">
+            <thead>
+              <tr>
+                <th>Event Type</th>
+                <th>Location / Coordinate</th>
+                <th>Observation Date</th>
+                <th>Recorded Magnitude</th>
+                <th>Severity</th>
+              </tr>
+            </thead>
+            <tbody id="extremeEventsTableBody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 2: DECADAL TRENDS (EARTHSCOPE Core) ==================== -->
+    <section class="studio-view-pane" id="pane-trends">
+      <!-- Variable Selector Strip -->
+      <div class="glass-card" style="padding:14px 18px;">
+        <div class="card-header-row">
+          <span style="font-size:13px; font-weight:600; color:#fff;">Select Earth System Variable:</span>
+          <p class="card-subtitle" style="margin:8px 0 10px;">NASA mission data: Terra MODIS NDVI/EVI and day/night LST, GPM IMERG, and TOMS/OMI merged ozone. NASA model data: POWER, MERRA-2, and GLDAS. Earth Engine credentials are required for MODIS/GPM/MERRA-2/GLDAS/OMI. Sentinel-2 NDVI is ESA Copernicus complementary evidence; AIRS remains catalogue-only until its own extraction path is verified.</p>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn" onclick="switchVariable('ndvi', this)">🌿 Sentinel-2 NDVI (ESA)</button>
+            <button class="btn active" onclick="switchVariable('t2m', this)">🌡️ NASA POWER T2M</button>
+            <button class="btn" onclick="switchVariable('precipitation', this)">🌧️ NASA POWER Precipitation</button>
+            <button class="btn" onclick="switchVariable('modis_ndvi', this)">🛰️ NASA Terra MODIS NDVI</button>
+            <button class="btn" onclick="switchVariable('modis_evi', this)">🌿 NASA Terra MODIS EVI</button>
+            <button class="btn" onclick="switchVariable('modis_lst_day', this)">🌡️ NASA Terra MODIS Day LST</button>
+            <button class="btn" onclick="switchVariable('modis_lst_night', this)">🌙 NASA Terra MODIS Night LST</button>
+            <button class="btn" onclick="switchVariable('gpm_precipitation', this)">🌧️ NASA GPM IMERG</button>
+            <button class="btn" onclick="switchVariable('merra2_t2m', this)">🌡️ NASA MERRA-2 T2M</button>
+            <button class="btn" onclick="switchVariable('gldas_soil_moisture', this)">🌱 NASA GLDAS Soil Moisture</button>
+            <button class="btn" onclick="switchVariable('omi_ozone', this)">🛰️ NASA TOMS/OMI Ozone</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 Statistical Rigor Metrics Dossier Cards -->
+      <div class="insights-grid">
+        <div class="insight-card">
+          <div class="insight-label">Mann-Kendall Z-Statistic</div>
+          <div class="insight-value" id="trendZStat">—</div>
+          <div class="insight-details">
+            <span>p-value: <strong id="trendPVal">—</strong></span>
+          </div>
+        </div>
+
+        <div class="insight-card">
+          <div class="insight-label">Sen's Slope Rate (β)</div>
+          <div class="insight-value" id="trendSensSlope">—</div>
+          <div class="insight-details">
+            <span>95% CI: <strong id="trendSlopeCI">—</strong></span>
+          </div>
+        </div>
+
+        <div class="insight-card">
+          <div class="insight-label">Seasonal Mann-Kendall</div>
+          <div class="insight-value" id="trendSeasonalZ">—</div>
+          <div class="insight-details">
+            <span>Repeated months: <strong id="trendSeasonalMonths">—</strong></span>
+          </div>
+        </div>
+
+        <div class="insight-card">
+          <div class="insight-label">FDR Benjamini-Hochberg</div>
+          <div class="insight-value" style="color:var(--cyan);" id="trendFdrStatus">—</div>
+          <div class="insight-details">
+            <span>False Discovery Rate: <strong>q* = <span id="trendFdrQVal">—</span></strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Provider-returned time-series chart -->
+      <div class="glass-card">
+        <div class="card-header-row">
+          <div>
+            <h2 class="card-title">
+              <span>📈 Provider-Returned Observation Time Series</span>
+            </h2>
+            <p class="card-subtitle">Available provider samples, Sen's slope fit where estimable, and a 12-sample rolling mean</p>
+          </div>
+          <span class="brand-badge" id="activeVariableBadge">VARIABLE: NASA POWER T2M</span>
+        </div>
+        <div id="decadalChart" class="chart-container-large" style="height:440px;"></div>
+      </div>
+
+      <!-- Grounded AI Research Analyst -->
+      <div class="glass-card" style="border-color: rgba(56, 189, 248, 0.35);">
+        <div class="card-header-row">
+          <h2 class="card-title" style="color:var(--cyan);">
+            <span>🤖 Earth Query Interpreter (API-Backed Parsing)</span>
+          </h2>
+          <span class="brand-badge" style="background:var(--cyan-subtle); border-color:var(--cyan); color:var(--cyan);">QUERY PARSER · EVIDENCE WORKFLOW SEPARATE</span>
+        </div>
+        <p style="font-size:13px; line-height:1.6; color:#d1d5db;" id="aiAnalystText">
+          No trend conclusion is displayed until provider observations have been returned and statistical tests have run for the selected period.
+        </p>
+        <div style="display:flex; gap:10px; margin-top:8px;">
+          <input type="text" class="selector-input" style="flex:1; padding:8px 12px;" placeholder="Ask the AI Analyst about trend drivers, anomalies, or satellite provenance..." id="aiCustomPrompt">
+          <button class="btn btn-cyan" onclick="askAiAnalyst()">Inquire</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 3: GEOGRAPHIC MAP (MapLibre Studio + AstroKites Prediction) ==================== -->
+    <section class="studio-view-pane" id="pane-map">
+      <div class="glass-card" style="padding:0; overflow:hidden; position:relative;">
+        <div style="padding:16px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-bottom:1px solid var(--border);">
+          <div>
+            <h2 class="card-title"><span>🗺️ Interactive Geographic Map & Climatology Studio</span></h2>
+            <p class="card-subtitle">Click anywhere to set a study location, retrieve provider-backed weather context, and inspect the available 7-day forecast</p>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn" onclick="jumpToLocation(12.3375, 75.8069, 'Kodagu / Western Ghats')">Western Ghats</button>
+            <button class="btn" onclick="jumpToLocation(11.667, 76.629, 'Bandipur Tiger Reserve')">Bandipur</button>
+            <button class="btn" onclick="jumpToLocation(11.127, 76.427, 'Silent Valley')">Silent Valley</button>
+            <button class="btn" onclick="jumpToLocation(21.9497, 89.1833, 'Sundarbans Mangroves')">Sundarbans</button>
+            <button class="btn" onclick="jumpToLocation(29.5300, 78.7747, 'Jim Corbett')">Jim Corbett</button>
+            <button class="btn" onclick="jumpToLocation(26.5775, 93.1711, 'Kaziranga')">Kaziranga</button>
+          </div>
+        </div>
+
+        <div class="map-container-large" id="mapLibreContainer">
+          <!-- Floating AstroKites Weather Prediction Control Card -->
+          <div style="position:absolute; top:20px; left:20px; width:310px; background:rgba(11,13,20,0.92); backdrop-filter:blur(16px); border:1px solid var(--border-accent); border-radius:12px; padding:16px; z-index:10; box-shadow:0 16px 36px rgba(0,0,0,0.6); display:flex; flex-direction:column; gap:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:13px; font-weight:700; color:#fff; display:flex; align-items:center; gap:6px;">
+                <span>🌍 Weather Prediction</span>
+              </span>
+              <span class="brand-badge" style="font-size:9px; padding:2px 6px;">ASTROKITES</span>
+            </div>
+            <p style="font-size:11px; color:var(--text-subtle);">Click anywhere on map to select location</p>
+            
+            <div style="display:flex; flex-direction:column; gap:6px; font-size:11px; color:var(--text-muted);">
+              <span>Start date (provider window):</span>
+              <input type="date" class="selector-input" id="mapStartDateInput" style="width:100%;">
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:6px; font-size:11px; color:var(--text-muted);">
+              <span>Days to display (maximum 7):</span>
+              <input type="number" min="1" max="7" value="7" class="selector-input" id="mapDaysInput" style="width:100%;">
+            </div>
+
+            <button class="btn btn-mint" style="width:100%; justify-content:center; font-weight:600;" onclick="openMapWeatherPredictionModal()">
+              🚀 Get Weather Forecast
+            </button>
+            
+            <div style="font-size:11px; color:var(--text-subtle); border-top:1px solid var(--border); padding-top:6px; display:flex; justify-content:space-between;">
+              <span>Selected Point:</span>
+              <span style="color:var(--mint); font-family:var(--font-mono);" id="mapCardPointText">12.3375°N, 75.8069°E</span>
+            </div>
+          </div>
+
+          <!-- Click Telemetry Drawer -->
+          <div class="map-telemetry-drawer" id="mapTelemetryDrawer">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="color:#fff; font-size:13px;" id="drawerPlaceName">Kodagu Forest</strong>
+              <button onclick="document.getElementById('mapTelemetryDrawer').style.display='none'" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:16px;">×</button>
+            </div>
+            <div style="font-family:var(--font-mono); font-size:11px; color:var(--mint);" id="drawerCoords">12.3375°N, 75.8069°E</div>
+            <div style="font-size:12px; color:var(--text-muted); border-top:1px solid var(--border); padding-top:6px;">
+              <div>Average Temp: <strong style="color:#fff;" id="drawerTemp">—</strong></div>
+              <div>Rainfall Index: <strong style="color:#fff;" id="drawerRain">—</strong></div>
+              <div>Trend Signal: <strong style="color:var(--mint);" id="drawerTrend">Trend not calculated</strong></div>
+            </div>
+            <div style="display:flex; gap:6px; margin-top:4px;">
+              <button class="btn btn-mint" style="flex:1; justify-content:center;" onclick="openMapWeatherPredictionModal()">7-Day Provider Outlook</button>
+              <button class="btn" style="flex:1; justify-content:center;" onclick="loadDrawerLocationToStudio()">Investigate</button>
+            </div>
+          </div>
+
+          <!-- Provider-backed seven-day forecast detail. No synthetic long-range extension. -->
+          <div id="mapOutlookModal" style="display:none; position:absolute; inset:20px; background:rgba(11,13,20,0.96); backdrop-filter:blur(24px); border:1px solid var(--border-accent); border-radius:14px; z-index:20; flex-direction:column; padding:20px; gap:16px; box-shadow:0 24px 60px rgba(0,0,0,0.8); overflow-y:auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:12px;">
+              <div>
+                <h3 style="color:#fff; font-size:18px; font-family:var(--font-display); display:flex; align-items:center; gap:8px;">
+                  <span>📍 <span id="modalLocTitle">Kodagu Forest Region</span></span>
+                  <span class="brand-badge" style="background:rgba(120,214,169,0.15); border-color:var(--mint); color:var(--mint);">7-DAY PROVIDER WINDOW</span>
+                </h3>
+                <p style="font-size:12px; color:var(--text-muted); margin-top:4px;" id="modalLocCoords">Coordinates: 12.3375°N, 75.8069°E | Period will be set by the weather provider</p>
+              </div>
+              <button onclick="document.getElementById('mapOutlookModal').style.display='none'" style="background:rgba(255,255,255,0.08); border:1px solid var(--border); border-radius:6px; color:#fff; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px;">✕</button>
+            </div>
+
+            <!-- Provider-backed forecast summary; values are populated only from returned observations. -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+              <div class="insight-card"><div class="insight-label">🌡️ Temperature</div><div class="insight-value" style="font-size:22px;" id="modalTemp">—</div><div class="insight-details" id="modalTempRange">Provider values unavailable</div></div>
+              <div class="insight-card"><div class="insight-label">💧 Precipitation</div><div class="insight-value" style="font-size:22px;" id="modalRain">—</div><div class="insight-details" id="modalRainMeta">Provider values unavailable</div></div>
+              <div class="insight-card"><div class="insight-label">💨 Wind</div><div class="insight-value" style="font-size:22px;" id="modalWind">—</div><div class="insight-details" id="modalWindMeta">Provider values unavailable</div></div>
+              <div class="insight-card"><div class="insight-label">SOURCE / FRESHNESS</div><div class="insight-value" style="font-size:15px;" id="modalSource">—</div><div class="insight-details">Forecast product, not a climate probability score</div></div>
+            </div>
+
+            <!-- Provider-returned daily forecast observations -->
+            <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h4 style="font-size:13px; font-weight:600; color:#fff;">📅 Daily Provider Forecast (up to 7 days)</h4>
+                <span style="font-size:11px; font-family:var(--font-mono); color:var(--text-subtle);">Source: Open-Meteo provider forecast</span>
+              </div>
+              <div class="events-table-wrapper" style="max-height:300px;">
+                <table class="events-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Temp (high / low)</th>
+                      <th>Rain (mm)</th>
+                      <th>Rain Chance</th>
+                      <th>Wind (km/h)</th>
+                      <th>Data source</th>
+                    </tr>
+                  </thead>
+                  <tbody id="modalPredictionsTableBody">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 4: SATELLITE FLEET (8 Constellations) ==================== -->
+    <section class="studio-view-pane" id="pane-fleet">
+      <div class="glass-card">
+        <div class="card-header-row">
+          <div>
+            <h2 class="card-title"><span>🛰️ Active Earth Observation Constellations & Sensors</span></h2>
+            <p class="card-subtitle">Mission catalogue metadata; scene availability and freshness are checked separately</p>
+          </div>
+          <span class="brand-badge">8 MISSION RECORDS</span>
+        </div>
+        <div class="fleet-grid" id="fleetGrid">
+          <!-- Populated from catalog -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 5: APIS & SERVICES (11 Connected Services) ==================== -->
+    <section class="studio-view-pane" id="pane-services">
+      <div class="glass-card">
+        <div class="card-header-row">
+          <div>
+            <h2 class="card-title"><span>🔌 Connected Scientific APIs & Services Matrix</span></h2>
+            <p class="card-subtitle">Provider health is probed at runtime; optional credentials and public fallbacks are reported separately</p>
+          </div>
+          <span class="brand-badge" style="background:rgba(56,189,248,0.15); border-color:var(--cyan); color:var(--cyan);">RUNTIME CHECK</span>
+        </div>
+        <div class="services-grid" id="servicesGrid">
+          <!-- Populated from catalog -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 6: ALL STATES SCAN (AstroKites 29 States) ==================== -->
+    <section class="studio-view-pane" id="pane-states">
+      <div class="glass-card">
+        <div class="card-header-row">
+          <div>
+            <h2 class="card-title"><span>🇮🇳 Indian States & Regional Coordinate Catalogue</span></h2>
+            <p class="card-subtitle">Select a coordinate baseline to request live provider weather and a separate satellite/climate trend analysis</p>
+          </div>
+          <span class="brand-badge">REFERENCE COORDINATES</span>
+        </div>
+        <div class="states-grid" id="allStatesGrid">
+          <!-- Populated from state catalog -->
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- SCRIPT LOGIC -->
+  <script>
+    // State Store
+    const S = {
+      lat: 12.3375,
+      lon: 75.8069,
+      place: "Karnataka (Kodagu / Western Ghats)",
+      variable: "t2m",
+      activeTab: "forecast",
+      forecastData: null,
+      decadalData: null,
+      charts: {}
+    };
+
+    // 8 Satellite Constellations Catalog
+    const CONSTELLATIONS = [
+      { name: "Sentinel-2A & 2B", agency: "ESA Copernicus", sensor: "MSI (Multi-Spectral Instrument)", resolution: "10m / 20m Optical", bands: "RGB, NIR (B8), RedEdge (B8A), SWIR1 (B11), SWIR2 (B12)", status: "Mission catalogue entry · availability checked separately" },
+      { name: "Sentinel-1A & 1B", agency: "ESA Copernicus", sensor: "C-SAR (Synthetic Aperture Radar)", resolution: "C-band All-weather", bands: "VV, VH Polarizations for Cloud-penetrating Radar", status: "Mission catalogue entry · ASF scene search separate" },
+      { name: "Landsat 8 & 9", agency: "NASA / USGS", sensor: "OLI-2 & TIRS-2", resolution: "30m Multispectral + Thermal", bands: "Coastal, Visible, NIR, SWIR, Thermal Infrared", status: "Mission catalogue entry · scene availability checked separately" },
+      { name: "Terra & Aqua", agency: "NASA", sensor: "MODIS (Moderate Resolution Imaging)", resolution: "250m / 500m / 1km", bands: "MOD13Q1 NDVI/EVI and MOD11A2 LST Day/Night", status: "Earth Engine time-series adapter wired · credentials and regional extraction must pass" },
+      { name: "Suomi NPP / NOAA-20 / 21", agency: "NASA / NOAA", sensor: "VIIRS (Visible Infrared Suite)", resolution: "375m Active Fire", bands: "NASA FIRMS pixel-level thermal fire detections", status: "FIRMS MAP key required · runtime status checked separately" },
+      { name: "ISS / NASA GEDI", agency: "NASA / Univ. of Maryland", sensor: "Geodetic Lidar", resolution: "25m Footprint Lidar", bands: "L4A Aboveground Biomass Density & Canopy Height", status: "Earth Engine credentials required · product extraction checked separately" },
+      { name: "GPM Core Observatory", agency: "NASA / JAXA", sensor: "DPR & GMI Radar/Radiometer", resolution: "0.1° Gridded", bands: "IMERG Final Run Monthly Precipitation Rate", status: "Earth Engine adapter wired · monthly product through 2025-09 · credentials checked on run" },
+      { name: "MERRA-2", agency: "NASA GMAO", sensor: "GEOS-5.12.4 Reanalysis", resolution: "~69 × 55 km", bands: "T2M, humidity, pressure and atmospheric diagnostics", status: "Earth Engine adapter wired · authenticated extraction checked on run" },
+      { name: "GLDAS-2.1 Noah", agency: "NASA", sensor: "Land Data Assimilation System", resolution: "0.25° (~27.8 km)", bands: "0–10 cm soil moisture and land-surface variables", status: "Earth Engine adapter wired · authenticated extraction checked on run" },
+      { name: "Aura / OMI", agency: "NASA", sensor: "Ozone Monitoring Instrument", resolution: "~111 km merged grid", bands: "TOMS/OMI merged total-column ozone (Dobson units)", status: "Earth Engine adapter wired · merged record includes historical TOMS and interpolated gaps" },
+      { name: "Aqua / AIRS", agency: "NASA", sensor: "Atmospheric Infrared Sounder", resolution: "Sounding / gridded products", bands: "Atmospheric temperature and water-vapour profiles", status: "Catalogue only · no validated trend extraction adapter connected yet" },
+      { name: "ISRO Resourcesat & INSAT", agency: "ISRO", sensor: "LISS-III, AWiFS, VHRR", resolution: "23.5m / 56m Multi-spectral", bands: "Bhuvan WMS Layers, MOSDAC Meteorological", status: "Mission catalogue entry · service response checked separately" }
+    ];
+
+    // Provider status is populated from the runtime health API below.
+    const SERVICES = [];
+
+    // 1. Switch Segmented Navigation View
+    function switchOptionView(tabId) {
+      S.activeTab = tabId;
+      document.querySelectorAll('.option-tab-btn').forEach(btn => btn.classList.remove('active'));
+      const activeBtn = document.getElementById(`tab-${tabId}`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      document.querySelectorAll('.studio-view-pane').forEach(pane => pane.classList.remove('active-pane'));
+      const activePane = document.getElementById(`pane-${tabId}`);
+      if (activePane) activePane.classList.add('active-pane');
+
+      // Auto resize charts & maps on tab visibility
+      setTimeout(() => {
+        if (tabId === 'forecast' && S.charts.climatology) S.charts.climatology.resize();
+        if (tabId === 'trends' && S.charts.decadal) S.charts.decadal.resize();
+        if (tabId === 'map' && window.earthscopeMap) window.earthscopeMap.resize();
+      }, 50);
+    }
+
+    // 2. Three.js Background Canvas
+    function initEarthBackground() {
+      const canvas = document.getElementById('earthCanvas');
+      const model = window.EarthModel;
+      if (!canvas || !window.THREE || !model) return;
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.set(0, 0, 2.65);
+      const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.15 : 1.6));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.05;
+
+      scene.add(new THREE.AmbientLight(0x91afc4, 1.05));
+      const sun = new THREE.DirectionalLight(0xfff1dd, 2.7);
+      scene.add(sun);
+      const rim = new THREE.PointLight(0x45b9dc, 1.25, 12);
+      rim.position.set(2, -1, -3);
+      scene.add(rim);
+
+      const starsGeometry = new THREE.BufferGeometry();
+      const starCount = 1800, starPositions = new Float32Array(starCount * 3);
+      for (let i = 0; i < starCount; i++) {
+        const radius = 24 + Math.random() * 65, theta = Math.random() * Math.PI * 2, phi = Math.acos(2 * Math.random() - 1);
+        starPositions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+        starPositions[i * 3 + 1] = radius * Math.cos(phi);
+        starPositions[i * 3 + 2] = radius * Math.sin(phi) * Math.sin(theta);
+      }
+      starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+      scene.add(new THREE.Points(starsGeometry, new THREE.PointsMaterial({ color: 0xc9e6f3, size: 0.055, transparent: true, opacity: 0.7 })));
+
+      const earthGroup = new THREE.Group();
+      scene.add(earthGroup);
+      const earthGeometry = new THREE.SphereGeometry(0.93, 384, 192);
+      const basePositions = model.applyWgs84Ellipsoid(THREE, earthGeometry, 0.93);
+      const terrain = { enabled: true, ready: false, failed: false, heights: null };
+      const earthMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 20, specular: new THREE.Color(0x557a96) });
+      const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+      earthGroup.add(earth);
+
+      const textureLoader = new THREE.TextureLoader();
+      textureLoader.setCrossOrigin('anonymous');
+      const loadTexture = (url, isColor) => new Promise(resolve => textureLoader.load(url, texture => {
+        texture.colorSpace = isColor ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+        texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
+        resolve(texture);
+      }, undefined, () => resolve(null)));
+
+      const urls = {
+        day: 'https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-topography-bathymetry/january/world.topo.bathy.200401.3x5400x2700.jpg',
+        fallback: 'https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-blue-marble.jpg',
+        topology: 'https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-topology.png',
+        water: 'https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-water.png',
+        night: 'https://assets.science.nasa.gov/content/dam/science/esd/eo/images/imagerecords/144000/144898/BlackMarble_2016_01deg.jpg',
+        clouds: 'https://raw.githubusercontent.com/turban/webgl-earth/master/images/fair_clouds_4k.png'
+      };
+
+      const nightMaterial = new THREE.ShaderMaterial({
+        uniforms: { nightMap: { value: null }, sunDirection: { value: new THREE.Vector3(1, 0, 0) } },
+        vertexShader: 'varying vec2 vUv;varying vec3 vNormalWorld;void main(){vUv=uv;vNormalWorld=normalize(mat3(modelMatrix)*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+        fragmentShader: 'uniform sampler2D nightMap;uniform vec3 sunDirection;varying vec2 vUv;varying vec3 vNormalWorld;void main(){float light=dot(normalize(vNormalWorld),normalize(sunDirection));float darkSide=1.0-smoothstep(-0.08,0.18,light);vec3 lights=texture2D(nightMap,vUv).rgb;float mask=smoothstep(0.08,0.48,max(max(lights.r,lights.g),lights.b));float alpha=darkSide*mask*0.95;gl_FragColor=vec4(lights*vec3(1.0,0.62,0.30)*1.35,alpha);}',
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+      });
+      const nightGeometry = new THREE.SphereGeometry(0.933, 192, 128);
+      model.applyWgs84Ellipsoid(THREE, nightGeometry, 0.933);
+      const nightLayer = new THREE.Mesh(nightGeometry, nightMaterial);
+      nightLayer.visible = false;
+      earthGroup.add(nightLayer);
+
+      const cloudMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide });
+      const cloudGeometry = new THREE.SphereGeometry(0.943, 192, 128);
+      model.applyWgs84Ellipsoid(THREE, cloudGeometry, 0.943);
+      const cloudLayer = new THREE.Mesh(cloudGeometry, cloudMaterial);
+      cloudLayer.visible = false;
+      earthGroup.add(cloudLayer);
+
+      const atmosphereGeometry = new THREE.SphereGeometry(0.985, 96, 72);
+      model.applyWgs84Ellipsoid(THREE, atmosphereGeometry, 0.985);
+      const atmosphere = new THREE.Mesh(atmosphereGeometry, new THREE.ShaderMaterial({
+        transparent: true, side: THREE.BackSide, depthWrite: false, blending: THREE.AdditiveBlending,
+        vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.0);vV=-mv.xyz;gl_Position=projectionMatrix*mv;}',
+        fragmentShader: 'varying vec3 vN; varying vec3 vV; void main(){float rim=pow(1.0-max(dot(normalize(vN),normalize(vV)),0.0),2.2);gl_FragColor=vec4(0.28,0.70,0.91,rim*0.6);}'
+      }));
+      earthGroup.add(atmosphere);
+
+      const updateSolar = () => {
+        const direction = model.getSolarDirection(THREE, new Date());
+        sun.position.copy(direction).multiplyScalar(40);
+        nightMaterial.uniforms.sunDirection.value.copy(direction);
+      };
+      updateSolar();
+      let lastSolarUpdate = performance.now();
+
+      const terrainButton = document.getElementById('earthReliefToggle');
+      const updateStatus = label => {
+        const node = document.getElementById('telemetryStatusText');
+        if (node) node.textContent = label;
+      };
+
+      Promise.all([
+        loadTexture(urls.day, true), loadTexture(urls.topology, false), loadTexture(urls.water, false),
+        loadTexture(urls.night, true), loadTexture(urls.clouds, false)
+      ]).then(async ([day, topology, water, night, clouds]) => {
+        const surface = day || await loadTexture(urls.fallback, true);
+        if (surface) { earthMaterial.map = surface; earthMaterial.needsUpdate = true; }
+        if (topology) { earthMaterial.bumpMap = topology; earthMaterial.bumpScale = 0.016; earthMaterial.needsUpdate = true; }
+        if (water) { earthMaterial.specularMap = water; earthMaterial.specular.set(0x7893a8); earthMaterial.shininess = 24; earthMaterial.needsUpdate = true; }
+        if (night) { nightMaterial.uniforms.nightMap.value = night; nightMaterial.needsUpdate = true; nightLayer.visible = true; }
+        if (clouds) { cloudMaterial.map = clouds; cloudMaterial.needsUpdate = true; cloudLayer.visible = true; }
+        updateStatus(terrain.ready ? 'WGS84 · NASA BLUE MARBLE · GLOBAL DEM · 5× VISUAL RELIEF' :
+          (terrain.failed ? 'WGS84 · NASA BLUE MARBLE · DEM UNAVAILABLE' :
+          (surface ? (day && night ? 'NASA BLUE MARBLE · NASA VIIRS NIGHT · WGS84' : 'EARTH SURFACE READY · PARTIAL LAYERS') : 'EARTH TEXTURE UNAVAILABLE')));
+      });
+
+      updateStatus('WGS84 · LOADING GLOBAL ELEVATION MOSAIC');
+      model.loadGlobalTerrariumDEM({ zoom: model.WGS84.terrainZoom }).then(dem => {
+        if (!dem) {
+          terrain.failed = true;
+          updateStatus('WGS84 · NASA BLUE MARBLE · DEM TILE ACCESS UNAVAILABLE');
+          terrainButton?.setAttribute('disabled', '');
+          return;
+        }
+        const heights = model.buildTerrainHeightSamples(earthGeometry, dem);
+        if (!heights) {
+          terrain.failed = true;
+          updateStatus('WGS84 · NASA BLUE MARBLE · DEM PIXEL ACCESS UNAVAILABLE');
+          terrainButton?.setAttribute('disabled', '');
+          return;
+        }
+        terrain.heights = heights;
+        terrain.ready = true;
+        model.applyTerrainDisplacement(THREE, earthGeometry, basePositions, heights, {
+          radius: 0.93,
+          exaggeration: model.WGS84.reliefExaggeration,
+          enabled: terrain.enabled
+        });
+        updateStatus('WGS84 · NASA BLUE MARBLE · GLOBAL DEM · 5× VISUAL RELIEF');
+      }).catch(error => {
+        console.warn('Trend Detective global DEM unavailable', error);
+        terrain.failed = true;
+        updateStatus('WGS84 · NASA BLUE MARBLE · DEM FALLBACK');
+        terrainButton?.setAttribute('disabled', '');
+      });
+
+      terrainButton?.addEventListener('click', () => {
+        if (!terrain.ready) return;
+        terrain.enabled = !terrain.enabled;
+        model.applyTerrainDisplacement(THREE, earthGeometry, basePositions, terrain.heights, {
+          radius: 0.93,
+          exaggeration: model.WGS84.reliefExaggeration,
+          enabled: terrain.enabled
+        });
+        terrainButton.classList.toggle('active', terrain.enabled);
+        terrainButton.setAttribute('aria-pressed', String(terrain.enabled));
+      });
+
+      const runningState = { running: true };
+      const animate = (now = 0) => {
+        if (!runningState.running || !canvas.isConnected) { renderer.dispose(); return; }
+        requestAnimationFrame(animate);
+        if (document.hidden) return;
+        if (now - lastSolarUpdate > 30000) { updateSolar(); lastSolarUpdate = now; }
+        renderer.render(scene, camera);
+      };
+      requestAnimationFrame(animate);
+
+      const resize = () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      };
+      window.addEventListener('resize', resize, { passive: true });
+      window.addEventListener('pagehide', () => {
+        runningState.running = false;
+        window.removeEventListener('resize', resize);
+      }, { once: true });
+    }
+
+    // 3. Location Selectors Handling
+    function onStateSelectChange(val) {
+      const parts = val.split(':');
+      if (parts.length >= 3) {
+        const name = parts[0];
+        const lat = parseFloat(parts[1]);
+        const lon = parseFloat(parts[2]);
+        updateLocation(lat, lon, name);
+      }
+    }
+
+    function onCoordInputChange() {
+      const lat = parseFloat(document.getElementById('latInput').value) || S.lat;
+      const lon = parseFloat(document.getElementById('lonInput').value) || S.lon;
+      updateLocation(lat, lon, `Custom Coordinates (${lat.toFixed(4)}, ${lon.toFixed(4)})`);
+    }
+
+    function updateLocation(lat, lon, place) {
+      S.lat = lat;
+      S.lon = lon;
+      S.place = place;
+      document.getElementById('latInput').value = lat.toFixed(4);
+      document.getElementById('lonInput').value = lon.toFixed(4);
+      
+      triggerFullAnalysis();
+    }
+
+    // 4. Run Analysis (Fetches both Forecast & Decadal Investigations)
+    async function triggerFullAnalysis() {
+      const btn = document.getElementById('runAnalysisBtn');
+      btn.innerText = "Analyzing...";
+      btn.disabled = true;
+
+      try {
+        await Promise.all([
+          runClimateForecast(),
+          runDecadalInvestigation()
+        ]);
+      } catch (e) {
+        console.error("Analysis error:", e);
+      } finally {
+        btn.innerText = "Run Analysis";
+        btn.disabled = false;
+      }
+    }
+
+    // 5. Fetch AstroKites Climate Forecast
+    async function runClimateForecast() {
+      const url = `/api/climate/forecast?lat=${S.lat}&lon=${S.lon}&place=${encodeURIComponent(S.place)}`;
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Climate forecast endpoint unavailable');
+        S.forecastData = data;
+        renderForecastUI(data);
+      } catch (err) {
+        S.forecastData = null;
+        renderForecastUI({ok:false, insights:{weatherPattern:'Forecast unavailable',patternDetail:String(err.message || err)},daily_forecast:[]});
+        console.warn("Provider forecast unavailable:", err);
+      }
+    }
+
+    function renderForecastUI(data) {
+      const ins = data && data.insights ? data.insights : {};
+      const put = (id, value) => { const node = document.getElementById(id); if (node) node.innerText = value == null || value === '' ? '—' : String(value); };
+      put('insightAvgTemp', ins.avgTemp == null ? 'Unavailable' : ins.avgTemp);
+      put('insightTempRange', ins.minTemp && ins.maxTemp ? ins.minTemp + ' – ' + ins.maxTemp : '—');
+      put('insightTempTrend', 'Trend statistics are calculated in the Trend workspace.');
+      put('insightTotalPrecip', ins.totalPrecip == null ? 'Unavailable' : ins.totalPrecip);
+      put('insightMaxPrecip', ins.maxPrecip == null ? '—' : ins.maxPrecip);
+      put('insightRainyDays', ins.rainyDays == null ? '—' : ins.rainyDays);
+      put('insightAvgWind', ins.avgWind == null ? 'Unavailable' : ins.avgWind);
+      put('insightMaxWind', ins.maxWind == null ? '—' : ins.maxWind);
+      put('insightPressure', ins.pressure == null ? '—' : Number(ins.pressure).toFixed(0) + ' hPa');
+      put('insightWeatherPattern', ins.weatherPattern || (data && data.ok ? 'Provider forecast' : 'Unavailable'));
+      put('insightWeatherAdvice', ins.patternDetail || 'No advisory is generated without provider observations.');
+      const grid = document.getElementById('daysForecastGrid');
+      const daysList = data && data.daily_forecast ? data.daily_forecast : [];
+      const mapStartInput = document.getElementById('mapStartDateInput');
+      const mapDaysInput = document.getElementById('mapDaysInput');
+      const providerDates = [...new Set(daysList.map(day => String(day.date || '')).filter(date => /^\\d{4}-\\d{2}-\\d{2}$/.test(date)))].sort();
+      if (mapStartInput && mapDaysInput) {
+        if (providerDates.length) {
+          mapStartInput.min = providerDates[0];
+          mapStartInput.max = providerDates[providerDates.length - 1];
+          if (!providerDates.includes(mapStartInput.value)) mapStartInput.value = providerDates[0];
+          mapStartInput.disabled = false;
+          const syncProviderWindow = () => {
+            if (!providerDates.includes(mapStartInput.value)) {
+              mapStartInput.value = providerDates.find(date => date >= mapStartInput.value) || providerDates[0];
+            }
+            const remaining = providerDates.filter(date => date >= mapStartInput.value).length;
+            const maximum = Math.max(1, Math.min(7, remaining));
+            mapDaysInput.min = '1';
+            mapDaysInput.max = String(maximum);
+            if (!Number.isFinite(Number(mapDaysInput.value)) || Number(mapDaysInput.value) < 1 || Number(mapDaysInput.value) > maximum) {
+              mapDaysInput.value = String(maximum);
+            }
+            mapDaysInput.disabled = false;
+          };
+          mapStartInput.onchange = syncProviderWindow;
+          syncProviderWindow();
+        } else {
+          mapStartInput.disabled = true;
+          mapDaysInput.disabled = true;
+          mapStartInput.removeAttribute('min');
+          mapStartInput.removeAttribute('max');
+        }
+      }
+      if (grid) {
+        grid.innerHTML = daysList.length ? daysList.map(day => (
+          '<div class="day-forecast-card"><div class="day-name">' + (day.day || '—') +
+          '</div><div class="day-date">' + (day.date || '—') +
+          '</div><div class="day-weather-icon">◌</div><div class="day-temp-badge">' +
+          (day.temp_high == null ? '—' : Number(day.temp_high).toFixed(1) + '°C') +
+          '</div><div class="day-metrics"><span>Low: <strong>' +
+          (day.temp_low == null ? '—' : Number(day.temp_low).toFixed(1) + '°C') +
+          '</strong></span><span>Rain: <strong>' + (day.rain_mm == null ? '—' : Number(day.rain_mm).toFixed(1) + ' mm') +
+          '</strong></span><span>Rain chance: <strong>' + (day.rain_prob == null ? '—' : day.rain_prob + '%') +
+          '</strong></span><span>Wind: <strong>' + (day.wind_kmh == null ? '—' : day.wind_kmh + ' km/h') +
+          '</strong></span></div></div>'
+        )).join('') : '<div class="station-empty-state">No daily forecast was returned by the weather provider.</div>';
+      }
+      const eventsTable = document.getElementById('extremeEventsTableBody');
+      const events = data && data.extreme_events ? data.extreme_events : [];
+      put('eventsCountBadge', events.length + ' provider events returned');
+      if (eventsTable) eventsTable.innerHTML = events.length ? events.map(e =>
+        '<tr><td>' + (e.type || 'Event') + '</td><td>' + (e.location || '—') + '</td><td>' +
+        (e.date || '—') + '</td><td>' + (e.value || '—') + '</td><td>' + (e.severity || '—') + '</td></tr>'
+      ).join('') : '<tr><td colspan="5">No extreme-event rows were returned by this forecast endpoint.</td></tr>';
+      renderClimatologyChart(data);
+    }
+
+    let activeClimatologyParam = 'T2M';
+    function toggleClimatologyParam(param) {
+      activeClimatologyParam = param;
+      document.querySelectorAll('#btnToggleTemp, #btnTogglePrecip, #btnToggleWind').forEach(b => b.classList.remove('active'));
+      if (param === 'T2M') document.getElementById('btnToggleTemp').classList.add('active');
+      if (param === 'PRECTOT') document.getElementById('btnTogglePrecip').classList.add('active');
+      if (param === 'WS2M') document.getElementById('btnToggleWind').classList.add('active');
+
+      if (S.forecastData) renderClimatologyChart(S.forecastData);
+    }
+
+    function renderClimatologyChart(data) {
+      const dom = document.getElementById('climatologyChart');
+      if (!dom) return;
+      if (!S.charts.climatology) S.charts.climatology = echarts.init(dom, 'dark');
+      const months = data && data.months ? data.months : [];
+      let values = [], unit = '', label = '';
+      if (activeClimatologyParam === 'T2M') {
+        values = data && data.monthly_temps ? data.monthly_temps : [];
+        unit = '°C'; label = '10-year monthly mean air temperature';
+      } else if (activeClimatologyParam === 'PRECTOT') {
+        values = data && data.monthly_precip ? data.monthly_precip : [];
+        unit = 'mm/month'; label = '10-year monthly mean precipitation';
+      }
+      const hasValues = values.some(value => value != null && Number.isFinite(Number(value)));
+      if (!hasValues) {
+        S.charts.climatology.clear();
+        dom.innerHTML = '<div class="station-empty-state">Historical monthly climatology is unavailable for this location or provider period.</div>';
+        return;
+      }
+      dom.innerHTML = '';
+      S.charts.climatology.setOption({
+        backgroundColor: 'transparent',
+        title: { text: label, left: 8, top: 0, textStyle: { color: '#9ca3af', fontSize: 10, fontWeight: 400 } },
+        tooltip: { trigger: 'axis', formatter: params => {
+          const point = params[0];
+          return '<strong>' + point.name + '</strong><br/>' + point.seriesName + ': ' + (point.value == null ? 'Unavailable' : point.value + ' ' + unit);
+        }},
+        grid: { left: '5%', right: '4%', top: '18%', bottom: '10%', containLabel: true },
+        xAxis: { type: 'category', data: months, axisLine: { lineStyle: { color: 'rgba(255,255,255,.12)' } }, axisLabel: { color: '#9ca3af', fontFamily: 'DM Mono' } },
+        yAxis: { type: 'value', scale: true, axisLabel: { color: '#9ca3af', formatter: '{value} ' + unit }, splitLine: { lineStyle: { color: 'rgba(255,255,255,.06)' } } },
+        series: [{ name: label, type: 'line', smooth: true, connectNulls: false, data: values.map(value => value == null ? null : Number(value)), itemStyle: { color: activeClimatologyParam === 'T2M' ? '#f59e0b' : '#38bdf8' }, lineStyle: { width: 2.5 }, areaStyle: { opacity: .12 } }]
+      }, true);
+    }
+
+    // 6. Decadal Investigation & ECharts
+    async function runDecadalInvestigation() {
+      const params = new URLSearchParams({
+        lat: S.lat, lon: S.lon, variable: S.variable, region_name: S.place,
+        start_year: String((document.getElementById('startDateInput')?.value || '2016-01-01').slice(0,4)), end_year: String((document.getElementById('endDateInput')?.value || new Date().toISOString().slice(0,10)).slice(0,4))
+      });
+      const cardsContainer = document.getElementById('trendCardsContainer');
+      try {
+        const res = await fetch('/api/earth/investigate?' + params.toString());
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          const reason = data.unavailable_variables && data.unavailable_variables[S.variable];
+          throw new Error(reason || data.error || data.detail || 'No valid observations were returned for this variable.');
+        }
+        S.decadalData = data;
+        renderDecadalUI(data);
+      } catch (err) {
+        S.decadalData = null;
+        ['trendZStat','trendPVal','trendSensSlope','trendSlopeCI','trendSeasonalZ','trendSeasonalMonths','trendFdrStatus','trendFdrQVal'].forEach(id => {
+          const node = document.getElementById(id); if (node) node.innerText = '—';
+        });
+        if (cardsContainer) cardsContainer.innerHTML = '<div class="station-empty-state">' + String(err.message || err) + '</div>';
+        renderDecadalChart({ dates: [], values: [] });
+      }
+    }
+
+    function switchVariable(v, btn) {
+      S.variable = v;
+      document.querySelectorAll('#pane-trends .btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      document.getElementById('activeVariableBadge').innerText = `VARIABLE: ${v.toUpperCase()} · LOADING PROVIDER SERIES`;
+      runDecadalInvestigation();
+    }
+
+    function renderDecadalUI(data) {
+      const trend = data && data.trends && data.trends[S.variable] ? data.trends[S.variable] : {};
+      const put = (id, value) => { const node = document.getElementById(id); if (node) node.innerText = value == null ? '—' : String(value); };
+      put('trendZStat', trend.mann_kendall_z == null ? '—' : Number(trend.mann_kendall_z).toFixed(3));
+      put('trendPVal', trend.p_value == null ? '—' : Number(trend.p_value).toFixed(5));
+      put('trendSensSlope', trend.sens_slope == null ? '—' : Number(trend.sens_slope).toFixed(5) + ' ' + (trend.unit || '') + '/year');
+      put('trendSlopeCI', Array.isArray(trend.ci_95) && trend.ci_95.every(value => value != null)
+        ? '[' + Number(trend.ci_95[0]).toFixed(5) + ', ' + Number(trend.ci_95[1]).toFixed(5) + ']'
+        : 'Unavailable');
+      put('trendSeasonalZ', trend.seasonal_mk_z == null ? '—' : Number(trend.seasonal_mk_z).toFixed(3));
+      put('trendFdrStatus', trend.fdr_significant == null ? 'NOT EVALUATED' : (trend.fdr_significant ? 'SIGNIFICANT AFTER FDR' : 'NOT SIGNIFICANT AFTER FDR'));
+      renderDecadalChart(data && data.time_series && data.time_series[S.variable] ? data.time_series[S.variable] : { dates: [], values: [] });
+      const summary = data && data.ai_research_analyst ? data.ai_research_analyst.grounded_interpretation : null;
+      const analyst = document.getElementById('aiAnalystText');
+      if (analyst) analyst.innerText = summary || 'No provider-backed trend interpretation is available.';
+      const unavailable = data && data.unavailable_variables ? data.unavailable_variables[S.variable] : null;
+      put('trendSeasonalMonths', trend.seasonal_months_with_repeated_samples == null ? '—' : trend.seasonal_months_with_repeated_samples);
+      put('trendFdrQVal', trend.fdr_q_value == null ? '—' : Number(trend.fdr_q_value).toFixed(5));
+      const metadata = data && data.metadata ? data.metadata[S.variable] : null;
+      put('activeVariableBadge', metadata ? ('VARIABLE: ' + (metadata.name || S.variable) + ' · ' + (metadata.resolution || metadata.dataset || 'provider data')) : ('VARIABLE: ' + S.variable.toUpperCase()));
+      const status = document.getElementById('telemetryStatusText');
+      if (status) status.textContent = unavailable
+        ? 'UNAVAILABLE · ' + unavailable
+        : metadata
+          ? 'SOURCE · ' + (metadata.provider || metadata.source || 'Provider not named') + ' · ' + (metadata.data_class || 'DATA CLASS NOT REPORTED') + ' · ' + (metadata.resolution || 'resolution not reported')
+          : 'No provider provenance was returned for this variable.';
+    }
+
+    function renderDecadalChart(series) {
+      const dom = document.getElementById('decadalChart');
+      if (!dom) return;
+      const dates = series && series.dates ? series.dates : [];
+      const raw = series && series.values ? series.values : [];
+      if (!dates.length || !raw.length) {
+        if (S.charts.decadal) S.charts.decadal.clear();
+        dom.innerHTML = '<div class="station-empty-state">Trend chart unavailable: the selected dataset has not returned enough valid observations.</div>';
+        return;
+      }
+      dom.innerHTML = '';
+      if (!S.charts.decadal) S.charts.decadal = echarts.init(dom, 'dark');
+      const movingAverage = raw.map((_, i) => i < 11 ? null : Number((raw.slice(i - 11, i + 1).reduce((a, b) => a + b, 0) / 12).toFixed(4)));
+      const trend = S.decadalData && S.decadalData.trends ? S.decadalData.trends[S.variable] : {};
+      const slope = trend ? trend.sens_slope : null;
+      const numericDates = dates.map(date => {
+        const timestamp = Date.parse(date + 'T00:00:00Z');
+        if (!Number.isFinite(timestamp)) return NaN;
+        const parsed = new Date(timestamp);
+        const year = parsed.getUTCFullYear();
+        const yearStart = Date.UTC(year, 0, 1);
+        const nextYearStart = Date.UTC(year + 1, 0, 1);
+        return year + (timestamp - yearStart) / (nextYearStart - yearStart);
+      });
+      let senLine = [];
+      if (slope != null && numericDates.length) {
+        const intercepts = raw.map((value, i) => value - slope * numericDates[i]).sort((a, b) => a - b);
+        const intercept = intercepts[Math.floor(intercepts.length / 2)];
+        senLine = numericDates.map(x => Number((intercept + slope * x).toFixed(5)));
+      }
+      const seriesConfig = [{ name: 'Observed provider values', type: 'scatter', data: raw, itemStyle: { color: '#38bdf8' } }];
+      if (senLine.length) seriesConfig.push({ name: "Sen's slope fit", type: 'line', data: senLine, showSymbol: false, lineStyle: { color: '#78D6A9', width: 2.5, type: 'dashed' } });
+      if (movingAverage.some(value => value != null)) seriesConfig.push({ name: '12-sample rolling mean', type: 'line', data: movingAverage, showSymbol: false, lineStyle: { color: '#f59e0b', width: 1.8 } });
+      S.charts.decadal.setOption({
+        backgroundColor: 'transparent', tooltip: { trigger: 'axis' },
+        legend: { data: seriesConfig.map(item => item.name), top: '2%', textStyle: { color: '#9ca3af' } },
+        grid: { left: '4%', right: '4%', top: '14%', bottom: '16%', containLabel: true },
+        dataZoom: [{ type: 'slider', bottom: '2%', height: 20, borderColor: 'transparent', fillerColor: 'rgba(120,214,169,0.2)' }],
+        xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: 'rgba(255,255,255,.1)' } }, axisLabel: { color: '#9ca3af', fontFamily: 'DM Mono' } },
+        yAxis: { type: 'value', scale: true, axisLabel: { color: '#9ca3af', fontFamily: 'DM Mono' }, splitLine: { lineStyle: { color: 'rgba(255,255,255,.05)' } } },
+        series: seriesConfig
+      }, true);
+    }
+
+    // 7. MapLibre GL Map Initialization
+    function initMap() {
+      const container = document.getElementById('mapLibreContainer');
+      if (!container) return;
+
+      const map = new maplibregl.Map({
+        container: 'mapLibreContainer',
+        style: {
+          version: 8,
+          sources: {
+            'carto-dark': {
+              type: 'raster',
+              tiles: ['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'],
+              tileSize: 256,
+              attribution: '© CARTO, © OpenStreetMap'
+            }
+          },
+          layers: [{ id: 'carto-dark-layer', type: 'raster', source: 'carto-dark', minzoom: 0, maxzoom: 19 }]
+        },
+        center: [S.lon, S.lat],
+        zoom: 7.2
+      });
+
+      window.earthscopeMap = map;
+
+      const marker = new maplibregl.Marker({ color: '#78D6A9' })
+        .setLngLat([S.lon, S.lat])
+        .addTo(map);
+
+      map.on('click', async (e) => {
+        const lng = Number(e.lngLat.lng.toFixed(4));
+        const lat = Number(e.lngLat.lat.toFixed(4));
+        marker.setLngLat([lng, lat]);
+        S.tempLat = lat; S.tempLon = lng;
+        S.tempPlace = 'Selected coordinates';
+        const put = (id, value) => {
+          const node = document.getElementById(id);
+          if (node) node.innerText = value == null || value === '' ? 'Unavailable' : String(value);
+        };
+        put('drawerPlaceName', 'Resolving selected location…');
+        const coordinateLabel = Math.abs(lat).toFixed(4) + '°' + (lat >= 0 ? 'N' : 'S') + ', ' + Math.abs(lng).toFixed(4) + '°' + (lng >= 0 ? 'E' : 'W');
+        put('drawerCoords', coordinateLabel);
+        put('mapSelectedCoordinate', coordinateLabel);
+        put('drawerTemp', 'Loading provider data…');
+        put('drawerRain', 'Loading provider data…');
+        put('drawerTrend', 'Run the scientific trend analysis to calculate this');
+        document.getElementById('mapTelemetryDrawer').style.display = 'flex';
+
+        const query = 'lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng);
+        const responses = await Promise.allSettled([
+          fetch('/api/reverse-geocode?' + query),
+          fetch('/api/weather?' + query),
+          fetch('/api/climate/anomaly?' + query + '&window_days=30&baseline_years=5')
+        ]);
+        const read = async result => {
+          if (result.status !== 'fulfilled' || !result.value.ok) return null;
+          try { return await result.value.json(); } catch (_) { return null; }
+        };
+        const [geo, weather, climate] = await Promise.all(responses.map(read));
+        const geoData = geo && (geo.data || geo);
+        const geoAddress = geoData && (geoData.address || geoData.properties && geoData.properties.address || {});
+        const place = geoAddress ? (geoAddress.county || geoAddress.state_district || geoAddress.state || geoAddress.country) : null;
+        if (place) S.tempPlace = place;
+        put('drawerPlaceName', S.tempPlace);
+        const weatherData = weather && (weather.data || weather);
+        const current = weatherData && (weatherData.current || weatherData.data && weatherData.data.current);
+        put('drawerTemp', current && current.temperature_2m != null ? Number(current.temperature_2m).toFixed(1) + '°C' : 'Unavailable from weather providers');
+        put('drawerRain', current && current.precipitation != null ? Number(current.precipitation).toFixed(1) + ' mm current precipitation' : 'Unavailable from weather providers');
+        const climateData = climate && (climate.data || climate);
+        const anomaly = climateData && (climateData.temperature || climateData.anomaly || climateData.summary);
+        put('drawerTrend', anomaly ? 'Climate anomaly response available; open analysis for full statistics' : 'No climate anomaly result returned');
+      });
+    }
+
+    function jumpToLocation(lat, lon, name) {
+      if (window.earthscopeMap) {
+        window.earthscopeMap.flyTo({ center: [lon, lat], zoom: 8.5 });
+      }
+      updateLocation(lat, lon, name);
+    }
+
+    function loadDrawerLocationToStudio() {
+      if (S.tempLat != null && S.tempLon != null) {
+        updateLocation(S.tempLat, S.tempLon, S.tempPlace || "Selected Location");
+        document.getElementById('mapTelemetryDrawer').style.display = 'none';
+        switchOptionView('forecast');
+      }
+    }
+
+    // 8. Populate Static Catalogs (Fleet, Services, States)
+    function populateCatalogs() {
+      // Satellites Fleet
+      const fleetDom = document.getElementById('fleetGrid');
+      if (fleetDom) {
+        fleetDom.innerHTML = CONSTELLATIONS.map(c => `
+          <div class="fleet-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="color:#fff; font-size:15px; font-family:var(--font-display);">${c.name}</strong>
+              <span class="brand-badge">${c.agency}</span>
+            </div>
+            <div style="font-size:12px; color:var(--mint); font-family:var(--font-mono);">${c.sensor}</div>
+            <p style="font-size:12px; color:var(--text-muted); line-height:1.4;">${c.bands}</p>
+            <div style="display:flex; justify-content:space-between; font-size:11px; font-family:var(--font-mono); color:var(--text-subtle); border-top:1px solid var(--border); padding-top:6px;">
+              <span>Res: ${c.resolution}</span>
+              <span style="color:var(--mint);">${c.status}</span>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Runtime service health matrix. A service is never labelled LIVE from a static catalogue.
+      const servDom = document.getElementById('servicesGrid');
+      if (servDom) servDom.innerHTML = '<div class="station-empty-state">Probing configured providers and public fallbacks…</div>';
+      loadServiceMatrix();
+
+      // 29 Indian States & UTs Catalog
+      loadStatesCatalog();
+    }
+
+    async function loadServiceMatrix() {
+      const root = document.getElementById('servicesGrid');
+      if (!root) return;
+      const safe = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+      try {
+        const response = await fetch('/api/source-health?lat=' + encodeURIComponent(S.lat) + '&lon=' + encodeURIComponent(S.lon));
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Provider health endpoint unavailable');
+        const rows = data.sources || [];
+        root.innerHTML = rows.map(row => {
+          const status = String(row.status || 'UNKNOWN').toUpperCase();
+          const color = status === 'OK' ? 'var(--mint)' : status === 'NOT_CONFIGURED' ? 'var(--text-subtle)' : 'var(--amber)';
+          const latency = row.latency_ms == null ? '—' : Number(row.latency_ms).toFixed(0) + ' ms';
+          const detail = row.detail || (row.sample_available ? 'Provider returned a health sample.' : 'Health probe completed.');
+          return '<article class="service-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">' +
+            '<strong style="color:#fff;font-size:14px;font-family:var(--font-display);">' + safe(row.source || 'Provider') + '</strong>' +
+            '<span class="brand-badge" style="color:' + color + ';border-color:' + color + ';background:transparent;">' + safe(status) + '</span></div>' +
+            '<p style="font-size:12px;color:var(--text-muted);line-height:1.5;">' + safe(detail) + '</p>' +
+            '<div style="font-size:10px;font-family:var(--font-mono);color:var(--text-subtle);border-top:1px solid var(--border);padding-top:7px;">RUNTIME LATENCY · ' + safe(latency) + '</div></article>';
+        }).join('') || '<div class="station-empty-state">No provider checks were returned.</div>';
+      } catch (error) {
+        root.innerHTML = '<div class="station-empty-state">Provider health could not be checked: ' + safe(error.message || error) + '</div>';
+      }
+    }
+
+    async function loadStatesCatalog() {
+      const grid = document.getElementById('allStatesGrid');
+      if (!grid) return;
+      try {
+        const res = await fetch('/api/climate/states');
+        if (!res.ok) throw new Error('State coordinate catalogue is unavailable');
+        const data = await res.json();
+        const states = data.states || [];
+        grid.innerHTML = states.map(state => {
+          const safeName = String(state.name || '').replace(/'/g, '&#39;');
+          return '<div class="state-card" role="button" tabindex="0" data-lat="' + state.lat + '" data-lon="' + state.lon + '" data-name="' + safeName + '">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;"><strong style="color:#fff;font-size:14px;">' + state.name + '</strong><span style="font-size:10px;color:var(--mint);">COORDINATE BASELINE</span></div>' +
+            '<div style="font-size:11px;color:var(--text-subtle);font-family:var(--font-mono);">' + Number(state.lat).toFixed(4) + '°N, ' + Number(state.lon).toFixed(4) + '°E</div>' +
+            '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:7px;margin-top:7px;">' +
+            '<span>' + (state.climate_zone || 'Climate zone not supplied') + '</span><span style="color:var(--mint);">SELECT & ANALYZE →</span></div>' +
+            '<p style="font-size:10px;color:var(--text-subtle);margin-top:7px;">' + (state.hotspot || '') + '</p></div>';
+        }).join('');
+        grid.querySelectorAll('.state-card').forEach(card => {
+          const choose = () => updateLocation(Number(card.dataset.lat), Number(card.dataset.lon), card.dataset.name);
+          card.addEventListener('click', choose);
+          card.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(); } });
+        });
+      } catch (e) {
+        grid.innerHTML = '<div class="station-empty-state">' + String(e.message || e) + '</div>';
+      }
+    }
+
+    // Export only the observations actually returned by the live API.
+    function exportCSV() {
+      const series = S.decadalData && S.decadalData.time_series ? S.decadalData.time_series[S.variable] : null;
+      if (!series || !series.dates || !series.values || !series.values.length) {
+        document.getElementById('aiAnalystText').innerText = 'CSV export unavailable: no provider observations are loaded.';
+        return;
+      }
+      const trend = S.decadalData.trends && S.decadalData.trends[S.variable] ? S.decadalData.trends[S.variable] : {};
+      const rows = [['date','variable','value','unit','source'], ...series.dates.map((date, index) => [
+        date, S.variable, series.values[index], trend.unit || '', trend.source || ''
+      ])];
+      const csv = rows.map(row => row.map(value => '"' + String(value == null ? '' : value).replace(/"/g, '""') + '"').join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a'); link.href = url; link.download = 'earthscope-' + S.variable + '-observations.csv';
+      link.click(); URL.revokeObjectURL(url);
+    }
+    function exportJSON() {
+      const params = new URLSearchParams({lat:S.lat,lon:S.lon,region_name:S.place,variables:'ndvi,t2m,precipitation,modis_ndvi,modis_evi,modis_lst_day,modis_lst_night,gpm_precipitation,merra2_t2m,gldas_soil_moisture,omi_ozone',start_year:'2015',end_year:String(new Date().getFullYear())});
+      window.open('/api/earth/trends/analyze?' + params.toString(), '_blank', 'noopener');
+    }
+    function exportDossier() { exportJSON(); }
+
+    async function askAiAnalyst() {
+      const query = document.getElementById('aiCustomPrompt').value.trim();
+      const output = document.getElementById('aiAnalystText');
+      if (!query || !output) return;
+      output.innerText = 'Parsing the question against the selected study area…';
+      try {
+        const params = new URLSearchParams({ q: query, lat: S.lat, lon: S.lon });
+        const response = await fetch('/api/query?' + params.toString());
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.detail || 'Earth query endpoint unavailable');
+        output.innerText = JSON.stringify({
+          interpreted_query: result.query || query,
+          filters: result.filters || {},
+          matched_intent: result.intent || result.intent_type || null,
+          note: 'This is query parsing, not a generated scientific conclusion. Run the relevant evidence workflow before interpreting environmental impact.'
+        }, null, 2);
+      } catch (error) {
+        output.innerText = 'Query service unavailable: ' + String(error.message || error);
+      }
+    }
+
+    // Bootstrap Dashboard
+    
+    // Open Map 30-Day Weather Prediction Modal (AstroKites Reference)
+    async function openMapWeatherPredictionModal() {
+      const modal = document.getElementById('mapOutlookModal');
+      if (!modal) return;
+      const lat = S.tempLat != null ? S.tempLat : S.lat;
+      const lon = S.tempLon != null ? S.tempLon : S.lon;
+      const place = S.tempPlace || S.place;
+      const put = (id, value) => {
+        const node = document.getElementById(id);
+        if (node) node.innerText = value == null || value === '' ? 'Unavailable' : String(value);
+      };
+      document.getElementById('modalLocTitle').innerText = place;
+      document.getElementById('modalLocCoords').innerText =
+        'Coordinates: ' + Math.abs(lat).toFixed(4) + '°' + (lat >= 0 ? 'N' : 'S') + ', ' + Math.abs(lon).toFixed(4) + '°' + (lon >= 0 ? 'E' : 'W') + ' | Retrieving provider forecast…';
+      const tbody = document.getElementById('modalPredictionsTableBody');
+      tbody.innerHTML = '<tr><td colspan="6">Retrieving the selected provider forecast window for this map point…</td></tr>';
+      modal.style.display = 'flex';
+      try {
+        const startDate = document.getElementById('mapStartDateInput')?.value || '';
+        const requestedDays = Math.max(1, Math.min(7, Math.floor(Number(document.getElementById('mapDaysInput')?.value || 7))));
+        const params = new URLSearchParams({lat, lon, place, start_date: startDate, days: String(requestedDays)});
+        const response = await fetch('/api/climate/forecast?' + params.toString());
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) throw new Error(payload.detail || 'No provider forecast is available');
+        const forecast = payload.daily_forecast || [];
+        const temps = forecast.map(row => row.temp_high).filter(value => value != null && Number.isFinite(Number(value))).map(Number);
+        const lows = forecast.map(row => row.temp_low).filter(value => value != null && Number.isFinite(Number(value))).map(Number);
+        const rain = forecast.map(row => row.rain_mm).filter(value => value != null && Number.isFinite(Number(value))).map(Number);
+        const wind = forecast.map(row => row.wind_kmh).filter(value => value != null && Number.isFinite(Number(value))).map(Number);
+        put('modalTemp', temps.length ? (temps.reduce((sum, value) => sum + value, 0) / temps.length).toFixed(1) + '°C mean daily high' : null);
+        put('modalTempRange', temps.length && lows.length ? Math.min(...lows).toFixed(1) + '°C – ' + Math.max(...temps).toFixed(1) + '°C provider range' : null);
+        put('modalRain', rain.length ? rain.reduce((sum, value) => sum + value, 0).toFixed(1) + ' mm' : null);
+        put('modalRainMeta', rain.length ? rain.length + ' forecast days returned' : null);
+        put('modalWind', wind.length ? (wind.reduce((sum, value) => sum + value, 0) / wind.length).toFixed(1) + ' km/h mean daily maximum' : null);
+        put('modalWindMeta', wind.length ? 'Maximum: ' + Math.max(...wind).toFixed(1) + ' km/h' : null);
+        put('modalSource', payload.source || null);
+        document.getElementById('modalLocCoords').innerText =
+          'Coordinates: ' + Math.abs(lat).toFixed(4) + '°' + (lat >= 0 ? 'N' : 'S') + ', ' + Math.abs(lon).toFixed(4) + '°' + (lon >= 0 ? 'E' : 'W') + ' | Provider window: ' +
+          (forecast.length ? forecast[0].date + ' → ' + forecast[forecast.length - 1].date : 'no dates returned');
+        if (!forecast.length) {
+          tbody.innerHTML = '<tr><td colspan="6">No daily observations were returned for this coordinate.</td></tr>';
+        } else {
+          tbody.innerHTML = forecast.map(day => '<tr>' +
+            '<td style="font-family:var(--font-mono);color:#fff;">' + (day.date || '—') + '</td>' +
+            '<td style="font-family:var(--font-mono);">' + (day.temp_high == null ? '—' : Number(day.temp_high).toFixed(1) + '°C') +
+            ' / ' + (day.temp_low == null ? '—' : Number(day.temp_low).toFixed(1) + '°C') + '</td>' +
+            '<td style="font-family:var(--font-mono);">' + (day.rain_mm == null ? '—' : Number(day.rain_mm).toFixed(1) + ' mm') + '</td>' +
+            '<td>' + (day.rain_prob == null ? '—' : day.rain_prob + '%') + '</td>' +
+            '<td style="font-family:var(--font-mono);">' + (day.wind_kmh == null ? '—' : day.wind_kmh + ' km/h') + '</td>' +
+            '<td style="font-family:var(--font-mono);color:var(--cyan);">' + (day.source || payload.source || 'Provider source not named') + '</td></tr>').join('');
+        }
+      } catch (error) {
+        put('modalTemp', null);put('modalTempRange', null);put('modalRain', null);put('modalRainMeta', null);
+        put('modalWind', null);put('modalWindMeta', null);put('modalSource', 'Unavailable');
+        document.getElementById('modalLocCoords').innerText =
+          'Coordinates: ' + Math.abs(lat).toFixed(4) + '°' + (lat >= 0 ? 'N' : 'S') + ', ' + Math.abs(lon).toFixed(4) + '°' + (lon >= 0 ? 'E' : 'W') + ' | Forecast unavailable';
+        tbody.innerHTML = '<tr><td colspan="6">' + String(error.message || error) + '</td></tr>';
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const startInput = document.getElementById('mapStartDateInput');
+      const daysInput = document.getElementById('mapDaysInput');
+      if (startInput) startInput.disabled = true;
+      if (daysInput) daysInput.disabled = true;
+      initEarthBackground();
+      initMap();
+      populateCatalogs();
+      runClimateForecast();
+      runDecadalInvestigation();
+    });
+  </script>
+</body>
+</html>

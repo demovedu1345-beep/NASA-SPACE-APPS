@@ -2,8 +2,29 @@
   "version": 2,
   "git": {
     "deploymentEnabled": {
-      "main": false,
-      "vercel-deploy": true
+      "main": true,
+      "vercel-deploy": true,
+      "earthscope-trends": true,
+      "earthscope-mission-control-v2": true
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/dashboard",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/dashboard/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/proxy?__proxy_path=:path*"
+    }
+  ],
+  "functions": {
+    "api/proxy.js": {
+      "maxDuration": 60
     }
   }
 }

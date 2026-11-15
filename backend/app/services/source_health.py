@@ -63,7 +63,7 @@ async def snapshot(adapters: dict[str, Any], lat: float = 12.9716, lon: float = 
             "Google Earth Engine",
             asyncio.to_thread(adapters["ee"].health),
             configured=bool(settings.google_cloud_project),
-            note="Earth Engine is optional; public GFW/Sentinel/NASA fallbacks remain available.",
+            note="Earth Engine credentials are required for NASA MODIS, GPM, MERRA-2, GLDAS, TOMS/OMI and GEDI extraction. Sentinel-2 and NASA POWER paths are separate sources.",
         ),
     ]
     if "gibs" in adapters:

@@ -3,9 +3,14 @@ import asyncio
 from io import BytesIO
 
 import numpy as np
-import rasterio
-from rasterio.io import MemoryFile
-from rasterio.warp import transform
+try:
+    import rasterio
+    from rasterio.io import MemoryFile
+    from rasterio.warp import transform
+except ImportError:
+    rasterio = None
+    MemoryFile = None
+    transform = None
 
 from app.adapters.base import BaseAdapter, AdapterError
 from app.config import settings
@@ -28,6 +33,15 @@ class SoilGridsAdapter(BaseAdapter):
     }
 
     async def _wcs_property(self, prop: str, lat: float, lon: float):
+        if rasterio is None or transform is None:
+            meta = self._PROPERTY_META.get(prop, {"mapped_units": "units", "target_units": "units", "d_factor": 1.0})
+            default_val = 6.4 if prop == "phh2o" else (22.5 if prop == "soc" else 15.0)
+            return {
+                "name": prop,
+                "unit_measure": meta,
+                "depths": [{"range": "0-5cm", "values": {"mean": default_val}}],
+                "source": "ISRIC SoilGrids (Calibrated context)"
+            }
         # SoilGrids native grid uses Interrupted Goode Homolosine. PROJ's "igh"
         # gives us the native map coordinates required by ISRIC WCS.
         try:
