@@ -152,6 +152,68 @@ def test_climate_forecast_returns_only_provider_forecast_values(monkeypatch):
     assert len(body["monthly_temps"]) == 12
 
 
+
+def test_climate_forecast_respects_requested_provider_window(monkeypatch):
+    async def fake_forecast(*args, **kwargs):
+        return {
+            "current": {
+                "temperature_2m": 23.4,
+                "relative_humidity_2m": 81,
+                "precipitation": 0.2,
+                "wind_speed_10m": 8.5,
+                "pressure_msl": 1008.2,
+            },
+            "daily": {
+                "time": [f"2026-11-{day:02d}" for day in range(15, 22)],
+                "temperature_2m_max": [25, 26, 25, 24, 27, 26, 25],
+                "temperature_2m_min": [18, 19, 18, 17, 20, 19, 18],
+                "precipitation_sum": [0, 2.4, 0.2, 8.1, 0, 1.1, 0],
+                "precipitation_probability_max": [0, 30, 10, 70, 0, 20, 0],
+                "wind_speed_10m_max": [12, 15, 14, 22, 13, 16, 11],
+            },
+        }
+
+    async def fake_history(*args, **kwargs):
+        return (
+            {"daily": {"time": [], "temperature_2m_mean": [], "precipitation_sum": []}},
+            "Test Historical Climate Provider",
+            [],
+        )
+
+    monkeypatch.setattr(main.weather, "get_json", fake_forecast)
+    monkeypatch.setattr(main, "historical_climate_daily_real", fake_history)
+
+    response = client.get(
+        "/api/climate/forecast",
+        params={
+            "lat": 12.3375,
+            "lon": 75.8069,
+            "place": "Kodagu test",
+            "start_date": "2026-11-16",
+            "days": 2,
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert [row["date"] for row in body["daily_forecast"]] == [
+        "2026-11-16",
+        "2026-11-17",
+    ]
+    assert body["daily_forecast"][0]["temp_high"] == 26
+    assert "2-day provider forecast" in body["insights"]["patternDetail"]
+
+    out_of_window = client.get(
+        "/api/climate/forecast",
+        params={
+            "lat": 12.3375,
+            "lon": 75.8069,
+            "place": "Kodagu test",
+            "start_date": "2026-11-25",
+            "days": 2,
+        },
+    )
+    assert out_of_window.status_code == 422
+
 def test_trend_climate_variables_use_nasa_power_as_primary_source(monkeypatch):
     async def fake_power_history(lat, lon, start, end):
         dates = []
