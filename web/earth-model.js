@@ -57,7 +57,7 @@ export function applyWgs84Ellipsoid(THREE, geometry, radius = 2) {
 export async function loadGlobalTerrariumDEM({
   zoom = WGS84.terrainZoom,
   timeoutMs = 9000,
-  minimumTiles = 32
+  minimumTiles = 60
 } = {}) {
   if (typeof document === "undefined" || typeof Image === "undefined") return null;
   const tileCount = 2 ** zoom;
@@ -175,7 +175,7 @@ export function buildTerrainHeightSamples(geometry, dem) {
       samples++;
     }
   }
-  return samples > uv.count * 0.2 ? heights : null;
+  return samples > uv.count * 0.8 ? heights : null;
 }
 
 /** Apply/remove DEM heights without losing the underlying WGS84 ellipsoid. */
