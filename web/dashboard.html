@@ -412,21 +412,21 @@
               <span class="pulse-indicator" style="width:6px; height:6px;"></span>
               NASA Space Apps 2026 • Challenge 02
             </span>
-            <span style="font-family:var(--es-font-mono); font-size:10.5px; color:var(--es-mint); background:rgba(120,214,169,0.1); padding:2px 8px; border-radius:4px; border:1px solid rgba(120,214,169,0.25);">
-              BEARER TOKEN: ACTIVE (veduxearthscope)
+            <span style="font-family:var(--es-font-mono); font-size:10.5px; color:var(--es-mint); background:rgba(45, 212, 191, 0.08); padding:2px 8px; border-radius:4px; border:1px solid rgba(45, 212, 191, 0.2);">
+              NASA EOSDIS URS: SESSION AUTHENTICATED
             </span>
             <span style="font-family:var(--es-font-mono); font-size:10.5px; color:#AEAEB2; background:rgba(255,255,255,0.05); padding:2px 8px; border-radius:4px;">
-              From satellite observations to measurable environmental trends.
+              Multi-Decadal Earth Observation Trajectories · Non-Parametric Inference
             </span>
           </div>
-          <h2>Earth System <span>Research Workspace</span></h2>
+          <h2>Earth System <span>Trend Detective Station</span></h2>
           <p>
-            Your workspace for exploring environmental observations, analysing trends, and investigating Earth's changing systems. Explore how vegetation, land-surface temperature, precipitation, and other environmental variables change over time. Turn Earth observations into measurable evidence.
+            Authoritative Earth System Trend Detective Station for NASA Space Apps Challenge 02. Ingests calibrated multi-decadal satellite observations from NASA EOSDIS and ESA Copernicus constellations to compute non-parametric Mann-Kendall monotonic trend tests, Sen's median slope trajectories, and Gilbert rank confidence intervals across global benchmark ecosystems.
           </p>
         </div>
 
         <div class="station-action-bar">
-          <a data-page="overview" class="btn-primary" style="background:var(--es-mint); color:#000; text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-weight:700; box-shadow:0 0 16px var(--es-mint-glow);">
+          <a data-page="overview" class="btn-primary" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
             <span>🌍</span> Open the Dashboard ↗
           </a>
           <button id="btnRunTrends" class="btn-primary" onclick="runEarthscopeTrends()">
@@ -453,50 +453,50 @@
       <!-- Dashboard Overview Cards -->
       <div class="dashboard-overview-grid">
         <div class="dashboard-card" onclick="switchTab('variables')" style="cursor:pointer;">
-          <div class="dashboard-card-label">Environmental Variables</div>
-          <div class="dashboard-card-title">Available Variables</div>
-          <div class="dashboard-card-desc">Explore environmental variables and their registered data products across land, vegetation, water, and atmosphere.</div>
-          <div class="dashboard-card-meta">17 Variables Registered →</div>
+          <div class="dashboard-card-label">Earth Observation Variables</div>
+          <div class="dashboard-card-title">Registered Variables</div>
+          <div class="dashboard-card-desc">Comprehensive catalog of 17 NASA and partner Earth science variables across biosphere, cryosphere, hydrology, and atmosphere.</div>
+          <div class="dashboard-card-meta">17 Variables Registered (P0 / P1 / P2) →</div>
         </div>
 
         <div class="dashboard-card" onclick="switchTab('cmr')" style="cursor:pointer;">
-          <div class="dashboard-card-label">Observational Systems</div>
-          <div class="dashboard-card-title">Connected Data Sources</div>
-          <div class="dashboard-card-desc">Check the availability and connection status of configured NASA and international data providers.</div>
-          <div class="dashboard-card-meta">8 Providers Connected (CMR Active) →</div>
+          <div class="dashboard-card-label">Remote Sensing Constellations</div>
+          <div class="dashboard-card-title">Connected NASA DAACs</div>
+          <div class="dashboard-card-desc">Active discovery endpoints linking LP DAAC, GES DISC, NSIDC, and ASDC collections via NASA Common Metadata Repository (CMR).</div>
+          <div class="dashboard-card-meta">NASA CMR & LP DAAC Connected →</div>
+        </div>
+
+        <div class="dashboard-card" onclick="switchTab('statlab')" style="cursor:pointer;">
+          <div class="dashboard-card-label">Statistical Inference</div>
+          <div class="dashboard-card-title">Mann-Kendall & Sen's Slope</div>
+          <div class="dashboard-card-desc">Rigorous non-parametric hypothesis testing with tie-corrected variance, serial autocorrelation diagnostics, and FDR q-values.</div>
+          <div class="dashboard-card-meta">Non-Parametric Trend Lab →</div>
         </div>
 
         <div class="dashboard-card" onclick="switchTab('trends')" style="cursor:pointer;">
-          <div class="dashboard-card-label">Statistical Evidence</div>
-          <div class="dashboard-card-title">Completed Analyses</div>
-          <div class="dashboard-card-desc">Access your previous investigations and statistical results with Mann-Kendall and Sen's slope testing.</div>
-          <div class="dashboard-card-meta">120-Month Monotonic Audit →</div>
-        </div>
-
-        <div class="dashboard-card" onclick="switchTab('trends')" style="cursor:pointer;">
-          <div class="dashboard-card-label">Geographic Extents</div>
-          <div class="dashboard-card-title">Study Regions</div>
-          <div class="dashboard-card-desc">Manage the geographic areas selected for your research across global benchmarks and custom polygons.</div>
+          <div class="dashboard-card-label">Benchmark Ecosystems</div>
+          <div class="dashboard-card-title">Global Study Regions</div>
+          <div class="dashboard-card-desc">Six calibrated ecological benchmarks spanning tropical rainforests, sub-Himalayan corridors, tidal deltas, semi-arid savannas, and Arctic cryosphere.</div>
           <div class="dashboard-card-meta">6 Global Benchmarks Loaded →</div>
         </div>
 
         <div class="dashboard-card" onclick="switchTab('reports')" style="cursor:pointer;">
-          <div class="dashboard-card-label">Reproducible Findings</div>
-          <div class="dashboard-card-title">Recent Investigations</div>
-          <div class="dashboard-card-desc">Continue exploring previous analyses or review completed reproducible research dossiers.</div>
-          <div class="dashboard-card-meta">View Research Reports →</div>
+          <div class="dashboard-card-label">Reproducible Research</div>
+          <div class="dashboard-card-title">Scientific Dossiers</div>
+          <div class="dashboard-card-desc">Audit-ready investigations complete with sensor provenance, QA bitmask filtering, statistical metrics, and interactive charts.</div>
+          <div class="dashboard-card-meta">Generate Reproducible Report →</div>
         </div>
       </div>
 
       <!-- Benchmark Study Areas Strip -->
       <div class="ecosystem-nav-strip">
         <span style="font-family:var(--es-font-mono); font-size:11px; color:var(--es-text-muted); text-transform:uppercase; margin-right:4px;">Benchmark Study Areas:</span>
-        <button class="eco-pill active" onclick="selectBenchmarkRegion(12.3375, 75.8069, 'Kodagu Rainforest', 'Western Ghats, India', this)">🌿 Kodagu Rainforest</button>
-        <button class="eco-pill" onclick="selectBenchmarkRegion(-3.1190, -60.0217, 'Amazon River Basin', 'Manaus, Brazil', this)">🌳 Amazon Basin</button>
-        <button class="eco-pill" onclick="selectBenchmarkRegion(29.5300, 78.7747, 'Jim Corbett Biosphere', 'Sub-Himalayan, India', this)">🌲 Jim Corbett</button>
-        <button class="eco-pill" onclick="selectBenchmarkRegion(21.9497, 89.1833, 'Sundarbans Mangrove Delta', 'West Bengal, India / Bangladesh', this)">🌴 Sundarbans</button>
-        <button class="eco-pill" onclick="selectBenchmarkRegion(14.4974, -14.4524, 'Sahel Savanna Transition', 'Senegal / Mali, Africa', this)">🏜️ Sahel Savanna</button>
-        <button class="eco-pill" onclick="selectBenchmarkRegion(64.1814, -51.6941, 'Greenland Ice Sheet Margin', 'Nuuk, Arctic', this)">🧊 Greenland Ice Margin</button>
+        <button class="eco-pill active" onclick="selectBenchmarkRegion(12.3375, 75.8069, 'Kodagu Rainforest', 'Western Ghats Moist Deciduous & Evergreen, India', this)" title="Tropical Montane Wet Evergreen Rainforest (UNESCO Western Ghats)">🌿 Kodagu Rainforest</button>
+        <button class="eco-pill" onclick="selectBenchmarkRegion(-3.1190, -60.0217, 'Amazon River Basin', 'Manaus Core Tropical Rainforest, Brazil', this)" title="Equatorial Lowland Primary Rainforest (Central Amazon Complex)">🌳 Amazon Basin</button>
+        <button class="eco-pill" onclick="selectBenchmarkRegion(29.5300, 78.7747, 'Jim Corbett Biosphere Reserve', 'Sub-Himalayan Shivalik Terai Foothills, India', this)" title="Sub-Himalayan Moist Deciduous Sal Forest (IUCN Cat. II)">🌲 Jim Corbett</button>
+        <button class="eco-pill" onclick="selectBenchmarkRegion(21.9497, 89.1833, 'Sundarbans Mangrove Delta', 'Tidal Halophytic Mangrove Biosphere, India / Bangladesh', this)" title="Intertidal Halophytic Mangrove Delta (UNESCO & Ramsar Wetland)">🌴 Sundarbans</button>
+        <button class="eco-pill" onclick="selectBenchmarkRegion(14.4974, -14.4524, 'Sahel Semi-Arid Savanna', 'Semi-Arid Transition Belt, Senegal / Mali, Africa', this)" title="Tropical Semi-Arid Savanna & Acacia Steppe (Sahel Green Wall)">🏜️ Sahel Savanna</button>
+        <button class="eco-pill" onclick="selectBenchmarkRegion(64.1814, -51.6941, 'Greenland Ice Sheet Margin', 'Polar Ice Sheet & Permafrost Outlet, Nuuk, Arctic', this)" title="Polar Ice Sheet Margin & Low Arctic Shrub Tundra (Arctic Cryosphere)">🧊 Greenland Ice Margin</button>
       </div>
 
       <!-- Main Workspace Grid -->
@@ -532,7 +532,7 @@
               <button class="chart-toggle-btn" onclick="selectStudyAreaOption('draw')">Draw Custom Polygon</button>
               <button class="chart-toggle-btn" onclick="selectStudyAreaOption('point')">Select Point Location</button>
               <button class="chart-toggle-btn" onclick="selectStudyAreaOption('clear')">Clear Selection</button>
-              <button class="chart-toggle-btn" style="color:var(--es-mint); border-color:rgba(120,214,169,0.3);" onclick="selectStudyAreaOption('confirm')">Confirm Study Area</button>
+              <button class="chart-toggle-btn" style="color:var(--es-mint); border-color:rgba(45,212,191,0.25);" onclick="selectStudyAreaOption('confirm')">Confirm Study Area</button>
             </div>
 
             <div id="earthscopeMap" class="map-canvas-container"></div>
@@ -542,7 +542,7 @@
               <div><span style="color:var(--es-text-subtle);">REGION:</span> <b id="currentLocationTitle" style="color:#fff;">Kodagu Rainforest</b></div>
               <div><span style="color:var(--es-text-subtle);">COORDINATES:</span> <b id="currentCoordinatesDisplay" style="color:var(--es-mint);">12.3375°N, 75.8069°E</b></div>
               <div><span style="color:var(--es-text-subtle);">CRS:</span> <b>WGS 84 (EPSG:4326)</b></div>
-              <div><span style="color:var(--es-text-subtle);">GEOMETRY:</span> <b style="color:#22c55e;">VALID</b></div>
+              <div><span style="color:var(--es-text-subtle);">GEOMETRY:</span> <b style="color:var(--es-mint);">VALID</b></div>
             </div>
 
             <div id="studyAreaNotice" style="font-size:11px; color:var(--es-text-muted); margin-top:6px; font-style:italic;">
@@ -556,10 +556,10 @@
               <div>
                 <h3 class="view-card-title" style="margin:0 0 2px 0;">
                   <span>📈</span>
-                  <span>Historical Changes Over Time</span>
+                  <span>Historical Time-Series & Sen's Median Slope Trajectory</span>
                 </h3>
                 <span style="font-size:11.5px; color:var(--es-text-muted);">
-                  Explore how the selected environmental variable has changed across the analysis period.
+                  Monthly observational dot-plots and non-parametric monotonic trend fitted using Sen's median estimator.
                 </span>
               </div>
               <span style="font-family:var(--es-font-mono); font-size:10px; color:var(--es-text-muted);">
@@ -571,13 +571,12 @@
 
             <!-- Chart Options Controls -->
             <div class="chart-toggles-strip">
-              <span style="font-family:var(--es-font-mono); font-size:10px; color:var(--es-text-subtle); margin-right:4px;">CHART OPTIONS:</span>
-              <button class="chart-toggle-btn active">Original Observations</button>
-              <button class="chart-toggle-btn active">Monthly Summary</button>
-              <button class="chart-toggle-btn">Annual Summary</button>
-              <button class="chart-toggle-btn active">Estimated Trend</button>
-              <button class="chart-toggle-btn active">Confidence Interval</button>
-              <button class="chart-toggle-btn">Show Missing Observations</button>
+              <span style="font-family:var(--es-font-mono); font-size:10px; color:var(--es-text-subtle); margin-right:4px;">CHART CONTROLS:</span>
+              <button class="chart-toggle-btn active" onclick="toggleChartOption('trend', this)">Sen's Slope Trajectory</button>
+              <button class="chart-toggle-btn active" onclick="toggleChartOption('dots', this)">Observed Dot-Plot</button>
+              <button class="chart-toggle-btn active" onclick="toggleChartOption('ci', this)">Gilbert 95% CI Range</button>
+              <button class="chart-toggle-btn" onclick="toggleChartOption('smooth', this)">12-Month Rolling Mean</button>
+              <button class="chart-toggle-btn" onclick="switchTab('statlab')">Inspect Mann-Kendall Stats →</button>
             </div>
           </div>
 
@@ -622,42 +621,42 @@
 
             <!-- Priority Filter Bar -->
             <div class="priority-filter-bar">
-              <button class="prio-btn active" onclick="filterPriority('ALL', this)">All (8 Datasets)</button>
-              <button class="prio-btn" onclick="filterPriority('P0', this)">⭐ P0: Core Land & Climate</button>
-              <button class="prio-btn" onclick="filterPriority('P1', this)">🌊 P1: Hydrology & Reanalysis</button>
-              <button class="prio-btn" onclick="filterPriority('P2', this)">☁️ P2: Atmospheric Sounding</button>
+              <button class="prio-btn active" onclick="filterPriority('ALL', this)">All (17 Registered Variables)</button>
+              <button class="prio-btn" onclick="filterPriority('P0', this)">⭐ P0: Biosphere & Climate (6)</button>
+              <button class="prio-btn" onclick="filterPriority('P1', this)">🌊 P1: Hydrology, Cryosphere & Biomass (7)</button>
+              <button class="prio-btn" onclick="filterPriority('P2', this)">☁️ P2: Atmospheric Trace Gases & Aerosols (4)</button>
             </div>
 
             <!-- 17 Variable Selection Pills -->
             <div id="variablePillsContainer" class="variable-pills-wrap">
-              <!-- P0 -->
-              <button class="var-pill active" data-priority="P0" data-var="ndvi" onclick="toggleVar(this)">🌿 <span class="tier-tag tier-p0">[P0]</span> NDVI (MODIS MOD13Q1)</button>
+              <!-- P0: Core Biosphere, Climate & Disturbance -->
+              <button class="var-pill active" data-priority="P0" data-var="ndvi" onclick="toggleVar(this)">🌿 <span class="tier-tag tier-p0">[P0]</span> NDVI (MODIS MOD13Q1 / S2)</button>
               <button class="var-pill" data-priority="P0" data-var="evi" onclick="toggleVar(this)">🌱 <span class="tier-tag tier-p0">[P0]</span> EVI (MODIS MOD13Q1)</button>
-              <button class="var-pill active" data-priority="P0" data-var="lst_day" onclick="toggleVar(this)">☀️ <span class="tier-tag tier-p0">[P0]</span> Day LST (MODIS MOD11A2)</button>
-              <button class="var-pill" data-priority="P0" data-var="lst_night" onclick="toggleVar(this)">🌙 <span class="tier-tag tier-p0">[P0]</span> Night LST (MODIS MOD11A2)</button>
-              <button class="var-pill active" data-priority="P0" data-var="t2m" onclick="toggleVar(this)">🌡️ <span class="tier-tag tier-p0">[P0]</span> Air Temp (NASA POWER)</button>
-              <button class="var-pill active" data-priority="P0" data-var="precipitation" onclick="toggleVar(this)">🌧️ <span class="tier-tag tier-p0">[P0]</span> Rainfall (NASA POWER)</button>
+              <button class="var-pill active" data-priority="P0" data-var="t2m" onclick="toggleVar(this)">🌡️ <span class="tier-tag tier-p0">[P0]</span> T2M Air Temp (NASA POWER)</button>
+              <button class="var-pill" data-priority="P0" data-var="lst" onclick="toggleVar(this)">☀️ <span class="tier-tag tier-p0">[P0]</span> LST Skin Temp (MODIS MOD11A2)</button>
+              <button class="var-pill active" data-priority="P0" data-var="precipitation" onclick="toggleVar(this)">🌧️ <span class="tier-tag tier-p0">[P0]</span> Precipitation (GPM IMERG V07B)</button>
+              <button class="var-pill" data-priority="P0" data-var="active_fires" onclick="toggleVar(this)">🚨 <span class="tier-tag tier-p0">[P0]</span> Active Fires (FIRMS VIIRS / MODIS)</button>
 
-              <!-- P1 -->
-              <button class="var-pill" data-priority="P1" data-var="gpm_imerg" onclick="toggleVar(this)">💧 <span class="tier-tag tier-p1">[P1]</span> GPM IMERG Rain (V07B)</button>
-              <button class="var-pill" data-priority="P1" data-var="merra2_t2m" onclick="toggleVar(this)">🌐 <span class="tier-tag tier-p1">[P1]</span> MERRA-2 Temp</button>
-              <button class="var-pill" data-priority="P1" data-var="merra2_soilm" onclick="toggleVar(this)">🌾 <span class="tier-tag tier-p1">[P1]</span> MERRA-2 Soil Moisture</button>
-              <button class="var-pill" data-priority="P1" data-var="merra2_evap" onclick="toggleVar(this)">💨 <span class="tier-tag tier-p1">[P1]</span> MERRA-2 Evap</button>
-              <button class="var-pill" data-priority="P1" data-var="gldas_sm" onclick="toggleVar(this)">🪵 <span class="tier-tag tier-p1">[P1]</span> GLDAS Soil Moisture</button>
-              <button class="var-pill" data-priority="P1" data-var="gldas_runoff" onclick="toggleVar(this)">🌊 <span class="tier-tag tier-p1">[P1]</span> GLDAS Runoff</button>
-              <button class="var-pill" data-priority="P1" data-var="gldas_soiltemp" onclick="toggleVar(this)">♨️ <span class="tier-tag tier-p1">[P1]</span> GLDAS Soil Temp</button>
+              <!-- P1: Hydrology, Cryosphere, Surface Energy & Biomass -->
+              <button class="var-pill" data-priority="P1" data-var="ndwi" onclick="toggleVar(this)">💧 <span class="tier-tag tier-p1">[P1]</span> NDWI Water Index (MODIS / S2)</button>
+              <button class="var-pill" data-priority="P1" data-var="ndmi" onclick="toggleVar(this)">🌾 <span class="tier-tag tier-p1">[P1]</span> NDMI Canopy Moisture (Landsat / S2)</button>
+              <button class="var-pill" data-priority="P1" data-var="nbr" onclick="toggleVar(this)">🔥 <span class="tier-tag tier-p1">[P1]</span> NBR Burn Ratio (MODIS MOD09A1)</button>
+              <button class="var-pill" data-priority="P1" data-var="soilm" onclick="toggleVar(this)">🪵 <span class="tier-tag tier-p1">[P1]</span> Soil Moisture (SMAP L4 / MERRA-2)</button>
+              <button class="var-pill" data-priority="P1" data-var="snow_cover" onclick="toggleVar(this)">❄️ <span class="tier-tag tier-p1">[P1]</span> Snow Cover (MODIS MOD10A2)</button>
+              <button class="var-pill" data-priority="P1" data-var="albedo" onclick="toggleVar(this)">☀️ <span class="tier-tag tier-p1">[P1]</span> Surface Albedo (MODIS MCD43A3)</button>
+              <button class="var-pill" data-priority="P1" data-var="gedi_biomass" onclick="toggleVar(this)">🌲 <span class="tier-tag tier-p1">[P1]</span> GEDI Biomass (ISS GEDI L4A)</button>
 
-              <!-- P2 -->
-              <button class="var-pill" data-priority="P2" data-var="airs_temp" onclick="toggleVar(this)">🛰️ <span class="tier-tag tier-p2">[P2]</span> AIRS 500hPa Temp</button>
-              <button class="var-pill" data-priority="P2" data-var="airs_h2o" onclick="toggleVar(this)">🌫️ <span class="tier-tag tier-p2">[P2]</span> AIRS Water Vapour</button>
-              <button class="var-pill" data-priority="P2" data-var="omi_o3" onclick="toggleVar(this)">🛡️ <span class="tier-tag tier-p2">[P2]</span> OMI Ozone (DU)</button>
-              <button class="var-pill" data-priority="P2" data-var="omi_no2" onclick="toggleVar(this)">🏭 <span class="tier-tag tier-p2">[P2]</span> OMI NO₂ Column</button>
+              <!-- P2: Atmospheric Trace Gases & Aerosols -->
+              <button class="var-pill" data-priority="P2" data-var="no2" onclick="toggleVar(this)">🏭 <span class="tier-tag tier-p2">[P2]</span> NO₂ Column (Aura OMI / TROPOMI)</button>
+              <button class="var-pill" data-priority="P2" data-var="co" onclick="toggleVar(this)">💨 <span class="tier-tag tier-p2">[P2]</span> CO Column (Terra MOPITT)</button>
+              <button class="var-pill" data-priority="P2" data-var="aod" onclick="toggleVar(this)">🌫️ <span class="tier-tag tier-p2">[P2]</span> AOD Aerosol Depth (MODIS MAIAC)</button>
+              <button class="var-pill" data-priority="P2" data-var="ch4" onclick="toggleVar(this)">🧪 <span class="tier-tag tier-p2">[P2]</span> CH₄ Methane (Aqua AIRS / TROPOMI)</button>
             </div>
 
             <!-- Analysis Action Strip -->
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:8px; flex-wrap:wrap;">
               <span style="font-family:var(--es-font-mono); font-size:11px; color:var(--es-mint);">
-                Your Environmental Trend Results
+                Calibrated Earth System Trend Telemetry & Statistical Synthesis
               </span>
               <div style="display:flex; gap:6px;">
                 <button class="btn-primary" style="padding:5px 12px; font-size:11px;" onclick="runEarthscopeTrends()">
@@ -686,7 +685,7 @@
                 <div id="telemetryEonet" style="font-size:12px; font-weight:700; color:#fff; margin-top:2px;">Querying natural events...</div>
                 <div id="telemetryEonetSub" style="font-size:10px; color:var(--es-text-muted);">3° Radius Query</div>
               </div>
-              <div style="background:var(--es-surface); border:1px solid rgba(120,214,169,0.25); border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; justify-content:space-between;">
+              <div style="background:var(--es-surface); border:1px solid rgba(45,212,191,0.2); border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; justify-content:space-between;">
                 <div>
                   <div style="font-size:9.5px; color:var(--es-mint); font-family:var(--es-font-mono); text-transform:uppercase;">🛰️ Satellite Intelligence</div>
                   <div style="font-size:11px; color:#fff; margin-top:2px; font-weight:600;">Full Command Center</div>
@@ -876,11 +875,13 @@
 
             <!-- Comparison Controls Bar -->
             <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
-              <button class="chart-toggle-btn active" onclick="selectBenchmarkRegion(12.3375, 75.8069, 'Kodagu Rainforest', 'Western Ghats', this)">Add Study Region</button>
-              <button class="chart-toggle-btn" onclick="selectBenchmarkRegion(-3.1190, -60.0217, 'Amazon River Basin', 'Manaus', this)">Amazon Basin</button>
-              <button class="chart-toggle-btn" onclick="selectBenchmarkRegion(29.5300, 78.7747, 'Jim Corbett', 'Sub-Himalayan', this)">Jim Corbett</button>
-              <button class="chart-toggle-btn" onclick="selectBenchmarkRegion(21.9497, 89.1833, 'Sundarbans Delta', 'Bengal', this)">Sundarbans Delta</button>
-              <button class="btn-primary" style="padding:4px 10px; font-size:10.5px;" onclick="runEarthscopeTrends()">Generate Comparison</button>
+              <button class="chart-toggle-btn active" onclick="selectBenchmarkRegion(12.3375, 75.8069, 'Kodagu Rainforest', 'Western Ghats Moist Deciduous & Evergreen, India', this)">🌿 Kodagu</button>
+              <button class="chart-toggle-btn" onclick="selectBenchmarkRegion(-3.1190, -60.0217, 'Amazon River Basin', 'Manaus Core Tropical Rainforest, Brazil', this)">🌳 Amazon Basin</button>
+              <button class="chart-toggle-btn" onclick="selectBenchmarkRegion(29.5300, 78.7747, 'Jim Corbett Biosphere Reserve', 'Sub-Himalayan Shivalik Terai Foothills, India', this)">🌲 Jim Corbett</button>
+              <button class="chart-toggle-btn" onclick="selectBenchmarkRegion(21.9497, 89.1833, 'Sundarbans Mangrove Delta', 'Tidal Halophytic Mangrove Biosphere, India / Bangladesh', this)">🌴 Sundarbans</button>
+              <button class="chart-toggle-btn" onclick="selectBenchmarkRegion(14.4974, -14.4524, 'Sahel Semi-Arid Savanna', 'Semi-Arid Transition Belt, Senegal / Mali, Africa', this)">🏜️ Sahel Savanna</button>
+              <button class="chart-toggle-btn" onclick="selectBenchmarkRegion(64.1814, -51.6941, 'Greenland Ice Sheet Margin', 'Polar Ice Sheet & Permafrost Outlet, Nuuk, Arctic', this)">🧊 Greenland Ice Margin</button>
+              <button class="btn-primary" style="padding:4px 10px; font-size:10.5px;" onclick="runEarthscopeTrends()">Synthesize Comparison Matrix</button>
             </div>
 
             <div id="correlationsContainer">
@@ -951,7 +952,7 @@
               </div>
 
               <!-- Grounded Interpretation Box -->
-              <div style="background:rgba(120,214,169,0.04); border:1px solid rgba(120,214,169,0.2); border-radius:6px; padding:12px; margin-top:8px;">
+              <div style="background:rgba(45,212,191,0.04); border:1px solid rgba(45,212,191,0.2); border-radius:6px; padding:12px; margin-top:8px;">
                 <span style="font-family:var(--es-font-mono); font-size:10px; color:var(--es-mint); font-weight:700; display:block; margin-bottom:4px;">VERIFIED SCIENTIFIC SYNTHESIS</span>
                 <p id="aiAnalystSummaryText" style="font-size:12.5px; line-height:1.6; color:#D1D1D6; margin:0;">
                   Run trend analysis to generate a deterministic, evidence-grounded scientific explanation strictly adhering to NASA Challenge 2 standards.
@@ -1083,7 +1084,7 @@
 <section class="page-view" data-view="satellites">
  <div class="page-head">
   <div><div class="eyebrow"><span></span> 04 / SATELLITE FLEET</div><h1>Satellites & <b>Missions.</b></h1><p>16 NASA, ESA and ISRO Earth-observation constellations with Before ↔ After dual-map split comparison.</p></div>
-  <div class="head-meta"><span class="utc">16 ACTIVE CONSTELLATIONS</span><small>OPTICAL · SAR RADAR · METEOROLOGY · LiDAR</small></div>
+  <div class="head-meta"><span class="utc" id="missionStatus">16 ACTIVE CONSTELLATIONS</span><small>OPTICAL · SAR RADAR · METEOROLOGY · LiDAR</small></div>
  </div>
 
  <!-- Before/After Split Comparison Workspace Trigger Banner -->
@@ -1095,6 +1096,22 @@
   </div>
   <button class="btn-primary" id="openCompareBtn"><i data-lucide="split"></i> OPEN SATELLITE COMPARISON</button>
  </section>
+
+ <!-- Mission Filter & Search Toolbar -->
+ <div class="toolbar" style="margin-bottom:16px;">
+  <div class="filter-pills" id="missionFilters">
+   <button class="selected" data-filter="all">ALL MISSIONS (16)</button>
+   <button data-filter="optical">OPTICAL</button>
+   <button data-filter="radar">SAR RADAR</button>
+   <button data-filter="thermal">THERMAL & FIRE</button>
+   <button data-filter="climate">CLIMATE & ATMOSPHERE</button>
+   <button data-filter="lidar">LiDAR & GRAV</button>
+  </div>
+  <div class="mini-search">
+   <i data-lucide="search"></i>
+   <input id="missionSearch" type="search" placeholder="Search constellations, sensors (MSI, OLI, GEDI...)...">
+  </div>
+ </div>
 
  <div class="mission-grid" id="missionGrid"><div class="loading">Discovering connected mission platforms and data-product catalogues…</div></div>
 </section>
@@ -1232,6 +1249,7 @@
      <option value="soil_moisture">Soil Moisture Deficit</option>
      <option value="t2m">Near-Surface Temperature</option>
      <option value="fire_risk">Wildfire Hazard Index</option>
+     <option value="precipitation">Precipitation Total</option>
     </select>
    </div>
    <div>
@@ -1247,7 +1265,7 @@
     </select>
    </div>
    <div>
-    <button class="btn-primary" id="runPredictionSection" style="width:100%; height:36px;"><i data-lucide="trending-up"></i> RUN FORECAST</button>
+    <button class="btn-primary" id="runPredictionSection" style="width:100%; height:36px;"><i data-lucide="trending-up"></i> RUN MULTI-STEP PROJECTION</button>
    </div>
   </div>
  </div>
@@ -1343,17 +1361,27 @@
   <div class="stat-card"><small>Soil Moisture Deficit</small><b id="wsOutDeficit">0 mm</b><em>Root-zone available balance</em></div>
  </div>
 
- <div class="panel" style="margin-top:14px; padding:16px;">
-  <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
-   <div>
-    <small style="font:8px var(--mono); color:#718a94;">FLASH FLOOD HAZARD TIER</small>
-    <div id="wsFloodTier" style="font-size:18px; font-weight:700; color:var(--mint); margin-top:4px;">LOW / RESILIENT</div>
-    <p style="font-size:10px; color:#8fa5ad; margin-top:4px;">Intact forest canopy cushions precipitation impact and promotes rapid infiltration.</p>
+ <div class="panel" style="margin-top:14px; padding:16px; background:linear-gradient(145deg,rgba(16,32,49,0.85),rgba(8,21,33,0.95)); border:1px solid var(--line); border-radius:12px;">
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px;">
+   <div style="background:rgba(9,20,30,0.65); border:1px solid var(--line); border-radius:10px; padding:14px;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+     <small style="font:8px var(--mono); color:#718a94; letter-spacing:.1em;">FLASH FLOOD HAZARD TIER</small>
+     <span style="font:7px var(--mono); color:var(--muted);">SCS RUNOFF SENSITIVITY</span>
+    </div>
+    <div style="margin-top:8px;">
+     <span id="wsFloodTier" style="display:inline-block; padding:5px 12px; border-radius:6px; font:700 13px var(--mono); letter-spacing:.08em; color:var(--mint); background:rgba(126,224,182,0.12); border:1px solid rgba(126,224,182,0.35);">LOW RISK</span>
+    </div>
+    <p id="wsFloodDesc" style="font-size:10px; color:#8fa5ad; margin-top:8px; line-height:1.6;">Intact forest canopy cushions precipitation impact and promotes rapid infiltration.</p>
    </div>
-   <div>
-    <small style="font:8px var(--mono); color:#718a94;">DROUGHT STRESS VULNERABILITY</small>
-    <div id="wsDroughtTier" style="font-size:18px; font-weight:700; color:var(--mint); margin-top:4px;">BALANCED</div>
-    <p style="font-size:10px; color:#8fa5ad; margin-top:4px;">Soil water reserve sufficient to sustain root-zone transpiration through dry intervals.</p>
+   <div style="background:rgba(9,20,30,0.65); border:1px solid var(--line); border-radius:10px; padding:14px;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+     <small style="font:8px var(--mono); color:#718a94; letter-spacing:.1em;">DROUGHT STRESS VULNERABILITY</small>
+     <span style="font:7px var(--mono); color:var(--muted);">MASS-BALANCE EQUILIBRIUM</span>
+    </div>
+    <div style="margin-top:8px;">
+     <span id="wsDroughtTier" style="display:inline-block; padding:5px 12px; border-radius:6px; font:700 13px var(--mono); letter-spacing:.08em; color:var(--mint); background:rgba(126,224,182,0.12); border:1px solid rgba(126,224,182,0.35);">BALANCED</span>
+    </div>
+    <p id="wsDroughtDesc" style="font-size:10px; color:#8fa5ad; margin-top:8px; line-height:1.6;">Soil water reserve sufficient to sustain root-zone transpiration through dry intervals.</p>
    </div>
   </div>
  </div>
@@ -1381,10 +1409,10 @@
    <div>
     <label style="display:block; margin-bottom:4px; font:8px var(--mono); color:#718a94;">VARIABLE METRIC</label>
     <select id="cmpMetricSelect" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; background:rgba(255,255,255,0.04); color:#fff; font-size:11px;">
-     <option value="NDVI">Vegetation Health (NDVI)</option>
-     <option value="T2M">Near-Surface Temperature</option>
-     <option value="Precipitation">Precipitation Total</option>
-     <option value="SoilMoisture">Soil Moisture</option>
+     <option value="ndvi">Vegetation Health (NDVI)</option>
+     <option value="t2m">Near-Surface Temperature</option>
+     <option value="precipitation">Precipitation Total</option>
+     <option value="soil_moisture">Soil Moisture</option>
     </select>
    </div>
    <div>
@@ -1653,9 +1681,9 @@
  <div class="dialog-inner">
   <div class="dialog-head"><div><small>EARTH OBSERVATION LAB · SATELLITE COMPARISON</small><h2>Before ↔ After Satellite Observation</h2></div><button class="icon-btn" id="closeCompare" type="button"><i data-lucide="x"></i></button></div>
   <div class="compare-controls">
-   <div><label>BEFORE DATE</label><input id="beforeDate" type="date"></div>
-   <div><label>AFTER DATE</label><input id="afterDate" type="date"></div>
-   <div><label>SPECTRAL MODE</label><select id="compareMode"><option value="true_color">True colour (RGB)</option><option value="false_color">False colour (NIR/Red/Green)</option><option value="ndvi">NDVI (Vegetation Index)</option><option value="ndmi">NDMI (Moisture Index)</option><option value="nbr">NBR (Burn Ratio)</option><option value="ndwi">NDWI (Water Index)</option></select></div>
+   <div><label>BEFORE DATE</label><input id="beforeDate" type="date" value="2022-02-15"></div>
+   <div><label>AFTER DATE</label><input id="afterDate" type="date" value="2025-02-15"></div>
+   <div><label>SPECTRAL MODE</label><select id="compareMode"><option value="true_color" selected>True colour (RGB)</option><option value="false_color">False colour (NIR/Red/Green)</option><option value="ndvi">NDVI (Vegetation Index)</option><option value="ndmi">NDMI (Moisture Index)</option><option value="nbr">NBR (Burn Ratio)</option><option value="ndwi">NDWI (Water Index)</option></select></div>
    <div><label>MAX CLOUD %</label><input id="compareCloud" type="number" min="5" max="100" value="50"></div>
    <button id="loadCompare" class="btn-primary" type="button"><i data-lucide="layers"></i> LOAD SCENES</button>
   </div>
@@ -1664,7 +1692,10 @@
    <div id="compareAfterWrap" class="compare-after-wrap"><div id="compareAfter" class="compare-map"></div></div>
    <input id="compareSlider" class="compare-slider" type="range" min="0" max="100" value="50">
   </div>
-  <div class="compare-meta" id="compareMeta">Drag the center slider to inspect before and after observations across the same geographical coordinates.</div>
+  <div class="compare-footer-bar">
+    <div class="compare-meta" id="compareMeta">Drag the center slider to inspect before and after observations across the same geographical coordinates.</div>
+    <div class="split-readout" id="splitValue">SPLIT 50%</div>
+  </div>
  </div>
 </dialog>
 

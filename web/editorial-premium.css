@@ -404,10 +404,10 @@ body{overflow:hidden}
  display:grid;grid-template-columns:minmax(0,1.4fr) minmax(260px,.9fr);gap:28px;
  padding:24px 26px;margin-bottom:16px;align-items:center;
  background:linear-gradient(130deg,rgba(13,30,36,.88),rgba(8,12,18,.82));
- border-color:rgba(120,214,169,.18);
+ border-color:rgba(45,212,191,.2);
 }
 .trend-detective-intro>div:first-child>small{
- color:#78d6a9;font:600 8px var(--font-body);letter-spacing:.17em
+ color:#2dd4bf;font:600 8px var(--font-body);letter-spacing:.17em
 }
 .trend-detective-intro h2{
  max-width:660px;margin:8px 0 7px;color:#f4f8f7;
