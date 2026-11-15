@@ -679,6 +679,19 @@ module.exports = async function handler(req, res) {
       signal: AbortSignal.timeout(55000)
     });
 
+    // Older Render deployments may not yet contain the newer research routes.
+    // Prefer the real backend route; activate the local adapter only on a route 404.
+    if (upstream.status === 404) {
+      const compatibility = await compatFallback(path, method, req);
+      if (compatibility) {
+        res.statusCode = compatibility.status;
+        res.setHeader("content-type", "application/json; charset=utf-8");
+        res.setHeader("cache-control", "no-store");
+        res.end(JSON.stringify(compatibility.body));
+        return;
+      }
+    }
+
     res.statusCode = upstream.status;
     for (const [key, value] of upstream.headers.entries()) {
       if (!BLOCKED_RESPONSE_HEADERS.has(key.toLowerCase())) res.setHeader(key, value);
