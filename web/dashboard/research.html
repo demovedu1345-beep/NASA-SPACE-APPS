@@ -1207,7 +1207,7 @@
 
       const earthGroup = new THREE.Group();
       scene.add(earthGroup);
-      const earthGeometry = new THREE.SphereGeometry(0.93, 256, 128);
+      const earthGeometry = new THREE.SphereGeometry(0.93, 384, 192);
       const basePositions = model.applyWgs84Ellipsoid(THREE, earthGeometry, 0.93);
       const terrain = { enabled: true, ready: false, failed: false, heights: null };
       const earthMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 20, specular: new THREE.Color(0x557a96) });
